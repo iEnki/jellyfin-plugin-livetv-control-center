@@ -32,6 +32,8 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     public const string ChannelName = "Live-TV Gruppen";
 
     private const string GroupPrefix = "ltvgroup_";
+    private const string GuidePrefix = "ltvguide_";
+    private const string GuideRootId = GuidePrefix + "root";
     // Changing this prefix re-creates all channel items (e.g. to replace stale images stored by Jellyfin).
     private const string ChannelPrefix = "ltvch4_";
 
@@ -128,13 +130,15 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
 
         if (string.IsNullOrEmpty(query.FolderId))
         {
-            items = doc.Groups.Select(g => new ChannelItemInfo
+            items = doc.Groups.Select(g => Folder(GetFolderExternalId(g.Id), g.Name)).ToList();
+            if (Plugin.Instance?.Configuration.EnableGuideFilter == true && doc.Groups.Count > 0)
             {
-                Id = GetFolderExternalId(g.Id),
-                Name = g.Name,
-                Type = ChannelItemType.Folder,
-                FolderType = ChannelFolderType.Container
-            }).ToList();
+                items.Insert(0, Folder(GuideRootId, "📺 Programmführer wählen"));
+            }
+        }
+        else if (query.FolderId.StartsWith(GuidePrefix, StringComparison.Ordinal))
+        {
+            items = GetGuideItems(user.Id, query.FolderId);
         }
         else
         {
@@ -166,6 +170,66 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
         }
 
         return new ChannelItemResult { Items = items, TotalRecordCount = items.Count };
+    }
+
+    private static ChannelItemInfo Folder(string id, string name)
+        => new() { Id = id, Name = name, Type = ChannelItemType.Folder, FolderType = ChannelFolderType.Container };
+
+    /// <summary>
+    /// Items of the "choose program guide" folder. Opening a group entry makes it the active guide group, which
+    /// <see cref="Web.GuideFilterMiddleware"/> applies to the channel list of TV apps.
+    /// Jellyfin only stores names when an item is created, so the active state is part of the item ids.
+    /// </summary>
+    private List<ChannelItemInfo> GetGuideItems(Guid userId, string folderId)
+    {
+        var doc = _groups.Store.Get(userId);
+
+        if (folderId == GuideRootId)
+        {
+            var active = doc.ActiveGuideGroupId;
+            var list = new List<ChannelItemInfo>
+            {
+                Folder(GuidePrefix + "all_" + (active is null ? "1" : "0"), (active is null ? "✔ " : string.Empty) + "Alle Sender")
+            };
+            list.AddRange(doc.Groups.Select(g =>
+            {
+                var isActive = g.Id == active;
+                return Folder(
+                    GuidePrefix + "g_" + g.Id.ToString("N", CultureInfo.InvariantCulture) + "_" + (isActive ? "1" : "0"),
+                    (isActive ? "✔ " : string.Empty) + g.Name);
+            }));
+            return list;
+        }
+
+        Guid? selected = null;
+        string name = "Alle Sender";
+        if (folderId.StartsWith(GuidePrefix + "g_", StringComparison.Ordinal)
+            && Guid.TryParse(folderId.Substring(GuidePrefix.Length + 2, 32), out var groupId))
+        {
+            var group = doc.Groups.FirstOrDefault(g => g.Id == groupId);
+            if (group is null)
+            {
+                return [];
+            }
+
+            selected = group.Id;
+            name = group.Name;
+        }
+        else if (!folderId.StartsWith(GuidePrefix + "all_", StringComparison.Ordinal))
+        {
+            return [];
+        }
+
+        if (doc.ActiveGuideGroupId != selected)
+        {
+            _groups.Store.Update(userId, d =>
+            {
+                d.ActiveGuideGroupId = selected;
+                return true;
+            });
+        }
+
+        return [Folder(GuidePrefix + "info_" + (selected?.ToString("N", CultureInfo.InvariantCulture) ?? "all"), "✔ Aktiv: " + name + " – jetzt Live-TV → Programmführer öffnen")];
     }
 
     /// <inheritdoc />

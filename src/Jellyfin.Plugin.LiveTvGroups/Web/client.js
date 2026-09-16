@@ -21,7 +21,7 @@
         livePages: ['#liveTvPage', '#liveTvSuggestedPage']
     };
 
-    var state = { open: false, groupId: null, groupName: '', reorder: false };
+    var state = { open: false, groupId: null, groupName: '', reorder: false, groupTab: 'channels', guideStart: null, guideTimer: null, guideTick: 0 };
 
     /* ---------- helpers ---------- */
 
@@ -184,8 +184,16 @@
         renderGroups();
     }
 
+    function stopGuideTimer() {
+        if (state.guideTimer) {
+            window.clearInterval(state.guideTimer);
+            state.guideTimer = null;
+        }
+    }
+
     function closePanel() {
         state.open = false;
+        stopGuideTimer();
         var panel = document.getElementById(PANEL_ID);
         if (panel) {
             panel.remove();
@@ -226,9 +234,16 @@
     function renderGroups() {
         state.groupId = null;
         state.reorder = false;
+        state.groupTab = 'channels';
+        stopGuideTimer();
         renderLoading('Sendergruppen');
 
-        api('GET', 'LiveTvGroups/Groups').then(function (groups) {
+        Promise.all([
+            api('GET', 'LiveTvGroups/Groups'),
+            api('GET', 'LiveTvGroups/GuideFilter').catch(function () { return { GroupId: null }; })
+        ]).then(function (results) {
+            var groups = results[0];
+            var activeGuideGroup = results[1] ? normalizeId(results[1].GroupId) : null;
             var panel = panelElement();
             if (!panel) {
                 return;
@@ -241,6 +256,15 @@
                 + '</div></div>'
                 + '<div class="ltvg-error" hidden></div>';
 
+            if (groups.length) {
+                var activeGroup = groups.filter(function (g) { return normalizeId(g.Id) === activeGuideGroup; })[0];
+                html += '<div class="ltvg-guide-filter">📺 TV-Programmführer (Fire TV, Android TV, …): '
+                    + (activeGroup
+                        ? '<b>' + escapeHtml(activeGroup.Name) + '</b> <button type="button" class="ltvg-btn ltvg-btn-small" data-action="guide-filter" data-id="">Alle Sender anzeigen</button>'
+                        : '<b>Alle Sender</b> – mit 📺 an einer Gruppe nur deren Sender anzeigen')
+                    + '</div>';
+            }
+
             if (!groups.length) {
                 html += '<div class="ltvg-empty">Noch keine Gruppen. Lege mit „Neue Gruppe“ deine erste Gruppe an.</div>';
             } else {
@@ -252,6 +276,7 @@
                         + '<span class="ltvg-card-sub">' + group.ChannelCount + ' Sender</span>'
                         + '</button>'
                         + '<div class="ltvg-card-tools">'
+                        + '<button type="button" class="ltvg-icon-btn' + (normalizeId(group.Id) === activeGuideGroup ? ' ltvg-icon-active' : '') + '" title="Im TV-Programmführer anzeigen" data-action="guide-filter" data-id="' + escapeHtml(normalizeId(group.Id) === activeGuideGroup ? '' : group.Id) + '">📺</button>'
                         + '<button type="button" class="ltvg-icon-btn" title="Umbenennen" data-action="rename" data-id="' + escapeHtml(group.Id) + '" data-name="' + escapeHtml(group.Name) + '">✎</button>'
                         + '<button type="button" class="ltvg-icon-btn" title="Löschen" data-action="delete" data-id="' + escapeHtml(group.Id) + '" data-name="' + escapeHtml(group.Name) + '">🗑</button>'
                         + '</div></div>';
@@ -268,9 +293,30 @@
 
     /* ---------- group view ---------- */
 
+    function groupHeader(groupName, actionsHtml) {
+        return '<div class="ltvg-header">'
+            + '<button type="button" class="ltvg-btn" data-action="back">‹ Gruppen</button>'
+            + '<h2>' + escapeHtml(groupName) + '</h2>'
+            + '<div class="ltvg-tabs" role="tablist">'
+            + '<button type="button" role="tab" class="ltvg-tab' + (state.groupTab === 'channels' ? ' ltvg-tab-active' : '') + '" data-action="tab" data-tab="channels">Sender</button>'
+            + '<button type="button" role="tab" class="ltvg-tab' + (state.groupTab === 'guide' ? ' ltvg-tab-active' : '') + '" data-action="tab" data-tab="guide">Programm</button>'
+            + '</div>'
+            + '<div class="ltvg-actions">' + (actionsHtml || '') + '</div></div>'
+            + '<div class="ltvg-error" hidden></div>';
+    }
+
     function renderGroup(groupId, groupName) {
+        if (state.groupId !== groupId) {
+            state.groupTab = 'channels';
+            state.guideStart = null;
+        }
         state.groupId = groupId;
         state.groupName = groupName;
+        if (state.groupTab === 'guide') {
+            renderGuide();
+            return;
+        }
+        stopGuideTimer();
         renderLoading(groupName);
 
         api('GET', 'LiveTvGroups/Groups/' + groupId + '/Channels').then(function (result) {
@@ -280,17 +326,12 @@
             }
 
             var items = result.Items || [];
-            var html = '<div class="ltvg-header">'
-                + '<button type="button" class="ltvg-btn" data-action="back">‹ Gruppen</button>'
-                + '<h2>' + escapeHtml(groupName) + '</h2>'
-                + '<div class="ltvg-actions">'
-                + (items.length > 1
+            var html = groupHeader(groupName,
+                (items.length > 1
                     ? '<button type="button" class="ltvg-btn' + (state.reorder ? ' ltvg-btn-primary' : '') + '" data-action="toggle-reorder">'
                         + (state.reorder ? 'Fertig' : 'Reihenfolge ändern') + '</button>'
                     : '')
-                + '<button type="button" class="ltvg-btn ltvg-btn-primary" data-action="edit-channels">Sender auswählen</button>'
-                + '</div></div>'
-                + '<div class="ltvg-error" hidden></div>';
+                + '<button type="button" class="ltvg-btn ltvg-btn-primary" data-action="edit-channels">Sender auswählen</button>');
 
             if (!items.length) {
                 html += '<div class="ltvg-empty">Diese Gruppe enthält noch keine Sender.</div>';
@@ -327,6 +368,205 @@
             panel.dataset.channelIds = JSON.stringify(items.map(function (i) { return i.Id; }));
         }).catch(showError);
     }
+
+    /* ---------- program guide ---------- */
+
+    var GUIDE_SLOT_MINUTES = 30;
+
+    function normalizeId(id) {
+        return id ? String(id).replace(/-/g, '').toLowerCase() : null;
+    }
+
+    function guideHours() {
+        return window.innerWidth < 700 ? 3 : 6;
+    }
+
+    function pixelsPerMinute() {
+        return window.innerWidth < 700 ? 4 : 5;
+    }
+
+    function roundToSlot(date) {
+        var d = new Date(date.getTime());
+        d.setSeconds(0, 0);
+        d.setMinutes(d.getMinutes() - (d.getMinutes() % GUIDE_SLOT_MINUTES));
+        return d;
+    }
+
+    function formatDay(date) {
+        return date.toLocaleDateString([], { weekday: 'short', day: '2-digit', month: '2-digit' });
+    }
+
+    function renderGuide(keepScroll) {
+        var groupId = state.groupId;
+        var groupName = state.groupName;
+        var panel = panelElement();
+        if (!panel) {
+            return;
+        }
+
+        if (!state.guideStart) {
+            state.guideStart = roundToSlot(new Date(Date.now() - 30 * 60000)).getTime();
+        }
+
+        var start = new Date(state.guideStart);
+        var end = new Date(state.guideStart + guideHours() * 3600000);
+        var oldScroller = panel.querySelector('.ltvg-guide-scroll');
+        var previousScroll = keepScroll && oldScroller ? oldScroller.scrollLeft : null;
+
+        if (!keepScroll) {
+            panel.innerHTML = groupHeader(groupName) + '<div class="ltvg-empty">Lädt Programm…</div>';
+        }
+
+        api('GET', 'LiveTvGroups/Groups/' + groupId + '/Guide?start=' + encodeURIComponent(start.toISOString()) + '&end=' + encodeURIComponent(end.toISOString())).then(function (guide) {
+            panel = panelElement();
+            if (!panel || state.groupId !== groupId || state.groupTab !== 'guide') {
+                return;
+            }
+
+            var ppm = pixelsPerMinute();
+            var totalMinutes = (end.getTime() - start.getTime()) / 60000;
+            var width = totalMinutes * ppm;
+            var channels = guide.Channels || [];
+            var programsByChannel = {};
+            (guide.Programs || []).forEach(function (program) {
+                var key = normalizeId(program.ChannelId);
+                (programsByChannel[key] = programsByChannel[key] || []).push(program);
+            });
+
+            var today = new Date();
+            today.setHours(0, 0, 0, 0);
+            var dayOptions = '';
+            for (var d = 0; d < 7; d++) {
+                var day = new Date(today.getTime() + d * 86400000);
+                var selected = start.getTime() >= day.getTime() && start.getTime() < day.getTime() + 86400000;
+                dayOptions += '<option value="' + day.getTime() + '"' + (selected ? ' selected' : '') + '>'
+                    + (d === 0 ? 'Heute' : d === 1 ? 'Morgen' : formatDay(day)) + '</option>';
+            }
+
+            var html = groupHeader(groupName)
+                + '<div class="ltvg-guide-toolbar">'
+                + '<button type="button" class="ltvg-btn" data-action="guide-shift" data-hours="-3">‹ früher</button>'
+                + '<button type="button" class="ltvg-btn" data-action="guide-now">Jetzt</button>'
+                + '<button type="button" class="ltvg-btn" data-action="guide-shift" data-hours="3">später ›</button>'
+                + '<select class="ltvg-input ltvg-guide-day" data-action="guide-day" aria-label="Tag">' + dayOptions + '</select>'
+                + '<span class="ltvg-guide-range">' + escapeHtml(formatDay(start) + ' ' + formatTime(start) + '–' + formatTime(end)) + '</span>'
+                + '</div>';
+
+            if (!channels.length) {
+                panel.innerHTML = html + '<div class="ltvg-empty">Diese Gruppe enthält noch keine Sender.</div>';
+                return;
+            }
+
+            html += '<div class="ltvg-guide-scroll"><div class="ltvg-guide" style="width:calc(var(--ltvg-guide-ch) + ' + width + 'px)">';
+
+            html += '<div class="ltvg-guide-row ltvg-guide-timeline"><div class="ltvg-guide-ch"></div><div class="ltvg-guide-cells" style="width:' + width + 'px">';
+            for (var m = 0; m < totalMinutes; m += GUIDE_SLOT_MINUTES) {
+                html += '<span class="ltvg-guide-slot" style="left:' + (m * ppm) + 'px;width:' + (GUIDE_SLOT_MINUTES * ppm) + 'px">'
+                    + formatTime(new Date(start.getTime() + m * 60000)) + '</span>';
+            }
+            html += '</div></div>';
+
+            var now = Date.now();
+            var hasPrograms = false;
+            channels.forEach(function (channel) {
+                var image = channel.ImageTags && channel.ImageTags.Primary
+                    ? client().getScaledImageUrl(channel.Id, { type: 'Primary', maxHeight: 80, tag: channel.ImageTags.Primary })
+                    : null;
+                html += '<div class="ltvg-guide-row">'
+                    + '<button type="button" class="ltvg-guide-ch" data-action="play" data-id="' + escapeHtml(channel.Id) + '" title="' + escapeHtml(channel.Name) + ' abspielen">'
+                    + (image ? '<img alt="" loading="lazy" src="' + escapeHtml(image) + '">' : '')
+                    + '<span class="ltvg-guide-ch-name">' + (channel.ChannelNumber ? '<span class="ltvg-number">' + escapeHtml(channel.ChannelNumber) + '</span> ' : '') + escapeHtml(channel.Name) + '</span>'
+                    + '</button><div class="ltvg-guide-cells" style="width:' + width + 'px">';
+
+                var programs = programsByChannel[normalizeId(channel.Id)] || [];
+                if (!programs.length) {
+                    html += '<span class="ltvg-guide-noprog">Keine Programmdaten</span>';
+                }
+
+                programs.forEach(function (program) {
+                    var programStart = new Date(program.StartDate).getTime();
+                    var programEnd = new Date(program.EndDate).getTime();
+                    var ps = Math.max(programStart, start.getTime());
+                    var pe = Math.min(programEnd, end.getTime());
+                    if (!(pe > ps)) {
+                        return;
+                    }
+                    hasPrograms = true;
+
+                    var classes = 'ltvg-guide-prog';
+                    if (programStart <= now && programEnd > now) {
+                        classes += ' ltvg-guide-live';
+                    }
+                    if (program.IsMovie) {
+                        classes += ' ltvg-cat-movie';
+                    } else if (program.IsSports) {
+                        classes += ' ltvg-cat-sports';
+                    } else if (program.IsNews) {
+                        classes += ' ltvg-cat-news';
+                    } else if (program.IsKids) {
+                        classes += ' ltvg-cat-kids';
+                    }
+
+                    var times = formatTime(program.StartDate) + '–' + formatTime(program.EndDate);
+                    var label = (program.Name || '') + (program.EpisodeTitle ? ' – ' + program.EpisodeTitle : '');
+                    html += '<button type="button" class="' + classes + '"'
+                        + ' style="left:' + ((ps - start.getTime()) / 60000 * ppm) + 'px;width:' + Math.max(2, (pe - ps) / 60000 * ppm - 2) + 'px"'
+                        + ' data-action="program" data-id="' + escapeHtml(program.Id) + '" title="' + escapeHtml(label + ' (' + times + ')') + '">'
+                        + '<span class="ltvg-guide-prog-title">' + (program.TimerId ? '<span class="ltvg-guide-rec">●</span> ' : '') + escapeHtml(program.Name) + '</span>'
+                        + '<span class="ltvg-guide-prog-time">' + times + (program.EpisodeTitle ? ' · ' + escapeHtml(program.EpisodeTitle) : '') + '</span>'
+                        + '</button>';
+                });
+                html += '</div></div>';
+            });
+
+            html += '<div class="ltvg-guide-now" hidden></div></div></div>';
+            if (!hasPrograms) {
+                html += '<div class="ltvg-hint">Für diesen Zeitraum liefern die Sender keine Programmdaten (EPG). Prüfe die Guide-Daten unter Dashboard → Live-TV.</div>';
+            }
+
+            panel.innerHTML = html;
+
+            var updateNowLine = function () {
+                var line = panel.querySelector('.ltvg-guide-now');
+                var t = Date.now();
+                if (!line || t < start.getTime() || t > end.getTime()) {
+                    if (line) {
+                        line.hidden = true;
+                    }
+                    return null;
+                }
+                var offset = (t - start.getTime()) / 60000 * ppm;
+                line.style.left = 'calc(var(--ltvg-guide-ch) + ' + offset + 'px)';
+                line.hidden = false;
+                return offset;
+            };
+
+            var scroller = panel.querySelector('.ltvg-guide-scroll');
+            var nowOffset = updateNowLine();
+            if (previousScroll !== null) {
+                scroller.scrollLeft = previousScroll;
+            } else if (nowOffset !== null) {
+                scroller.scrollLeft = Math.max(0, nowOffset - 120);
+            }
+
+            // Move the "now" line every minute, reload program data every 5 minutes.
+            stopGuideTimer();
+            state.guideTick = 0;
+            state.guideTimer = window.setInterval(function () {
+                if (!panelElement() || state.groupTab !== 'guide' || state.groupId !== groupId) {
+                    stopGuideTimer();
+                    return;
+                }
+                state.guideTick++;
+                if (state.guideTick % 5 === 0) {
+                    renderGuide(true);
+                } else {
+                    updateNowLine();
+                }
+            }, 60000);
+        }).catch(showError);
+    }
+
 
     function play(itemId) {
         var apiClient = client();
@@ -576,6 +816,27 @@
             case 'back':
                 renderGroups();
                 break;
+            case 'tab':
+                state.groupTab = target.dataset.tab;
+                state.reorder = false;
+                renderGroup(state.groupId, state.groupName);
+                break;
+            case 'guide-shift':
+                state.guideStart += Number(target.dataset.hours) * 3600000;
+                renderGuide();
+                break;
+            case 'guide-now':
+                state.guideStart = null;
+                renderGuide();
+                break;
+            case 'guide-day':
+                return;
+            case 'program':
+                window.location.hash = '#/details?id=' + encodeURIComponent(id);
+                break;
+            case 'guide-filter':
+                api('PUT', 'LiveTvGroups/GuideFilter', { GroupId: id || null }).then(renderGroups).catch(showError);
+                break;
             case 'toggle-reorder':
                 state.reorder = !state.reorder;
                 renderGroup(state.groupId, state.groupName);
@@ -591,6 +852,20 @@
         }
 
         event.preventDefault();
+    });
+
+    document.addEventListener('change', function (event) {
+        var panel = panelElement();
+        var target = event.target;
+        if (!panel || !panel.contains(target) || target.dataset.action !== 'guide-day') {
+            return;
+        }
+        var dayStart = Number(target.value);
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        // Today starts at the current time, other days in the evening.
+        state.guideStart = dayStart === today.getTime() ? null : dayStart + 18 * 3600000;
+        renderGuide();
     });
 
     // Switching to another Live TV view closes the groups panel.

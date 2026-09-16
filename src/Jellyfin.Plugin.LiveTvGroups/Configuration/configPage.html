@@ -38,6 +38,18 @@
                         </label>
                         <div class="fieldDescription checkboxFieldDescription">Für Apps ohne Kanal-Unterstützung (z. B. Wholphin). Jede Gruppe erscheint als Wiedergabeliste „Live-TV: Name“ des jeweiligen Benutzers. Benötigt den App-Kanal. Beim Ausschalten werden diese Wiedergabelisten wieder entfernt.</div>
                     </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnableGuideFilter" type="checkbox" is="emby-checkbox" />
+                            <span>Gruppe im TV-Programmführer anzeigen</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Hat ein Benutzer eine Gruppe für den Programmführer gewählt (Web: 📺 an der Gruppe, TV: Kanäle → Live-TV Gruppen → „Programmführer wählen“), zeigen TV-Apps wie Fire TV, Android TV oder Wholphin im Live-TV nur die Sender dieser Gruppe.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="GuideFilterExcludedClients">Apps ohne Gruppenfilter</label>
+                        <input id="GuideFilterExcludedClients" type="text" is="emby-input" />
+                        <div class="fieldDescription">Kommagetrennte App-Namen, die immer alle Sender erhalten (Standard: „Jellyfin Web“, der Web-Client hat eigene Gruppen- und Programmansichten).</div>
+                    </div>
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
                             <span>Speichern</span>
@@ -79,6 +91,8 @@
                         page.querySelector('#EnableWebIntegration').checked = config.EnableWebIntegration;
                         page.querySelector('#EnableAppChannel').checked = config.EnableAppChannel;
                         page.querySelector('#EnablePlaylistSync').checked = config.EnablePlaylistSync;
+                        page.querySelector('#EnableGuideFilter').checked = config.EnableGuideFilter;
+                        page.querySelector('#GuideFilterExcludedClients').value = config.GuideFilterExcludedClients || '';
                         Dashboard.hideLoadingMsg();
                     });
                 });
@@ -90,6 +104,8 @@
                         config.EnableWebIntegration = page.querySelector('#EnableWebIntegration').checked;
                         config.EnableAppChannel = page.querySelector('#EnableAppChannel').checked;
                         config.EnablePlaylistSync = page.querySelector('#EnablePlaylistSync').checked;
+                        config.EnableGuideFilter = page.querySelector('#EnableGuideFilter').checked;
+                        config.GuideFilterExcludedClients = page.querySelector('#GuideFilterExcludedClients').value;
                         ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
                             Dashboard.processPluginConfigurationUpdateResult(result);
                         });

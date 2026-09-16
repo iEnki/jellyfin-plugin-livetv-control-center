@@ -21,4 +21,14 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets a value indicating whether groups are mirrored as playlists for apps without channel support.
     /// </summary>
     public bool EnablePlaylistSync { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether TV apps only receive the channels of the user's active guide group.
+    /// </summary>
+    public bool EnableGuideFilter { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets comma separated client names (e.g. "Jellyfin Web") that always receive all channels.
+    /// </summary>
+    public string GuideFilterExcludedClients { get; set; } = "Jellyfin Web";
 }

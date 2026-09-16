@@ -22,6 +22,11 @@ public class UserGroups
     /// Gets or sets the playlists created for the groups, keyed by group id.
     /// </summary>
     public Dictionary<Guid, Guid> PlaylistIds { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the group shown in the program guide of TV apps; <c>null</c> shows all channels.
+    /// </summary>
+    public Guid? ActiveGuideGroupId { get; set; }
 }
 
 /// <summary>
