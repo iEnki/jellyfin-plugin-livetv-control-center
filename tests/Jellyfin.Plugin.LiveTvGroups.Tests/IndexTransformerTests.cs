@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Jellyfin.Plugin.LiveTvGroups.Web;
 using Xunit;
 
@@ -6,31 +5,28 @@ namespace Jellyfin.Plugin.LiveTvGroups.Tests;
 
 public class IndexTransformerTests
 {
-    [Fact]
-    public void InsertsScriptOnceBeforeBody()
+    private static string Transform(string contents) => IndexTransformer.Transform(new TransformationPayload { Contents = contents });
+
+    [Theory]
+    [InlineData("<!DOCTYPE html><html><body><div></div></body></html>")]
+    [InlineData("\n  <html lang=\"de\"><body></body></html>")]
+    public void InsertsScriptOnceBeforeBody(string html)
     {
-        var once = IndexTransformer.Transform(new TransformationPayload { Contents = "<html><body><div></div></body></html>" });
-        var twice = IndexTransformer.Transform(new TransformationPayload { Contents = once });
+        var once = Transform(html);
+        var twice = Transform(once);
 
         Assert.Equal(once, twice);
         Assert.EndsWith("defer></script></body></html>", once, System.StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void LeavesContentWithoutBodyUnchanged()
-    {
-        const string chunk = "(self.webpackChunk=self.webpackChunk||[]).push([[17244],{1:e=>{e.exports='<div> </div>'}}]);";
-
-        Assert.Equal(chunk, IndexTransformer.Transform(new TransformationPayload { Contents = chunk }));
-    }
-
     [Theory]
-    [InlineData("index.html", true)]
-    [InlineData("session-login-index-html.748f2ea433c30fd200a8.chunk.js", false)]
-    [InlineData("main.jellyfin.bundle.js", false)]
-    [InlineData("index.htmlx", false)]
-    [InlineData("foo/index.html.map", false)]
-    [InlineData("xindex.html", false)]
-    public void PatternOnlyMatchesIndexHtml(string path, bool expected)
-        => Assert.Equal(expected, Regex.IsMatch(path, IndexTransformer.FileNamePattern));
+    [InlineData("(self.webpackChunk=self.webpackChunk||[]).push([[17244],{1:e=>{e.exports='<div> </div>'}}]);")]
+    [InlineData("(self.webpackChunk=self.webpackChunk||[]).push([[1],{1:e=>{e.exports='<html><body></body></html>'}}]);")]
+    [InlineData("body { color: red; }")]
+    public void LeavesNonHtmlDocumentsUnchanged(string contents)
+        => Assert.Equal(contents, Transform(contents));
+
+    [Fact]
+    public void UsesSharedIndexHtmlKey()
+        => Assert.Equal("index.html", IndexTransformer.FileNamePattern);
 }

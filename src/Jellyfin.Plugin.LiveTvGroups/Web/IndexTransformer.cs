@@ -18,13 +18,14 @@ public class TransformationPayload
 /// </summary>
 public static class IndexTransformer
 {
-    // index.html is served from /web/, so a relative path works with any configured base URL.
     /// <summary>
-    /// File Transformation matches this regex against the path relative to /web/. It must be anchored and escaped:
-    /// "index.html" also matched chunks like "session-login-index-html.*.chunk.js" and broke the web client.
+    /// File Transformation runs only the pipeline of an exact key match ("index.html", used by other plugins) and
+    /// ignores other patterns for that file, so the same key must be used. As a regex it also matches files like
+    /// "session-login-index-html.*.chunk.js"; <see cref="Transform"/> therefore only changes real HTML documents.
     /// </summary>
-    public const string FileNamePattern = @"^index\.html$";
+    public const string FileNamePattern = "index.html";
 
+    // index.html is served from /web/, so a relative path works with any configured base URL.
     private const string ScriptTag = "<script src=\"../LiveTvGroups/client.js\" defer></script>";
 
     /// <summary>
@@ -40,7 +41,14 @@ public static class IndexTransformer
             return contents;
         }
 
-        // Only touch real HTML documents; anything else is returned unchanged.
+        // Only touch real HTML documents; JavaScript chunks and other files are returned unchanged.
+        var head = contents.TrimStart();
+        if (!head.StartsWith("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase)
+            && !head.StartsWith("<html", StringComparison.OrdinalIgnoreCase))
+        {
+            return contents;
+        }
+
         var index = contents.LastIndexOf("</body>", StringComparison.OrdinalIgnoreCase);
         return index < 0 ? contents : contents.Insert(index, ScriptTag);
     }
