@@ -33,7 +33,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
 
     private const string GroupPrefix = "ltvgroup_";
     // Changing this prefix re-creates all channel items (e.g. to replace stale images stored by Jellyfin).
-    private const string ChannelPrefix = "ltvch2_";
+    private const string ChannelPrefix = "ltvch3_";
 
     private static readonly TimeSpan ProbeCacheDuration = TimeSpan.FromHours(6);
 
@@ -68,7 +68,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     public string Description => "Eigene Sendergruppen aus Live-TV.";
 
     /// <inheritdoc />
-    public string DataVersion => "2"; // Bump together with ChannelPrefix: Jellyfin caches channel results for 3 hours per data version.
+    public string DataVersion => "3"; // Bump together with ChannelPrefix: Jellyfin caches channel results for 3 hours per data version.
 
     /// <inheritdoc />
     public string HomePageUrl => "https://github.com/iEnki/jellyfin-plugin-livetv-groups";
@@ -158,7 +158,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
                     ContentType = ChannelMediaContentType.Clip,
                     IsLiveStream = true,
                     IndexNumber = index + 1,
-                    ImageUrl = GetRemoteLogoUrl(channel)
+                    ImageUrl = GetLogoPath(channel)
                 })
                 .ToList();
         }
@@ -174,8 +174,8 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     /// </remarks>
     public async Task<IEnumerable<MediaSourceInfo>> GetChannelItemMediaInfo(string id, CancellationToken cancellationToken)
     {
-        // Items created by older versions ("ltvchannel_") may still be cached by Jellyfin or referenced by playlists.
-        if (!(id.StartsWith(ChannelPrefix, StringComparison.Ordinal) || id.StartsWith("ltvchannel_", StringComparison.Ordinal))
+        // Items created by older versions ("ltvchannel_", "ltvch2_") may still be cached by Jellyfin or referenced by playlists.
+        if (!id.StartsWith("ltvch", StringComparison.Ordinal)
             || !Guid.TryParse(id[^32..], out var itemId)
             || _serviceProvider.GetRequiredService<ILibraryManager>().GetItemById(itemId) is not LiveTvChannel channel
             || string.IsNullOrEmpty(channel.ExternalId))
@@ -287,16 +287,13 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     }
 
     /// <summary>
-    /// Gets the logo URL of a live TV channel as provided by the tuner (e.g. tvg-logo of an M3U).
-    /// Jellyfin downloads channel item images itself, so only absolute http(s) URLs can be used.
+    /// Gets the logo of a live TV channel. Jellyfin usually stores tuner logos as local files; channel items accept
+    /// local paths as well as http(s) URLs, but only set the image when an item is created.
     /// </summary>
-    private static string? GetRemoteLogoUrl(LiveTvChannel channel)
+    private static string? GetLogoPath(LiveTvChannel channel)
     {
         var path = channel.GetImageInfo(ImageType.Primary, 0)?.Path;
-        return path is not null
-            && (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                ? path
-                : null;
+        return string.IsNullOrEmpty(path) ? null : path;
     }
 
     /// <summary>
