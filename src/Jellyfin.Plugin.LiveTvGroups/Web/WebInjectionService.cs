@@ -88,7 +88,7 @@ public class WebInjectionService : IHostedService
             var json = JsonSerializer.Serialize(new
             {
                 id = TransformationId,
-                fileNamePattern = "index.html",
+                fileNamePattern = IndexTransformer.FileNamePattern,
                 callbackAssembly = typeof(WebInjectionService).Assembly.FullName,
                 callbackClass = typeof(IndexTransformer).FullName,
                 callbackMethod = nameof(IndexTransformer.Transform)
