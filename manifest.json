@@ -8,6 +8,14 @@
     "category": "Live TV",
     "versions": [
       {
+        "version": "0.2.4.0",
+        "changelog": "Release v0.2.4",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.2.4/live-tv-groups_0.2.4.0.zip",
+        "checksum": "17589d0558b7ad842f1e085a9e11a894",
+        "timestamp": "2026-09-16T15:19:28Z"
+      },
+      {
         "version": "0.2.3.0",
         "changelog": "Release v0.2.3",
         "targetAbi": "12.0.0.0",
