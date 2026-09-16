@@ -32,11 +32,15 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     public const string ChannelName = "Live-TV Gruppen";
 
     private const string GroupPrefix = "ltvgroup_";
-    private const string ChannelPrefix = "ltvchannel_";
+    // Changing this prefix re-creates all channel items (e.g. to replace stale images stored by Jellyfin).
+    private const string ChannelPrefix = "ltvch2_";
+
+    private static readonly TimeSpan ProbeCacheDuration = TimeSpan.FromHours(6);
 
     private readonly GroupService _groups;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<GroupsChannel> _logger;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, ProbeResult> _probeCache = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GroupsChannel"/> class.
@@ -188,7 +192,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
                     continue;
                 }
 
-                return sources.Select((source, index) =>
+                var result = sources.Select((source, index) =>
                 {
                     // Jellyfin does not assign ids to channel media sources; clients need one to request the stream.
                     source.Id = (id + "_" + index.ToString(CultureInfo.InvariantCulture)).GetMD5().ToString("N", CultureInfo.InvariantCulture);
@@ -200,8 +204,12 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
                     source.LiveStreamId = null;
                     source.SupportsDirectPlay = false;
                     source.IsInfiniteStream = true;
+                    source.AnalyzeDurationMs = 3000;
                     return source;
                 }).ToList();
+
+                await AddStreamInfoAsync(channel, result[0], cancellationToken).ConfigureAwait(false);
+                return result;
             }
             catch (Exception ex)
             {
@@ -211,6 +219,70 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
 
         _logger.LogWarning("No stream found for channel {Channel} ({ExternalId})", channel.Name, channel.ExternalId);
         return [];
+    }
+
+    /// <summary>
+    /// Adds codec information to the source. Without it Jellyfin probes the live stream for minutes and transcodes
+    /// with worst-case settings; regular live TV avoids this by probing when the stream is opened.
+    /// </summary>
+    private async Task AddStreamInfoAsync(LiveTvChannel channel, MediaSourceInfo source, CancellationToken cancellationToken)
+    {
+        if (!_probeCache.TryGetValue(channel.Id, out var cached) || cached.Expires < DateTime.UtcNow)
+        {
+            try
+            {
+                var probeSource = new MediaSourceInfo
+                {
+                    Path = source.Path,
+                    Protocol = source.Protocol,
+                    Container = source.Container,
+                    IsRemote = source.IsRemote,
+                    IsInfiniteStream = true,
+                    SupportsProbing = true,
+                    RequiredHttpHeaders = source.RequiredHttpHeaders,
+                    MediaStreams = []
+                };
+
+                await _serviceProvider.GetRequiredService<IMediaSourceManager>()
+                    .AddMediaInfoWithProbe(probeSource, false, null, false, true, cancellationToken)
+                    .ConfigureAwait(false);
+
+                cached = new ProbeResult(
+                    probeSource.MediaStreams
+                        .Where(s => s.Type == MediaStreamType.Video).Take(1)
+                        .Concat(probeSource.MediaStreams.Where(s => s.Type == MediaStreamType.Audio).Take(1))
+                        .ToList(),
+                    probeSource.Bitrate,
+                    probeSource.Container,
+                    DateTime.UtcNow.Add(ProbeCacheDuration));
+
+                if (cached.Streams.Count > 0)
+                {
+                    _probeCache[channel.Id] = cached;
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Could not probe stream of channel {Channel}", channel.Name);
+                return;
+            }
+        }
+
+        if (cached.Streams.Count == 0)
+        {
+            return;
+        }
+
+        // Like regular live TV: stream indexes of live sources are not stable, so let ffmpeg pick the first ones.
+        source.MediaStreams = cached.Streams.Select(s =>
+        {
+            var copy = System.Text.Json.JsonSerializer.Deserialize<MediaStream>(System.Text.Json.JsonSerializer.Serialize(s))!;
+            copy.Index = -1;
+            copy.Language = null;
+            return copy;
+        }).ToList();
+        source.Bitrate = cached.Bitrate;
+        source.Container ??= cached.Container;
     }
 
     /// <summary>
@@ -263,4 +335,6 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
 
     /// <inheritdoc />
     public IEnumerable<ImageType> GetSupportedChannelImages() => [];
+
+    private sealed record ProbeResult(IReadOnlyList<MediaStream> Streams, int? Bitrate, string? Container, DateTime Expires);
 }
