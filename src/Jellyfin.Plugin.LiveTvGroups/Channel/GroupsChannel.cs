@@ -68,7 +68,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     public string Description => "Eigene Sendergruppen aus Live-TV.";
 
     /// <inheritdoc />
-    public string DataVersion => "1";
+    public string DataVersion => "2"; // Bump together with ChannelPrefix: Jellyfin caches channel results for 3 hours per data version.
 
     /// <inheritdoc />
     public string HomePageUrl => "https://github.com/iEnki/jellyfin-plugin-livetv-groups";
@@ -174,7 +174,8 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     /// </remarks>
     public async Task<IEnumerable<MediaSourceInfo>> GetChannelItemMediaInfo(string id, CancellationToken cancellationToken)
     {
-        if (!id.StartsWith(ChannelPrefix, StringComparison.Ordinal)
+        // Items created by older versions ("ltvchannel_") may still be cached by Jellyfin or referenced by playlists.
+        if (!(id.StartsWith(ChannelPrefix, StringComparison.Ordinal) || id.StartsWith("ltvchannel_", StringComparison.Ordinal))
             || !Guid.TryParse(id[^32..], out var itemId)
             || _serviceProvider.GetRequiredService<ILibraryManager>().GetItemById(itemId) is not LiveTvChannel channel
             || string.IsNullOrEmpty(channel.ExternalId))
