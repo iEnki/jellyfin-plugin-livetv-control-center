@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Jellyfin.Data;
 using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.LiveTvGroups.Services;
+using MediaBrowser.Common.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Channels;
 using MediaBrowser.Controller.Library;
@@ -143,7 +144,6 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
                 return Task.FromResult(new ChannelItemResult());
             }
 
-            var baseUrl = _serviceProvider.GetRequiredService<IServerApplicationHost>().GetLocalApiUrl("127.0.0.1");
             items = _groups.ResolveChannels(user, group, _groups.GetAccessibleChannels(user))
                 .Select((channel, index) => new ChannelItemInfo
                 {
@@ -154,9 +154,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
                     ContentType = ChannelMediaContentType.Clip,
                     IsLiveStream = true,
                     IndexNumber = index + 1,
-                    ImageUrl = channel.HasImage(ImageType.Primary, 0)
-                        ? baseUrl + "/Items/" + channel.Id.ToString("N", CultureInfo.InvariantCulture) + "/Images/Primary"
-                        : null
+                    ImageUrl = GetRemoteLogoUrl(channel)
                 })
                 .ToList();
         }
@@ -190,9 +188,12 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
                     continue;
                 }
 
-                return sources.Select(source =>
+                return sources.Select((source, index) =>
                 {
-                    source.Id = null;
+                    // Jellyfin does not assign ids to channel media sources; clients need one to request the stream.
+                    source.Id = (id + "_" + index.ToString(CultureInfo.InvariantCulture)).GetMD5().ToString("N", CultureInfo.InvariantCulture);
+                    source.Container ??= GetContainer(source.Path);
+                    source.SupportsProbing = true;
                     source.RequiresOpening = false;
                     source.RequiresClosing = false;
                     source.OpenToken = null;
@@ -210,6 +211,33 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
 
         _logger.LogWarning("No stream found for channel {Channel} ({ExternalId})", channel.Name, channel.ExternalId);
         return [];
+    }
+
+    /// <summary>
+    /// Gets the logo URL of a live TV channel as provided by the tuner (e.g. tvg-logo of an M3U).
+    /// Jellyfin downloads channel item images itself, so only absolute http(s) URLs can be used.
+    /// </summary>
+    private static string? GetRemoteLogoUrl(LiveTvChannel channel)
+    {
+        var path = channel.GetImageInfo(ImageType.Primary, 0)?.Path;
+        return path is not null
+            && (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                ? path
+                : null;
+    }
+
+    /// <summary>
+    /// Derives the container from the stream URL (e.g. ".ts"); manifests and unknown extensions are left to probing.
+    /// </summary>
+    internal static string? GetContainer(string? path)
+    {
+        if (!Uri.TryCreate(path, UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        var extension = System.IO.Path.GetExtension(uri.AbsolutePath).TrimStart('.').ToLowerInvariant();
+        return extension is "ts" or "mp4" or "mkv" or "flv" ? extension : null;
     }
 
     /// <summary>
