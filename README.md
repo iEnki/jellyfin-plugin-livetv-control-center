@@ -1,38 +1,39 @@
-# Live-TV Groups für Jellyfin
+# Live-TV Groups for Jellyfin
 
-Jellyfin-Plugin, mit dem jeder Benutzer Live-TV-Sender zu eigenen Gruppen zusammenfassen kann, z. B. „Öffentlich-Rechtliche“, „Sport“ oder „Doku“.
+A Jellyfin plugin that lets every user organize Live TV channels into personal groups, e.g. "Public broadcasters", "Sports" or "Documentaries".
 
-- **Web-Client:** In Live-TV erscheint der Button **Gruppen**. Dort legst du Gruppen an, wählst Sender aus, sortierst per Drag & Drop und startest Sender direkt.
-- **Apps** (Android TV, Mobile, …): Die Gruppen erscheinen unter **Kanäle → Live-TV Gruppen**.
-- **Apps ohne Kanal-Unterstützung** (z. B. Wholphin): Optional erscheinen die Gruppen als Wiedergabelisten „Live-TV: Name“. Einschalten unter Dashboard → Plugins → Live-TV Groups.
-- Gruppen sind **pro Benutzer**. Gesperrte Sender (Jugendschutz, Freigaben) bleiben unsichtbar.
+- **Web client:** Live TV gets a **Groups** button. Create groups, pick channels, reorder them via drag & drop and start channels directly.
+- **Apps** (Android TV, mobile, …): groups are available under **Channels → Live-TV Gruppen**.
+- **Apps without channel support** (e.g. Wholphin): optionally, groups are mirrored as playlists named "Live-TV: &lt;group&gt;". Enable it under Dashboard → Plugins → Live-TV Groups.
+- Groups are **per user**. Channels a user may not access (parental control, channel restrictions) stay hidden.
 
-Voraussetzung: **Jellyfin 12.0**.
+Requires **Jellyfin 12.0**.
 
 ## Installation
 
-1. Dashboard → Plugins → Repositorys → **+** und diese URL eintragen:
+1. Dashboard → Plugins → Repositories → **+** and add:
    ```
    https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/latest/download/manifest.json
    ```
-2. Für die Web-Integration zusätzlich das Repository von **File Transformation** hinzufügen:
+2. For the web client integration, also add the **File Transformation** repository:
    ```
    https://www.iamparadox.dev/jellyfin/plugins/manifest.json
    ```
-3. Im Katalog **Live-TV Groups** und **File Transformation** installieren und Jellyfin neu starten.
-4. Status prüfen: Dashboard → Plugins → Live-TV Groups.
+3. Install **Live-TV Groups** and **File Transformation** from the catalog and restart Jellyfin.
+4. Check the status under Dashboard → Plugins → Live-TV Groups.
 
-## Hinweise
+## Notes
 
-- Ändern sich die Sender-IDs, etwa weil die M3U neu erzeugt und neu eingelesen wurde, ordnet das Plugin die Sender über Name und Nummer neu zu.
-- **App-Kanal:** Jellyfin kann Live-Streams über Kanäle nicht auf dem normalen Live-TV-Weg öffnen. Das Plugin reicht den Tuner-Stream deshalb direkt weiter, und der Server remuxt ihn. Die Begrenzung gleichzeitiger Tuner-Streams greift dabei **nicht**. Beachte das Verbindungslimit deines Anbieters.
+- If channel ids change (e.g. the M3U was regenerated and re-imported), channels are matched again by name and number.
+- **App channel and playlists:** Jellyfin cannot open live streams through channels the regular Live TV way. The plugin therefore probes the tuner stream and passes it to the server, which remuxes it. Jellyfin's tuner limit does **not** apply here, so keep your provider's connection limit in mind. The stream URL is part of the playback info sent to clients.
+- The web integration depends on the jellyfin-web UI; major Jellyfin updates may require a new plugin version.
 
-## Entwicklung
+## Development
 
 ```bash
 dotnet test
 ```
 
-Release: Tag `vX.Y.Z` pushen. GitHub Actions baut das Plugin, erstellt das Release und trägt die Version in `manifest.json` ein.
+Release: push a tag `vX.Y.Z`. GitHub Actions builds the plugin, creates the release, adds the version to `manifest.json` and attaches the manifest to the release.
 
-Lizenz: GPL-3.0
+License: GPL-3.0

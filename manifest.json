@@ -2,67 +2,10 @@
   {
     "guid": "7b3792b4-b988-4ec5-b9e5-1a952a652b83",
     "name": "Live-TV Groups",
-    "description": "Sender in Live-TV zu eigenen Gruppen pro Benutzer zusammenfassen. Gruppen erscheinen im Web-Client unter Live-TV und in den Apps als Kanal.",
-    "overview": "Sendergruppen für Live-TV",
+    "description": "Group Live TV channels into personal groups per user. Groups appear in the web client under Live TV, as a channel in apps, and optionally as playlists.",
+    "overview": "Channel groups for Live TV",
     "owner": "iEnki",
     "category": "Live TV",
-    "versions": [
-      {
-        "version": "0.2.4.0",
-        "changelog": "Release v0.2.4",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.2.4/live-tv-groups_0.2.4.0.zip",
-        "checksum": "17589d0558b7ad842f1e085a9e11a894",
-        "timestamp": "2026-09-16T15:19:28Z"
-      },
-      {
-        "version": "0.2.3.0",
-        "changelog": "Release v0.2.3",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.2.3/live-tv-groups_0.2.3.0.zip",
-        "checksum": "f95b99ac4ddb8d0136b1ad184dc03ca5",
-        "timestamp": "2026-09-16T13:53:53Z"
-      },
-      {
-        "version": "0.2.2.0",
-        "changelog": "Release v0.2.2",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.2.2/live-tv-groups_0.2.2.0.zip",
-        "checksum": "63f3430524c0131b2f8579c1b2b4a4f1",
-        "timestamp": "2026-09-16T13:39:23Z"
-      },
-      {
-        "version": "0.2.1.0",
-        "changelog": "Release v0.2.1",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.2.1/live-tv-groups_0.2.1.0.zip",
-        "checksum": "d92314b034acc6d192bd56367c4ffd15",
-        "timestamp": "2026-09-16T13:31:53Z"
-      },
-      {
-        "version": "0.2.0.0",
-        "changelog": "Release v0.2.0",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.2.0/live-tv-groups_0.2.0.0.zip",
-        "checksum": "0506d9597f8f1376f65f7b54b6a7ee59",
-        "timestamp": "2026-09-16T12:11:26Z"
-      },
-      {
-        "version": "0.1.1.0",
-        "changelog": "Release v0.1.1",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.1.1/live-tv-groups_0.1.1.0.zip",
-        "checksum": "751d7225b944b59ce80c7823782da16d",
-        "timestamp": "2026-09-16T11:04:08Z"
-      },
-      {
-        "version": "0.1.0.0",
-        "changelog": "Release v0.1.0",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.1.0/live-tv-groups_0.1.0.0.zip",
-        "checksum": "26a1614142e57dfee0b33a51445af659",
-        "timestamp": "2026-09-16T10:43:50Z"
-      }
-    ]
+    "versions": []
   }
 ]
