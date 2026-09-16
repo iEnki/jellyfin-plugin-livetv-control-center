@@ -6,6 +6,15 @@
     "overview": "Channel groups for Live TV",
     "owner": "iEnki",
     "category": "Live TV",
-    "versions": []
+    "versions": [
+      {
+        "version": "0.1.0.0",
+        "changelog": "Release v0.1.0",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.1.0/live-tv-groups_0.1.0.0.zip",
+        "checksum": "1126d7bf8d6b72e2d308409a0f9c379f",
+        "timestamp": "2026-09-16T17:03:15Z"
+      }
+    ]
   }
 ]
