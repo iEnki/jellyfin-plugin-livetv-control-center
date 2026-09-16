@@ -8,6 +8,7 @@ using Jellyfin.Plugin.LiveTvGroups.Storage;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Model.LiveTv;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.LiveTvGroups.Services;
 
@@ -17,17 +18,21 @@ namespace Jellyfin.Plugin.LiveTvGroups.Services;
 public class GroupService
 {
     private readonly GroupStore _store;
-    private readonly ILiveTvManager _liveTvManager;
+    private readonly IServiceProvider _serviceProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GroupService"/> class.
     /// </summary>
     /// <param name="store">Group store.</param>
-    /// <param name="liveTvManager">Live TV manager.</param>
-    public GroupService(GroupStore store, ILiveTvManager liveTvManager)
+    /// <param name="serviceProvider">Service provider.</param>
+    /// <remarks>
+    /// Jellyfin services are resolved lazily: the channel manager constructs all <c>IChannel</c> instances
+    /// and is itself a dependency of <see cref="ILiveTvManager"/>, so constructor injection causes a cycle.
+    /// </remarks>
+    public GroupService(GroupStore store, IServiceProvider serviceProvider)
     {
         _store = store;
-        _liveTvManager = liveTvManager;
+        _serviceProvider = serviceProvider;
     }
 
     /// <summary>
@@ -42,7 +47,7 @@ public class GroupService
     /// <returns>Channels keyed by item id.</returns>
     public IReadOnlyDictionary<Guid, LiveTvChannel> GetAccessibleChannels(User user)
     {
-        var result = _liveTvManager.GetInternalChannels(
+        var result = _serviceProvider.GetRequiredService<ILiveTvManager>().GetInternalChannels(
             new LiveTvChannelQuery { UserId = user.Id },
             new DtoOptions(false),
             CancellationToken.None);

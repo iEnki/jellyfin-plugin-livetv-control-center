@@ -15,6 +15,7 @@ using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Channels;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.LiveTvGroups.Channel;
@@ -28,36 +29,27 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     private const string ChannelPrefix = "ltvchannel_";
 
     private readonly GroupService _groups;
-    private readonly IUserManager _userManager;
-    private readonly ILibraryManager _libraryManager;
-    private readonly ITunerHostManager _tunerHostManager;
-    private readonly IServerApplicationHost _appHost;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<GroupsChannel> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GroupsChannel"/> class.
     /// </summary>
     /// <param name="groups">Group service.</param>
-    /// <param name="userManager">User manager.</param>
-    /// <param name="libraryManager">Library manager.</param>
-    /// <param name="tunerHostManager">Tuner host manager.</param>
-    /// <param name="appHost">Application host.</param>
+    /// <param name="serviceProvider">Service provider.</param>
     /// <param name="logger">Logger.</param>
-    public GroupsChannel(
-        GroupService groups,
-        IUserManager userManager,
-        ILibraryManager libraryManager,
-        ITunerHostManager tunerHostManager,
-        IServerApplicationHost appHost,
-        ILogger<GroupsChannel> logger)
+    /// <remarks>
+    /// Jellyfin services are resolved lazily: this channel is created while the channel manager is being
+    /// constructed, and most live TV services depend on the channel manager (circular dependency at startup).
+    /// </remarks>
+    public GroupsChannel(GroupService groups, IServiceProvider serviceProvider, ILogger<GroupsChannel> logger)
     {
         _groups = groups;
-        _userManager = userManager;
-        _libraryManager = libraryManager;
-        _tunerHostManager = tunerHostManager;
-        _appHost = appHost;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
+
+    private IUserManager UserManager => _serviceProvider.GetRequiredService<IUserManager>();
 
     /// <inheritdoc />
     public string Name => "Live-TV Gruppen";
@@ -92,7 +84,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
             return false;
         }
 
-        var user = _userManager.GetUserById(id);
+        var user = UserManager.GetUserById(id);
         return user is not null && user.HasPermission(PermissionKind.EnableLiveTvAccess);
     }
 
@@ -115,7 +107,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     /// <inheritdoc />
     public Task<ChannelItemResult> GetChannelItems(InternalChannelItemQuery query, CancellationToken cancellationToken)
     {
-        var user = query.UserId.Equals(Guid.Empty) ? null : _userManager.GetUserById(query.UserId);
+        var user = query.UserId.Equals(Guid.Empty) ? null : UserManager.GetUserById(query.UserId);
         if (user is null)
         {
             return Task.FromResult(new ChannelItemResult());
@@ -146,7 +138,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
                 return Task.FromResult(new ChannelItemResult());
             }
 
-            var baseUrl = _appHost.GetLocalApiUrl("127.0.0.1");
+            var baseUrl = _serviceProvider.GetRequiredService<IServerApplicationHost>().GetLocalApiUrl("127.0.0.1");
             items = _groups.ResolveChannels(user, group, _groups.GetAccessibleChannels(user))
                 .Select((channel, index) => new ChannelItemInfo
                 {
@@ -177,13 +169,13 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     {
         if (!id.StartsWith(ChannelPrefix, StringComparison.Ordinal)
             || !Guid.TryParse(id[ChannelPrefix.Length..], out var itemId)
-            || _libraryManager.GetItemById(itemId) is not LiveTvChannel channel
+            || _serviceProvider.GetRequiredService<ILibraryManager>().GetItemById(itemId) is not LiveTvChannel channel
             || string.IsNullOrEmpty(channel.ExternalId))
         {
             return [];
         }
 
-        foreach (var host in _tunerHostManager.TunerHosts)
+        foreach (var host in _serviceProvider.GetRequiredService<ITunerHostManager>().TunerHosts)
         {
             try
             {
