@@ -30,6 +30,7 @@ public class GroupsController : ControllerBase
     private readonly IUserManager _userManager;
     private readonly IDtoService _dtoService;
     private readonly WebInjectionStatus _injectionStatus;
+    private readonly PlaylistSyncService _playlistSync;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GroupsController"/> class.
@@ -38,8 +39,15 @@ public class GroupsController : ControllerBase
     /// <param name="userManager">User manager.</param>
     /// <param name="dtoService">DTO service.</param>
     /// <param name="injectionStatus">Web injection status.</param>
-    public GroupsController(GroupService groups, IUserManager userManager, IDtoService dtoService, WebInjectionStatus injectionStatus)
+    /// <param name="playlistSync">Playlist sync service.</param>
+    public GroupsController(
+        GroupService groups,
+        IUserManager userManager,
+        IDtoService dtoService,
+        WebInjectionStatus injectionStatus,
+        PlaylistSyncService playlistSync)
     {
+        _playlistSync = playlistSync;
         _groups = groups;
         _userManager = userManager;
         _dtoService = dtoService;
@@ -91,6 +99,7 @@ public class GroupsController : ControllerBase
             return created;
         });
 
+        _playlistSync.QueueSync(user.Id);
         return Ok(ToDto(group));
     }
 
@@ -127,6 +136,7 @@ public class GroupsController : ControllerBase
             return group is not null;
         });
 
+        _playlistSync.QueueSync(user.Id);
         return found ? NoContent() : NotFound();
     }
 
@@ -146,6 +156,7 @@ public class GroupsController : ControllerBase
         }
 
         var removed = _groups.Store.Update(user.Id, doc => doc.Groups.RemoveAll(g => g.Id == groupId) > 0);
+        _playlistSync.QueueSync(user.Id);
         return removed ? NoContent() : NotFound();
     }
 
@@ -173,6 +184,7 @@ public class GroupsController : ControllerBase
             return true;
         });
 
+        _playlistSync.QueueSync(user.Id);
         return NoContent();
     }
 
@@ -245,6 +257,7 @@ public class GroupsController : ControllerBase
             return group is not null;
         });
 
+        _playlistSync.QueueSync(user.Id);
         return found ? NoContent() : NotFound();
     }
 

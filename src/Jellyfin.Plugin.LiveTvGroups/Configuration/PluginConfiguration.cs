@@ -16,4 +16,9 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets a value indicating whether groups are exposed as a channel for native apps.
     /// </summary>
     public bool EnableAppChannel { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether groups are mirrored as playlists for apps without channel support.
+    /// </summary>
+    public bool EnablePlaylistSync { get; set; }
 }

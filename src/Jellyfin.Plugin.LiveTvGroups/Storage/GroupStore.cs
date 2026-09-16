@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using Jellyfin.Plugin.LiveTvGroups.Model;
@@ -52,6 +54,24 @@ public class GroupStore
             _cache[userId] = copy;
             return result;
         }
+    }
+
+    /// <summary>
+    /// Gets the ids of all users that have stored groups.
+    /// </summary>
+    /// <returns>User ids.</returns>
+    public IReadOnlyList<Guid> GetUserIds()
+    {
+        if (!Directory.Exists(_directory))
+        {
+            return [];
+        }
+
+        return Directory.EnumerateFiles(_directory, "*.json")
+            .Select(Path.GetFileNameWithoutExtension)
+            .Select(name => Guid.TryParse(name, out var id) ? id : Guid.Empty)
+            .Where(id => !id.Equals(Guid.Empty))
+            .ToList();
     }
 
     /// <summary>

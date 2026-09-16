@@ -17,6 +17,11 @@ public class UserGroups
     /// Gets or sets the groups in display order.
     /// </summary>
     public List<ChannelGroup> Groups { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the playlists created for the groups, keyed by group id.
+    /// </summary>
+    public Dictionary<Guid, Guid> PlaylistIds { get; set; } = [];
 }
 
 /// <summary>

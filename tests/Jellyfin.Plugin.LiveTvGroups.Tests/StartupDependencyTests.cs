@@ -19,6 +19,7 @@ public class StartupDependencyTests
     [Theory]
     [InlineData(typeof(GroupsChannel))]
     [InlineData(typeof(GroupService))]
+    [InlineData(typeof(PlaylistSyncService))]
     public void OnlyResolvesJellyfinServicesLazily(Type type)
     {
         var parameters = Assert.Single(type.GetConstructors()).GetParameters();
@@ -27,5 +28,19 @@ public class StartupDependencyTests
             AllowedDependencies.Contains(p.ParameterType)
                 || (p.ParameterType.IsGenericType && p.ParameterType.GetGenericTypeDefinition() == typeof(ILogger<>)),
             $"{type.Name} must not inject {p.ParameterType.Name}"));
+    }
+}
+
+public class ExternalIdTests
+{
+    [Fact]
+    public void ChannelItemIdsAreUniquePerGroup()
+    {
+        var channel = Guid.NewGuid();
+        var first = GroupsChannel.GetItemExternalId(Guid.NewGuid(), channel);
+        var second = GroupsChannel.GetItemExternalId(Guid.NewGuid(), channel);
+
+        Assert.NotEqual(first, second);
+        Assert.Equal(channel.ToString("N"), first[^32..]);
     }
 }

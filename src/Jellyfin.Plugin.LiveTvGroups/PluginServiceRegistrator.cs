@@ -26,8 +26,10 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             return new GroupStore(Path.Combine(directory, "users"));
         });
         serviceCollection.AddSingleton<GroupService>();
+        serviceCollection.AddSingleton<PlaylistSyncService>();
         serviceCollection.AddSingleton<WebInjectionStatus>();
         serviceCollection.AddSingleton<IChannel, GroupsChannel>();
         serviceCollection.AddHostedService<WebInjectionService>();
+        serviceCollection.AddHostedService<PlaylistSyncTrigger>();
     }
 }

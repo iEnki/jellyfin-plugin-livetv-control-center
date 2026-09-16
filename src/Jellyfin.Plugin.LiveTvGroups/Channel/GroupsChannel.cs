@@ -25,6 +25,11 @@ namespace Jellyfin.Plugin.LiveTvGroups.Channel;
 /// </summary>
 public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
 {
+    /// <summary>
+    /// The channel name; Jellyfin derives the internal channel id from it.
+    /// </summary>
+    public const string ChannelName = "Live-TV Gruppen";
+
     private const string GroupPrefix = "ltvgroup_";
     private const string ChannelPrefix = "ltvchannel_";
 
@@ -52,7 +57,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     private IUserManager UserManager => _serviceProvider.GetRequiredService<IUserManager>();
 
     /// <inheritdoc />
-    public string Name => "Live-TV Gruppen";
+    public string Name => ChannelName;
 
     /// <inheritdoc />
     public string Description => "Eigene Sendergruppen aus Live-TV.";
@@ -120,7 +125,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
         {
             items = doc.Groups.Select(g => new ChannelItemInfo
             {
-                Id = GroupPrefix + g.Id.ToString("N", CultureInfo.InvariantCulture),
+                Id = GetFolderExternalId(g.Id),
                 Name = g.Name,
                 Type = ChannelItemType.Folder,
                 FolderType = ChannelFolderType.Container
@@ -142,7 +147,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
             items = _groups.ResolveChannels(user, group, _groups.GetAccessibleChannels(user))
                 .Select((channel, index) => new ChannelItemInfo
                 {
-                    Id = ChannelPrefix + channel.Id.ToString("N", CultureInfo.InvariantCulture),
+                    Id = GetItemExternalId(group.Id, channel.Id),
                     Name = channel.Name,
                     Type = ChannelItemType.Media,
                     MediaType = ChannelMediaType.Video,
@@ -168,7 +173,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     public async Task<IEnumerable<MediaSourceInfo>> GetChannelItemMediaInfo(string id, CancellationToken cancellationToken)
     {
         if (!id.StartsWith(ChannelPrefix, StringComparison.Ordinal)
-            || !Guid.TryParse(id[ChannelPrefix.Length..], out var itemId)
+            || !Guid.TryParse(id[^32..], out var itemId)
             || _serviceProvider.GetRequiredService<ILibraryManager>().GetItemById(itemId) is not LiveTvChannel channel
             || string.IsNullOrEmpty(channel.ExternalId))
         {
@@ -206,6 +211,23 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
         _logger.LogWarning("No stream found for channel {Channel} ({ExternalId})", channel.Name, channel.ExternalId);
         return [];
     }
+
+    /// <summary>
+    /// Gets the external id of a group folder.
+    /// </summary>
+    /// <param name="groupId">Group id.</param>
+    /// <returns>The external id.</returns>
+    public static string GetFolderExternalId(Guid groupId) => GroupPrefix + groupId.ToString("N", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Gets the external id of a channel inside a group. It is unique per group because Jellyfin deletes
+    /// channel items that disappear from a folder, which would otherwise affect other groups with the same channel.
+    /// </summary>
+    /// <param name="groupId">Group id.</param>
+    /// <param name="channelId">Live TV channel item id.</param>
+    /// <returns>The external id.</returns>
+    public static string GetItemExternalId(Guid groupId, Guid channelId)
+        => ChannelPrefix + groupId.ToString("N", CultureInfo.InvariantCulture) + "_" + channelId.ToString("N", CultureInfo.InvariantCulture);
 
     /// <inheritdoc />
     public Task<DynamicImageResponse> GetChannelImage(ImageType type, CancellationToken cancellationToken)

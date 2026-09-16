@@ -4,6 +4,7 @@ Jellyfin-Plugin, mit dem jeder Benutzer Live-TV-Sender zu eigenen Gruppen zusamm
 
 - **Web-Client:** In Live-TV erscheint der Button **Gruppen**. Dort legst du Gruppen an, wählst Sender aus, sortierst per Drag & Drop und startest Sender direkt.
 - **Apps** (Android TV, Mobile, …): Die Gruppen erscheinen unter **Kanäle → Live-TV Gruppen**.
+- **Apps ohne Kanal-Unterstützung** (z. B. Wholphin): Optional erscheinen die Gruppen als Wiedergabelisten „Live-TV: Name“. Einschalten unter Dashboard → Plugins → Live-TV Groups.
 - Gruppen sind **pro Benutzer**. Gesperrte Sender (Jugendschutz, Freigaben) bleiben unsichtbar.
 
 Voraussetzung: **Jellyfin 12.0**.

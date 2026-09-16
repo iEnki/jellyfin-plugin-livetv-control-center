@@ -31,6 +31,13 @@
                         </label>
                         <div class="fieldDescription checkboxFieldDescription">Zeigt die Gruppen in Android TV, Mobile und anderen Apps unter „Kanäle → Live-TV Gruppen“. Streams laufen dabei am Tuner-Limit von Jellyfin vorbei.</div>
                     </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnablePlaylistSync" type="checkbox" is="emby-checkbox" />
+                            <span>Gruppen zusätzlich als Wiedergabelisten anlegen</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Für Apps ohne Kanal-Unterstützung (z. B. Wholphin). Jede Gruppe erscheint als Wiedergabeliste „Live-TV: Name“ des jeweiligen Benutzers. Benötigt den App-Kanal. Beim Ausschalten werden diese Wiedergabelisten wieder entfernt.</div>
+                    </div>
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
                             <span>Speichern</span>
@@ -71,6 +78,7 @@
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
                         page.querySelector('#EnableWebIntegration').checked = config.EnableWebIntegration;
                         page.querySelector('#EnableAppChannel').checked = config.EnableAppChannel;
+                        page.querySelector('#EnablePlaylistSync').checked = config.EnablePlaylistSync;
                         Dashboard.hideLoadingMsg();
                     });
                 });
@@ -81,6 +89,7 @@
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
                         config.EnableWebIntegration = page.querySelector('#EnableWebIntegration').checked;
                         config.EnableAppChannel = page.querySelector('#EnableAppChannel').checked;
+                        config.EnablePlaylistSync = page.querySelector('#EnablePlaylistSync').checked;
                         ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
                             Dashboard.processPluginConfigurationUpdateResult(result);
                         });
