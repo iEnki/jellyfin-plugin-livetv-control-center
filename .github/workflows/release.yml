@@ -67,3 +67,9 @@ jobs:
           git add manifest.json
           git commit -m "Add version ${version} to manifest"
           git push origin main
+
+      - name: Attach manifest.json to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # raw.githubusercontent.com is cached by a CDN; the release asset of the latest release is always current.
+        run: gh release upload "${GITHUB_REF_NAME}" manifest.json --clobber

@@ -13,7 +13,7 @@ Voraussetzung: **Jellyfin 12.0**.
 
 1. Dashboard → Plugins → Repositorys → **+** und diese URL eintragen:
    ```
-   https://raw.githubusercontent.com/iEnki/jellyfin-plugin-livetv-groups/main/manifest.json
+   https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/latest/download/manifest.json
    ```
 2. Für die Web-Integration zusätzlich das Repository von **File Transformation** hinzufügen:
    ```
