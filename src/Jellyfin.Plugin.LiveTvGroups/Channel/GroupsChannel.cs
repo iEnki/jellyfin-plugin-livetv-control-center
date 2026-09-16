@@ -33,7 +33,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
 
     private const string GroupPrefix = "ltvgroup_";
     // Changing this prefix re-creates all channel items (e.g. to replace stale images stored by Jellyfin).
-    private const string ChannelPrefix = "ltvch3_";
+    private const string ChannelPrefix = "ltvch4_";
 
     private static readonly TimeSpan ProbeCacheDuration = TimeSpan.FromHours(6);
 
@@ -68,7 +68,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     public string Description => "Eigene Sendergruppen aus Live-TV.";
 
     /// <inheritdoc />
-    public string DataVersion => "3"; // Bump together with ChannelPrefix: Jellyfin caches channel results for 3 hours per data version.
+    public string DataVersion => "4"; // Bump together with ChannelPrefix: Jellyfin caches channel results for 3 hours per data version.
 
     /// <inheritdoc />
     public string HomePageUrl => "https://github.com/iEnki/jellyfin-plugin-livetv-groups";
@@ -115,12 +115,12 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     }
 
     /// <inheritdoc />
-    public Task<ChannelItemResult> GetChannelItems(InternalChannelItemQuery query, CancellationToken cancellationToken)
+    public async Task<ChannelItemResult> GetChannelItems(InternalChannelItemQuery query, CancellationToken cancellationToken)
     {
         var user = query.UserId.Equals(Guid.Empty) ? null : UserManager.GetUserById(query.UserId);
         if (user is null)
         {
-            return Task.FromResult(new ChannelItemResult());
+            return new ChannelItemResult();
         }
 
         var doc = _groups.Store.Get(user.Id);
@@ -145,11 +145,13 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
 
             if (group is null)
             {
-                return Task.FromResult(new ChannelItemResult());
+                return new ChannelItemResult();
             }
 
-            items = _groups.ResolveChannels(user, group, _groups.GetAccessibleChannels(user))
-                .Select((channel, index) => new ChannelItemInfo
+            items = [];
+            foreach (var channel in _groups.ResolveChannels(user, group, _groups.GetAccessibleChannels(user)))
+            {
+                items.Add(new ChannelItemInfo
                 {
                     Id = GetItemExternalId(group.Id, channel.Id),
                     Name = channel.Name,
@@ -157,13 +159,13 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
                     MediaType = ChannelMediaType.Video,
                     ContentType = ChannelMediaContentType.Clip,
                     IsLiveStream = true,
-                    IndexNumber = index + 1,
-                    ImageUrl = GetLogoPath(channel)
-                })
-                .ToList();
+                    IndexNumber = items.Count + 1,
+                    ImageUrl = await GetLocalLogoPathAsync(channel).ConfigureAwait(false)
+                });
+            }
         }
 
-        return Task.FromResult(new ChannelItemResult { Items = items, TotalRecordCount = items.Count });
+        return new ChannelItemResult { Items = items, TotalRecordCount = items.Count };
     }
 
     /// <inheritdoc />
@@ -174,7 +176,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     /// </remarks>
     public async Task<IEnumerable<MediaSourceInfo>> GetChannelItemMediaInfo(string id, CancellationToken cancellationToken)
     {
-        // Items created by older versions ("ltvchannel_", "ltvch2_") may still be cached by Jellyfin or referenced by playlists.
+        // Items created by older versions ("ltvchannel_", "ltvch2_", "ltvch3_") may still be cached by Jellyfin or referenced by playlists.
         if (!id.StartsWith("ltvch", StringComparison.Ordinal)
             || !Guid.TryParse(id[^32..], out var itemId)
             || _serviceProvider.GetRequiredService<ILibraryManager>().GetItemById(itemId) is not LiveTvChannel channel
@@ -287,13 +289,35 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     }
 
     /// <summary>
-    /// Gets the logo of a live TV channel. Jellyfin usually stores tuner logos as local files; channel items accept
-    /// local paths as well as http(s) URLs, but only set the image when an item is created.
+    /// Gets a local logo file for a live TV channel. Channel items get their image only once, when they are created,
+    /// and remote tuner logos often fail to download for them (e.g. provider rate limits). The logo is therefore stored
+    /// locally for the original channel first, one channel at a time, and the local file is passed on.
     /// </summary>
-    private static string? GetLogoPath(LiveTvChannel channel)
+    private async Task<string?> GetLocalLogoPathAsync(LiveTvChannel channel)
     {
-        var path = channel.GetImageInfo(ImageType.Primary, 0)?.Path;
-        return string.IsNullOrEmpty(path) ? null : path;
+        var image = channel.GetImageInfo(ImageType.Primary, 0);
+        if (image is null || string.IsNullOrEmpty(image.Path))
+        {
+            return null;
+        }
+
+        if (image.IsLocalFile)
+        {
+            return image.Path;
+        }
+
+        try
+        {
+            var local = await _serviceProvider.GetRequiredService<ILibraryManager>()
+                .ConvertImageToLocal(channel, image, 0, false)
+                .ConfigureAwait(false);
+            return local.IsLocalFile ? local.Path : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not download logo of channel {Channel}", channel.Name);
+            return null;
+        }
     }
 
     /// <summary>
