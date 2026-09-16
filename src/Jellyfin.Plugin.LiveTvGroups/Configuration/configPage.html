@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>Live-TV Groups</title>
+</head>
+<body>
+    <div id="LiveTvGroupsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+        <div data-role="content">
+            <div class="content-primary">
+                <h2>Live-TV Groups</h2>
+                <p>Benutzer legen ihre Sendergruppen selbst in <b>Live-TV → Gruppen</b> an. Jeder Benutzer hat eigene Gruppen.</p>
+
+                <div class="verticalSection">
+                    <h3>Status Web-Integration</h3>
+                    <div id="ltvgStatus">Lädt…</div>
+                </div>
+
+                <form id="LiveTvGroupsConfigForm">
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnableWebIntegration" type="checkbox" is="emby-checkbox" />
+                            <span>Gruppen im Web-Client anzeigen</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Fügt in Live-TV den Button „Gruppen“ hinzu. Benötigt das Plugin „File Transformation“. Änderung wirkt nach Neustart des Servers.</div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnableAppChannel" type="checkbox" is="emby-checkbox" />
+                            <span>Gruppen als Kanal für Apps anbieten</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Zeigt die Gruppen in Android TV, Mobile und anderen Apps unter „Kanäle → Live-TV Gruppen“. Streams laufen dabei am Tuner-Limit von Jellyfin vorbei.</div>
+                    </div>
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Speichern</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <script type="text/javascript">
+            (function () {
+                var pluginId = '7b3792b4-b988-4ec5-b9e5-1a952a652b83';
+                var page = document.querySelector('#LiveTvGroupsConfigPage');
+
+                function escapeHtml(value) {
+                    return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
+                        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                    });
+                }
+
+                function loadStatus() {
+                    var target = page.querySelector('#ltvgStatus');
+                    ApiClient.getJSON(ApiClient.getUrl('LiveTvGroups/Status')).then(function (status) {
+                        var lines = [];
+                        lines.push('File Transformation: ' + (status.FileTransformationInstalled ? '✔ installiert' : '✖ nicht gefunden'));
+                        lines.push('Skript-Einbindung: ' + (status.Registered ? '✔ aktiv' : '✖ inaktiv'));
+                        if (status.Error) {
+                            lines.push('Hinweis: ' + escapeHtml(status.Error));
+                        }
+                        target.innerHTML = lines.join('<br>');
+                    }).catch(function () {
+                        target.textContent = 'Status konnte nicht geladen werden.';
+                    });
+                }
+
+                page.addEventListener('pageshow', function () {
+                    Dashboard.showLoadingMsg();
+                    loadStatus();
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        page.querySelector('#EnableWebIntegration').checked = config.EnableWebIntegration;
+                        page.querySelector('#EnableAppChannel').checked = config.EnableAppChannel;
+                        Dashboard.hideLoadingMsg();
+                    });
+                });
+
+                page.querySelector('#LiveTvGroupsConfigForm').addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        config.EnableWebIntegration = page.querySelector('#EnableWebIntegration').checked;
+                        config.EnableAppChannel = page.querySelector('#EnableAppChannel').checked;
+                        ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                        });
+                    });
+                    return false;
+                });
+            })();
+        </script>
+    </div>
+</body>
+</html>

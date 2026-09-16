@@ -1,0 +1,22 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md', 'manifest.json']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test
+        run: dotnet test --configuration Release
+      - name: Check client script syntax
+        run: node --check src/Jellyfin.Plugin.LiveTvGroups/Web/client.js

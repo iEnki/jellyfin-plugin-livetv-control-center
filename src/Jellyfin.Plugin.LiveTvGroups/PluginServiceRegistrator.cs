@@ -1,0 +1,33 @@
+using System.IO;
+using Jellyfin.Plugin.LiveTvGroups.Channel;
+using Jellyfin.Plugin.LiveTvGroups.Services;
+using Jellyfin.Plugin.LiveTvGroups.Storage;
+using Jellyfin.Plugin.LiveTvGroups.Web;
+using MediaBrowser.Common.Configuration;
+using MediaBrowser.Controller;
+using MediaBrowser.Controller.Channels;
+using MediaBrowser.Controller.Plugins;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Jellyfin.Plugin.LiveTvGroups;
+
+/// <summary>
+/// Registers the plugin services.
+/// </summary>
+public class PluginServiceRegistrator : IPluginServiceRegistrator
+{
+    /// <inheritdoc />
+    public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
+    {
+        serviceCollection.AddSingleton(sp =>
+        {
+            var directory = Plugin.Instance?.DataFolderPath
+                ?? Path.Combine(sp.GetRequiredService<IApplicationPaths>().PluginsPath, "LiveTvGroups");
+            return new GroupStore(Path.Combine(directory, "users"));
+        });
+        serviceCollection.AddSingleton<GroupService>();
+        serviceCollection.AddSingleton<WebInjectionStatus>();
+        serviceCollection.AddSingleton<IChannel, GroupsChannel>();
+        serviceCollection.AddHostedService<WebInjectionService>();
+    }
+}

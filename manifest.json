@@ -1,0 +1,11 @@
+[
+  {
+    "guid": "7b3792b4-b988-4ec5-b9e5-1a952a652b83",
+    "name": "Live-TV Groups",
+    "description": "Sender in Live-TV zu eigenen Gruppen pro Benutzer zusammenfassen. Gruppen erscheinen im Web-Client unter Live-TV und in den Apps als Kanal.",
+    "overview": "Sendergruppen für Live-TV",
+    "owner": "iEnki",
+    "category": "Live TV",
+    "versions": []
+  }
+]
