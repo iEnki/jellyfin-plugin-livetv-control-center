@@ -42,12 +42,19 @@ jobs:
             -p:Version=${{ steps.version.outputs.version }} --output out
           zip -j "live-tv-groups_${{ steps.version.outputs.version }}.zip" out/Jellyfin.Plugin.LiveTvGroups.dll
 
+      - name: Extract changelog
+        run: |
+          # Section "## X.Y.Z" of CHANGELOG.md for this tag.
+          awk -v v="${GITHUB_REF_NAME#v}" '$0 == "## " v {f=1; next} /^## /{f=0} f' CHANGELOG.md | sed '/./,$!d' > release-notes.md
+          if [ ! -s release-notes.md ]; then echo "Release ${GITHUB_REF_NAME}" > release-notes.md; fi
+          cp release-notes.md "$RUNNER_TEMP/release-notes.md"
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" "live-tv-groups_${{ steps.version.outputs.version }}.zip" \
-            --title "Live-TV Groups ${GITHUB_REF_NAME}" --generate-notes
+            --title "Live-TV Groups ${GITHUB_REF_NAME}" --notes-file release-notes.md
 
       - name: Update manifest.json
         run: |
@@ -58,7 +65,7 @@ jobs:
           url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${zip}"
           timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           jq --arg v "$version" --arg abi "$TARGET_ABI" --arg url "$url" --arg sum "$checksum" --arg ts "$timestamp" \
-             --arg log "Release ${GITHUB_REF_NAME}" \
+             --rawfile log "$RUNNER_TEMP/release-notes.md" \
              '.[0].versions = ([{version: $v, changelog: $log, targetAbi: $abi, sourceUrl: $url, checksum: $sum, timestamp: $ts}]
                 + (.[0].versions | map(select(.version != $v))))' manifest.json > manifest.tmp
           mv manifest.tmp manifest.json

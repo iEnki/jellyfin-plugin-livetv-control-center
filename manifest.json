@@ -9,7 +9,7 @@
     "versions": [
       {
         "version": "0.2.1.0",
-        "changelog": "Release v0.2.1",
+        "changelog": "- Fix: the Jellyfin web client could no longer be opened (blank login page, \"Unexpected token '<'\"). The script tag was also injected into JavaScript files of the web client; it is now only added to index.html.\n- Recommended update for everyone using 0.1.0 – 0.2.0.",
         "targetAbi": "12.0.0.0",
         "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.2.1/live-tv-groups_0.2.1.0.zip",
         "checksum": "1d6b8846aff8f44cea2877b0326e074b",
@@ -17,7 +17,7 @@
       },
       {
         "version": "0.2.0.0",
-        "changelog": "Release v0.2.0",
+        "changelog": "- New: \"Program\" tab for every group in the web client – timeline program guide (EPG) of the group's channels with day selection, now indicator and categories. Click a program for details, click a channel to play it.\n- New: program guide filter for TV apps (Fire TV / Android TV, Wholphin, …). Pick a group via 📺 in the web client or on the TV under Channels → Live-TV Gruppen → \"Programmführer wählen\"; Live TV and the guide of these apps then show only that group.\n- New settings: enable/disable the guide filter and apps that always get all channels (default: Jellyfin Web).\n- Known issue: breaks loading the web client – update to 0.2.1.",
         "targetAbi": "12.0.0.0",
         "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.2.0/live-tv-groups_0.2.0.0.zip",
         "checksum": "703a86b359855efd2455732a8a1cafb0",
@@ -25,7 +25,7 @@
       },
       {
         "version": "0.1.1.0",
-        "changelog": "Release v0.1.1",
+        "changelog": "- Fix: channel logos were missing in the \"Live-TV Gruppen\" channel. Logos are now stored locally before the channel entries are created.",
         "targetAbi": "12.0.0.0",
         "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.1.1/live-tv-groups_0.1.1.0.zip",
         "checksum": "05ee24dad13d6dae9bd8e2e87f21d1da",
@@ -33,7 +33,7 @@
       },
       {
         "version": "0.1.0.0",
-        "changelog": "Release v0.1.0",
+        "changelog": "- Personal channel groups per user: create, rename, delete and reorder groups, pick channels and play them from Live TV → Groups in the web client.\n- Groups as channel \"Live-TV Gruppen\" for apps (Android TV, mobile, …), including stream probing for reliable playback.\n- Optional playlists \"Live-TV: <group>\" for apps without channel support (e.g. Wholphin).\n- Channels are matched again by name and number after the M3U is re-imported; channels a user may not access stay hidden.",
         "targetAbi": "12.0.0.0",
         "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.1.0/live-tv-groups_0.1.0.0.zip",
         "checksum": "1126d7bf8d6b72e2d308409a0f9c379f",
