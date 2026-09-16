@@ -26,7 +26,6 @@ Voraussetzung: **Jellyfin 12.0**.
 
 - Ändern sich die Sender-IDs, etwa weil die M3U neu erzeugt und neu eingelesen wurde, ordnet das Plugin die Sender über Name und Nummer neu zu.
 - **App-Kanal:** Jellyfin kann Live-Streams über Kanäle nicht auf dem normalen Live-TV-Weg öffnen. Das Plugin reicht den Tuner-Stream deshalb direkt weiter, und der Server remuxt ihn. Die Begrenzung gleichzeitiger Tuner-Streams greift dabei **nicht**. Beachte das Verbindungslimit deines Anbieters.
-- Die Web-Integration hängt an der Oberfläche von jellyfin-web. Nach größeren Jellyfin-Updates kann eine neue Plugin-Version nötig sein.
 
 ## Entwicklung
 
