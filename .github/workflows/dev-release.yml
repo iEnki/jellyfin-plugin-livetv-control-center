@@ -1,0 +1,89 @@
+name: Dev release
+
+# Push a tag like v0.2.2.1-dev to publish a development build for testing.
+# It creates a GitHub pre-release and adds the build to manifest-dev.json on the "dev-channel" release.
+# The public manifest.json is not changed.
+on:
+  push:
+    tags: ['v*-dev']
+  # Manual run: only (re)creates manifest-dev.json from the current stable manifest.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  TARGET_ABI: '12.0.0.0'
+
+jobs:
+  refresh-channel:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Refresh manifest-dev.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/update-dev-manifest.sh manifest.json
+
+  dev-release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Determine version
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          version="${version%-dev}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Dev tags need four version parts, e.g. v0.2.2.1-dev (got ${GITHUB_REF_NAME})" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: dotnet test --configuration Release
+
+      - name: Build
+        run: |
+          dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release \
+            -p:Version=${{ steps.version.outputs.version }} --output out
+          zip -j "live-tv-groups_${{ steps.version.outputs.version }}-dev.zip" out/Jellyfin.Plugin.LiveTvGroups.dll
+
+      - name: Release notes
+        run: |
+          # "## Unreleased" section of CHANGELOG.md, if present.
+          awk '$0 == "## Unreleased" {f=1; next} /^## /{f=0} f' CHANGELOG.md | sed '/./,$!d' > notes.md
+          if [ ! -s notes.md ]; then echo "Development build ${GITHUB_REF_NAME}" > notes.md; fi
+          { echo "[DEV] Development build for testing – do not use in production."; echo; cat notes.md; } > release-notes.md
+
+      - name: Create GitHub pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" "live-tv-groups_${{ steps.version.outputs.version }}-dev.zip" \
+            --prerelease --title "Live-TV Groups ${GITHUB_REF_NAME} (DEV)" --notes-file release-notes.md
+
+      - name: Update manifest-dev.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          zip="live-tv-groups_${version}-dev.zip"
+          jq -n --arg v "$version" --arg abi "$TARGET_ABI" \
+             --arg url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${zip}" \
+             --arg sum "$(md5sum "$zip" | cut -d' ' -f1)" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             --rawfile log release-notes.md \
+             '{version: $v, changelog: $log, targetAbi: $abi, sourceUrl: $url, checksum: $sum, timestamp: $ts}' > entry.json
+          git show origin/main:manifest.json > stable-manifest.json
+          bash .github/scripts/update-dev-manifest.sh stable-manifest.json entry.json

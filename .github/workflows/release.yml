@@ -4,7 +4,7 @@ name: Release
 # and add the version to manifest.json (the Jellyfin plugin repository).
 on:
   push:
-    tags: ['v*']
+    tags: ['v*', '!v*-dev']
 
 permissions:
   contents: write
@@ -80,3 +80,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         # raw.githubusercontent.com is cached by a CDN; the release asset of the latest release is always current.
         run: gh release upload "${GITHUB_REF_NAME}" manifest.json --clobber
+
+      - name: Refresh manifest-dev.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Development builds older than this release are dropped from the dev channel.
+        run: bash .github/scripts/update-dev-manifest.sh manifest.json

@@ -87,6 +87,28 @@ Groups are stored per user as JSON files in `<jellyfin data>/plugins/LiveTvGroup
 dotnet test
 ```
 
-Release: push a tag `vX.Y.Z`. GitHub Actions builds the plugin, creates the release, adds the version to `manifest.json` and attaches the manifest to the release.
+### Release process
+
+Development happens on the `dev` branch; `main` only contains released code.
+
+1. **Development build:** add the changes under `## Unreleased` in `CHANGELOG.md`, then tag the `dev` branch with a four-part version between the last and the next release, e.g. `v0.2.2.1-dev`, `v0.2.2.2-dev`:
+   ```bash
+   git tag v0.2.2.1-dev && git push origin v0.2.2.1-dev
+   ```
+   GitHub Actions publishes a **pre-release** and adds the build to `manifest-dev.json`. The public `manifest.json` is not changed.
+2. **Test** the build in Jellyfin with the development repository (see below).
+3. **Release:** rename `## Unreleased` to `## X.Y.Z`, merge `dev` into `main` and tag `main`:
+   ```bash
+   git tag v0.2.3 && git push origin v0.2.3
+   ```
+   GitHub Actions creates the release, adds it to `manifest.json` and removes older development builds from `manifest-dev.json`.
+
+### Testing development builds
+
+Add a second repository in Jellyfin (Dashboard → Plugins → Repositories):
+```
+https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/dev-channel/manifest-dev.json
+```
+It lists all stable versions plus development builds marked `[DEV]`. Install the development build from the catalog and restart Jellyfin. The following stable release has a higher version and is offered as a regular update.
 
 License: GPL-3.0

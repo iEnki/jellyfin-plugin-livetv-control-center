@@ -2,10 +2,10 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths-ignore: ['**/*.md', 'manifest.json']
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 jobs:
