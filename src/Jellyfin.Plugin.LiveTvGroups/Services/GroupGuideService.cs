@@ -13,6 +13,7 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Querying;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.LiveTvGroups.Services;
@@ -54,7 +55,7 @@ public class GroupGuideService(GroupService groups, IServiceProvider services)
                 {
                     ChannelIds = channels.Select(c => c.Id).ToArray(), MinEndDate = from, MaxStartDate = to,
                     OrderBy = [(ItemSortBy.StartDate, SortOrder.Ascending)]
-                }, new DtoOptions(false) { EnableImages = true, ImageTypeLimit = 1, ImageTypes = [ImageType.Primary], EnableUserData = true }, cancellationToken).ConfigureAwait(false);
+                }, new DtoOptions(false) { Fields = [ItemFields.Overview], EnableImages = true, ImageTypeLimit = 1, ImageTypes = [ImageType.Primary], EnableUserData = true }, cancellationToken).ConfigureAwait(false);
             programs = ValidPrograms(result.Items, channels.Select(c => c.Id).ToHashSet(), from, to);
             invalid = result.Items.Count - programs.Count;
         }

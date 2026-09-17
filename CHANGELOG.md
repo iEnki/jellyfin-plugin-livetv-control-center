@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 0.3.0.2-dev — native app program guide and playback
+
+- Added a separate Fernsehprogramm folder inside each app group: seven calendar days, sender lists, program timings/episodes/descriptions and an explicit live-channel playback action. Does not alter original Live TV or its guide.
+- Replaced raw tuner URLs and independent stream probing with a dedicated media-source provider using Jellyfin's native Live TV source/open/close lifecycle. The stock channel dynamic provider cannot open live streams; the new provider supports that operation explicitly.
+- Recheck current user's group membership and channel permissions at source discovery and stream opening; preserve cached group-video and playlist references.
+- Added configurable app-guide timezone, correct 23/25-hour DST days, five-minute channel-cache refresh and fresh native details when program metadata changes.
+- Added server contract tests for native stream opening/closing, host-export discovery, source IDs, group/permission isolation and full app-program navigation. Actual Fire TV hardware playback remains an installation-time validation step.
+
+### 0.3.0.1-dev — independent web guide
+
 - New independent **Live-TV Gruppen** page with Programme, Fernsehprogramm and Sender views based on Jellyfin's original Live TV layout.
 - Group selection, deduplicated visible-group scope and personal settings for visible/default groups, initial/last view and guide zoom.
 - Improved guide navigation, current-time mode, automatic refresh, mobile program labels and restoration of group/time/scroll state after details.

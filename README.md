@@ -7,7 +7,7 @@ Personal Live TV channel groups with an independent **Live-TV Gruppen** page in 
 - The guide has channel numbers and logos, 30-minute slots, a current-time indicator, date/time selection, Now, Tonight and seven calendar days. Data refreshes every five minutes; returning from program details preserves the group, time window and scroll position.
 - Create, rename and delete groups; search/select channels and reorder groups or channels with drag-and-drop or up/down buttons.
 - **Original Live TV stays unchanged in every client.** This plugin no longer filters native Live TV or guide requests. Personal group preferences only affect the separate groups page.
-- Apps with channel support can browse **Channels → Live-TV Gruppen**. Optional playlists named **Live-TV: <group>** provide another entry for apps without channel support. These entries do not add a grouped guide to native TV apps.
+- Apps with channel support can browse **Channels → Live-TV Gruppen**. Optional playlists named **Live-TV: <group>** provide another entry for apps without channel support. Each native group folder also offers **Fernsehprogramm → day → channel → program**. Program folders contain timing/episode/description and a clearly labeled **live ansehen** entry. This is a browsable program guide; the stock Fire TV app does not render the web timeline.
 - Groups and preferences belong to the current user. Only channels permitted by Jellyfin are included.
 
 Built for **Jellyfin 12.0**. Jellyfin 12.1 and native device playback require separate validation; this build does not claim those checks.
@@ -32,6 +32,14 @@ Group IDs, channel references and playlist IDs are preserved. Old `ActiveGuideGr
 
 The replacement guide is a separate component built from the original layout reference. It does not overwrite Jellyfin's guide component or global API client. Program clicks open Jellyfin's normal details page, including its playback/recording controls. Channel playback uses the current Jellyfin session, with native details as a fallback.
 
+## Fire TV / Android TV
+
+Install **0.3.0.2** or later from the development catalog, restart Jellyfin, then fully close and reopen the TV app to discard old channel listings. Open **Live-TV Gruppen → group** for sender playback; open its **Fernsehprogramm → day → sender → program** for program information and the sender's **live ansehen** action. This always starts the current live stream, including when the selected program is in the future; it is not catch-up or recording playback.
+
+The Fire TV app uses the native Android TV client. Its standard timeline belongs to original Live TV and does not have a plugin-page/group-route hook. A second timeline inside the stock TV app requires a client change. No filtering or alteration of original Live TV is used as a workaround. App-guide timing can be changed under Dashboard → Plugins → Live-TV Groups.
+
+The server contracts and app navigation hierarchy have automated coverage. End-to-end playback on an actual Fire TV device still needs validation after installation. If it fails, record the selected sender, time and displayed error, and check the corresponding Jellyfin server log. Whether normal Live TV plays that same sender is a useful comparison.
+
 ## Settings
 
 | Location | Setting | Effect |
@@ -42,6 +50,7 @@ The replacement guide is a separate component built from the original layout ref
 | Groups page | EPG zoom | Compact, normal or large time slots. |
 | Dashboard | Web integration | Independent groups page; requires File Transformation and a server restart after changing. |
 | Dashboard | App channel | Offers groups through Jellyfin's channel interface. The channel also remains available as the web entry while web integration is enabled. |
+| Dashboard | App-guide timezone | Timezone used in native program lists; defaults to Europe/Vienna. The web guide continues to use the device timezone. |
 | Dashboard | Playlist synchronization | Mirrors groups as user playlists; requires the app channel. Turning it off removes the mirrored playlists. |
 | Dashboard | Status | File Transformation registration and optional Plugin Pages installation/registration. Server registration alone does not prove successful client startup. |
 
@@ -49,7 +58,7 @@ The replacement guide is a separate component built from the original layout ref
 
 - Existing Jellyfin EPG data is used. Empty rows mean no programs are available for the selected period; the plugin does not obtain XMLTV data itself. Unresolved channels and discarded invalid program data are reported in the guide.
 - After an M3U re-import, channel references are resolved again by ID, then name/number. Ambiguous matches and advanced repair/import/export tools remain future work.
-- **App channel and playlists:** Jellyfin cannot open these channel items using its usual Live TV tuner path. The plugin probes the stream and the server remuxes it. Jellyfin's tuner limit does not apply to that path; the stream URL is included in the playback information sent to clients.
+- **App channel and playlists:** a dedicated media-source provider delegates source discovery and stream opening to Jellyfin's native Live TV provider. The real live-stream object is retained for sharing, probing, closing and native tuner handling. The plugin no longer opens/probes provider URLs independently or bypasses the normal tuner path. Native media-source delivery behavior still applies; this is not a new URL-hiding proxy.
 - Playlists synchronize shortly after changes, at startup and every six hours. A scheduled task is available for manual synchronization.
 - Web integration depends on Jellyfin Web's channel-list route/container. Major client updates may require a plugin update. The current UI is tested on desktop and narrow mobile viewports.
 - Groups are stored as per-user JSON in `<jellyfin data>/plugins/LiveTvGroups/users/` and survive updates. Backup that directory before installing development builds.

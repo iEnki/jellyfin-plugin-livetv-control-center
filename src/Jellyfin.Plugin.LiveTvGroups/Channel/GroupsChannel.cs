@@ -7,14 +7,12 @@ using System.Threading.Tasks;
 using Jellyfin.Data;
 using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.LiveTvGroups.Services;
-using MediaBrowser.Common.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Channels;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Channels;
-using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -24,7 +22,7 @@ namespace Jellyfin.Plugin.LiveTvGroups.Channel;
 /// <summary>
 /// Exposes the groups of each user as a channel so native apps can browse them.
 /// </summary>
-public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
+public class GroupsChannel : IChannel, IHasCacheKey
 {
     /// <summary>
     /// The channel name; Jellyfin derives the internal channel id from it.
@@ -35,12 +33,9 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     // Changing this prefix re-creates all channel items (e.g. to replace stale images stored by Jellyfin).
     private const string ChannelPrefix = "ltvch4_";
 
-    private static readonly TimeSpan ProbeCacheDuration = TimeSpan.FromHours(6);
-
     private readonly GroupService _groups;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<GroupsChannel> _logger;
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, ProbeResult> _probeCache = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GroupsChannel"/> class.
@@ -68,7 +63,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     public string Description => "Eigene Sendergruppen aus Live-TV.";
 
     /// <inheritdoc />
-    public string DataVersion => "5"; // Invalidates cached guide-selection folders while preserving existing channel/playback item IDs.
+    public string DataVersion => "6"; // Invalidates cached guide-selection folders while preserving existing channel/playback item IDs.
 
     /// <inheritdoc />
     public string HomePageUrl => "https://github.com/iEnki/jellyfin-plugin-livetv-groups";
@@ -111,14 +106,15 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
         }
 
         var revision = _groups.Store.Get(id).Revision;
-        return id.ToString("N", CultureInfo.InvariantCulture) + "-" + revision.ToString(CultureInfo.InvariantCulture);
+        return id.ToString("N", CultureInfo.InvariantCulture) + "-" + revision.ToString(CultureInfo.InvariantCulture) + "-"
+            + (DateTime.UtcNow.Ticks / TimeSpan.FromMinutes(5).Ticks).ToString(CultureInfo.InvariantCulture);
     }
 
     /// <inheritdoc />
     public async Task<ChannelItemResult> GetChannelItems(InternalChannelItemQuery query, CancellationToken cancellationToken)
     {
         var user = query.UserId.Equals(Guid.Empty) ? null : UserManager.GetUserById(query.UserId);
-        if (user is null)
+        if (user is null || !user.HasPermission(PermissionKind.EnableLiveTvAccess))
         {
             return new ChannelItemResult();
         }
@@ -129,6 +125,10 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
         if (string.IsNullOrEmpty(query.FolderId))
         {
             items = doc.Groups.Select(g => Folder(GetFolderExternalId(g.Id), g.Name)).ToList();
+        }
+        else if (AppGuideService.Handles(query.FolderId))
+        {
+            return await _serviceProvider.GetRequiredService<AppGuideService>().GetItems(user, query.FolderId, cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -142,7 +142,9 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
                 return new ChannelItemResult();
             }
 
-            items = [];
+            var epg = Folder(AppGuideService.GetRootId(group.Id), "Fernsehprogramm");
+            epg.IndexNumber = 0; epg.Overview = "Programmdaten dieser Gruppe nach Tagen und Sendern. Der originale Live-TV-Guide bleibt unverändert.";
+            items = [epg];
             foreach (var channel in _groups.ResolveChannels(user, group, _groups.GetAccessibleChannels(user)))
             {
                 items.Add(new ChannelItemInfo
@@ -153,7 +155,7 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
                     MediaType = ChannelMediaType.Video,
                     ContentType = ChannelMediaContentType.Clip,
                     IsLiveStream = true,
-                    IndexNumber = items.Count + 1,
+                    IndexNumber = items.Count,
                     ImageUrl = await GetLocalLogoPathAsync(channel).ConfigureAwait(false)
                 });
             }
@@ -164,126 +166,6 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
 
     private static ChannelItemInfo Folder(string id, string name)
         => new() { Id = id, Name = name, Type = ChannelItemType.Folder, FolderType = ChannelFolderType.Container };
-
-    /// <inheritdoc />
-    /// <remarks>
-    /// Channel items cannot use the regular live TV media sources: the channel media source provider
-    /// does not support opening streams. The tuner source is therefore returned as a plain remote stream
-    /// that the server can remux. Clients may receive the source URL in media info; this is an optional compatibility path.
-    /// </remarks>
-    public async Task<IEnumerable<MediaSourceInfo>> GetChannelItemMediaInfo(string id, CancellationToken cancellationToken)
-    {
-        // Items created by older versions ("ltvchannel_", "ltvch2_", "ltvch3_") may still be cached by Jellyfin or referenced by playlists.
-        if (!id.StartsWith("ltvch", StringComparison.Ordinal)
-            || !Guid.TryParse(id[^32..], out var itemId)
-            || _serviceProvider.GetRequiredService<ILibraryManager>().GetItemById(itemId) is not LiveTvChannel channel
-            || string.IsNullOrEmpty(channel.ExternalId))
-        {
-            return [];
-        }
-
-        foreach (var host in _serviceProvider.GetRequiredService<ITunerHostManager>().TunerHosts)
-        {
-            try
-            {
-                var sources = await host.GetChannelStreamMediaSources(channel.ExternalId, cancellationToken).ConfigureAwait(false);
-                if (sources.Count == 0)
-                {
-                    continue;
-                }
-
-                var result = sources.Select((source, index) =>
-                {
-                    // Jellyfin does not assign ids to channel media sources; clients need one to request the stream.
-                    source.Id = (id + "_" + index.ToString(CultureInfo.InvariantCulture)).GetMD5().ToString("N", CultureInfo.InvariantCulture);
-                    source.Container ??= GetContainer(source.Path);
-                    source.SupportsProbing = true;
-                    source.RequiresOpening = false;
-                    source.RequiresClosing = false;
-                    source.OpenToken = null;
-                    source.LiveStreamId = null;
-                    source.SupportsDirectPlay = false;
-                    source.IsInfiniteStream = true;
-                    source.AnalyzeDurationMs = 3000;
-                    return source;
-                }).ToList();
-
-                await AddStreamInfoAsync(channel, result[0], cancellationToken).ConfigureAwait(false);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Tuner {Tuner} could not provide a stream for channel {Channel}", host.Name, channel.Name);
-            }
-        }
-
-        _logger.LogWarning("No stream found for channel {Channel} ({ExternalId})", channel.Name, channel.ExternalId);
-        return [];
-    }
-
-    /// <summary>
-    /// Adds codec information to the source. Without it Jellyfin probes the live stream for minutes and transcodes
-    /// with worst-case settings; regular live TV avoids this by probing when the stream is opened.
-    /// </summary>
-    private async Task AddStreamInfoAsync(LiveTvChannel channel, MediaSourceInfo source, CancellationToken cancellationToken)
-    {
-        if (!_probeCache.TryGetValue(channel.Id, out var cached) || cached.Expires < DateTime.UtcNow)
-        {
-            try
-            {
-                var probeSource = new MediaSourceInfo
-                {
-                    Path = source.Path,
-                    Protocol = source.Protocol,
-                    Container = source.Container,
-                    IsRemote = source.IsRemote,
-                    IsInfiniteStream = true,
-                    SupportsProbing = true,
-                    RequiredHttpHeaders = source.RequiredHttpHeaders,
-                    MediaStreams = []
-                };
-
-                await _serviceProvider.GetRequiredService<IMediaSourceManager>()
-                    .AddMediaInfoWithProbe(probeSource, false, null, false, true, cancellationToken)
-                    .ConfigureAwait(false);
-
-                cached = new ProbeResult(
-                    probeSource.MediaStreams
-                        .Where(s => s.Type == MediaStreamType.Video).Take(1)
-                        .Concat(probeSource.MediaStreams.Where(s => s.Type == MediaStreamType.Audio).Take(1))
-                        .ToList(),
-                    probeSource.Bitrate,
-                    probeSource.Container,
-                    DateTime.UtcNow.Add(ProbeCacheDuration));
-
-                if (cached.Streams.Count > 0)
-                {
-                    _probeCache[channel.Id] = cached;
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _logger.LogWarning(ex, "Could not probe stream of channel {Channel}", channel.Name);
-                return;
-            }
-        }
-
-        if (cached.Streams.Count == 0)
-        {
-            return;
-        }
-
-        // Like regular live TV: stream indexes of live sources are not stable, so let ffmpeg pick the first ones.
-        source.MediaStreams = cached.Streams.Select(s =>
-        {
-            var copy = System.Text.Json.JsonSerializer.Deserialize<MediaStream>(System.Text.Json.JsonSerializer.Serialize(s))!;
-            copy.Index = -1;
-            copy.Language = null;
-            return copy;
-        }).ToList();
-        source.Bitrate = cached.Bitrate;
-        source.Container ??= cached.Container;
-    }
 
     /// <summary>
     /// Gets a local logo file for a live TV channel. Channel items get their image only once, when they are created,
@@ -318,20 +200,6 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     }
 
     /// <summary>
-    /// Derives the container from the stream URL (e.g. ".ts"); manifests and unknown extensions are left to probing.
-    /// </summary>
-    internal static string? GetContainer(string? path)
-    {
-        if (!Uri.TryCreate(path, UriKind.Absolute, out var uri))
-        {
-            return null;
-        }
-
-        var extension = System.IO.Path.GetExtension(uri.AbsolutePath).TrimStart('.').ToLowerInvariant();
-        return extension is "ts" or "mp4" or "mkv" or "flv" ? extension : null;
-    }
-
-    /// <summary>
     /// Gets the external id of a group folder.
     /// </summary>
     /// <param name="groupId">Group id.</param>
@@ -355,5 +223,4 @@ public class GroupsChannel : IChannel, IHasCacheKey, IRequiresMediaInfoCallback
     /// <inheritdoc />
     public IEnumerable<ImageType> GetSupportedChannelImages() => [];
 
-    private sealed record ProbeResult(IReadOnlyList<MediaStream> Streams, int? Bitrate, string? Container, DateTime Expires);
 }

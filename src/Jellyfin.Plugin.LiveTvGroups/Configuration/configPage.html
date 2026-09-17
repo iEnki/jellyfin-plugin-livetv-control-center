@@ -17,6 +17,11 @@
                 </div>
 
                 <form id="LiveTvGroupsConfigForm">
+                    <div class="inputContainer">
+                        <label class="inputLabel" for="AppGuideTimeZone">Zeitzone für das Fernsehprogramm in TV-Apps</label>
+                        <input id="AppGuideTimeZone" type="text" is="emby-input" required placeholder="Europe/Vienna" />
+                        <div class="fieldDescription">Zum Beispiel Europe/Vienna, Europe/Berlin oder UTC. Die Browseransicht verwendet weiterhin die Zeitzone des Geräts.</div>
+                    </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
                             <input id="EnableWebIntegration" type="checkbox" is="emby-checkbox" />
@@ -29,7 +34,7 @@
                             <input id="EnableAppChannel" type="checkbox" is="emby-checkbox" />
                             <span>Gruppen als Kanal für Apps anbieten</span>
                         </label>
-                        <div class="fieldDescription checkboxFieldDescription">Zeigt die Gruppen in Android TV, Mobile und anderen Apps unter „Kanäle → Live-TV Gruppen“. Bei aktivierter Webintegration bleibt der Gruppenkanal auch für den Web-Einstieg sichtbar. Streams laufen dabei am Tuner-Limit von Jellyfin vorbei.</div>
+                        <div class="fieldDescription checkboxFieldDescription">Zeigt die Gruppen in Android TV, Mobile und anderen Apps unter „Kanäle → Live-TV Gruppen“. Bei aktivierter Webintegration bleibt der Gruppenkanal auch für den Web-Einstieg sichtbar. Die Wiedergabe nutzt Jellyfins normalen Live-TV-Streamanbieter. Unter jeder Gruppe steht ein Fernsehprogramm als Tages- und Senderlisten bereit.</div>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
@@ -78,6 +83,7 @@
                     Dashboard.showLoadingMsg();
                     loadStatus();
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        page.querySelector('#AppGuideTimeZone').value = config.AppGuideTimeZone || 'Europe/Vienna';
                         page.querySelector('#EnableWebIntegration').checked = config.EnableWebIntegration;
                         page.querySelector('#EnableAppChannel').checked = config.EnableAppChannel;
                         page.querySelector('#EnablePlaylistSync').checked = config.EnablePlaylistSync;
@@ -88,6 +94,9 @@
                     e.preventDefault();
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        var zone = page.querySelector('#AppGuideTimeZone').value.trim();
+                        try { new Intl.DateTimeFormat('de', { timeZone: zone }).format(new Date()); } catch (_) { throw new Error('Bitte eine gültige Zeitzone eingeben.'); }
+                        config.AppGuideTimeZone = zone;
                         config.EnableWebIntegration = page.querySelector('#EnableWebIntegration').checked;
                         config.EnableAppChannel = page.querySelector('#EnableAppChannel').checked;
                         if (page.querySelector('#EnablePlaylistSync').checked && !page.querySelector('#EnableAppChannel').checked) { throw new Error('Wiedergabelisten benötigen den App-Kanal.'); }

@@ -18,6 +18,9 @@ public class StartupDependencyTests
 
     [Theory]
     [InlineData(typeof(GroupsChannel))]
+    [InlineData(typeof(GroupsMediaSourceProvider))]
+    [InlineData(typeof(LiveTvStreamBridge))]
+    [InlineData(typeof(AppGuideService))]
     [InlineData(typeof(GroupService))]
     [InlineData(typeof(PlaylistSyncService))]
     public void OnlyResolvesJellyfinServicesLazily(Type type)
@@ -43,15 +46,4 @@ public class ExternalIdTests
         Assert.NotEqual(first, second);
         Assert.Equal(channel.ToString("N"), first[^32..]);
     }
-}
-
-public class ContainerTests
-{
-    [Theory]
-    [InlineData("http://example.com/live/user/pass/409272.ts", "ts")]
-    [InlineData("http://example.com/live/stream.m3u8", null)]
-    [InlineData("http://example.com/live/12345", null)]
-    [InlineData(null, null)]
-    public void DerivesContainerFromUrl(string? path, string? expected)
-        => Assert.Equal(expected, GroupsChannel.GetContainer(path));
 }

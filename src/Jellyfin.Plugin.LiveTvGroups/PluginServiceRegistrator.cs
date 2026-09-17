@@ -33,5 +33,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddHostedService<PluginPagesService>();
         serviceCollection.AddHostedService<PlaylistSyncTrigger>();
         serviceCollection.AddSingleton<GroupGuideService>();
+        serviceCollection.AddSingleton<LiveTvStreamBridge>();
+        serviceCollection.AddSingleton<AppGuideService>();
+        // GroupsMediaSourceProvider is discovered by Jellyfin through IServerApplicationHost.GetExports.
     }
 }

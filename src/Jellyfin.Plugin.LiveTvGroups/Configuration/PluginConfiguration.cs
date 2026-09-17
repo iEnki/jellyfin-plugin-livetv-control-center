@@ -7,6 +7,8 @@ namespace Jellyfin.Plugin.LiveTvGroups.Configuration;
 /// </summary>
 public class PluginConfiguration : BasePluginConfiguration
 {
+    /// <summary>Gets or sets the timezone used in native app program lists.</summary>
+    public string AppGuideTimeZone { get; set; } = "Europe/Vienna";
     /// <summary>
     /// Gets or sets a value indicating whether the groups view is injected into the web client.
     /// </summary>

@@ -20,7 +20,7 @@ before(async()=>{
  if(u.pathname==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(shell);return;}
  if(u.pathname==='/LiveTv/Channels'){send({Items:Array.from({length:432},(_,i)=>({Id:i}))});return;}
  if(!f){send({},401);return;}f.requests.push(req.method+' '+u.pathname);let data='';for await(const chunk of req)data+=chunk;const body=data?JSON.parse(data):null;
- if(u.pathname.endsWith('/Entry')){send({ChannelId:root,Version:'0.3.0.1'});return;}
+ if(u.pathname.endsWith('/Entry')){send({ChannelId:root,Version:'0.3.0.2'});return;}
  if(u.pathname.endsWith('/Preferences')){if(req.method==='PUT'){f.prefs=body;send(null,204);}else send(f.prefs);return;}
  if(u.pathname.endsWith('/AvailableChannels')){send({Items:channels});return;}
  if(u.pathname==='/LiveTvGroups/Groups'){if(req.method==='POST'){const g={Id:'44444444444444444444444444444444',Name:body.Name,ChannelCount:0};f.groups.push(g);f.refs[g.Id]=[];send(g);}else send(f.groups);return;}
