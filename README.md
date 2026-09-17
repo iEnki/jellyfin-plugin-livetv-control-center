@@ -1,129 +1,377 @@
 # Live-TV Groups for Jellyfin
 
-Personal or centrally administered Live TV channel groups with an independent **Live-TV Gruppen** page in Jellyfin Web.
+Organize Jellyfin Live TV into personal channel groups or a shared collection managed by administrators. Live-TV Groups provides an independent browser/mobile program guide, grouped folders for native apps, optional playlists, and remote playback on Jellyfin Android TV / Fire TV.
 
-- **Programme**, **Fernsehprogramm** and **Sender** follow the layout of Jellyfin's Live TV views. The selected group applies to all three views.
-- Choose visible groups, a default group and view, remember the last selection and set the guide zoom. **Alle sichtbaren Gruppen** combines their channels without duplicates.
-- The guide has channel numbers and logos, 30-minute slots, a current-time indicator, date/time selection, Now, Tonight and seven calendar days. Data refreshes every five minutes; returning from program details preserves the group, time window and scroll position.
-- Create, rename and delete groups; search/select channels and reorder groups or channels with drag-and-drop or up/down buttons.
-- **Original Live TV stays unchanged in every client.** This plugin no longer filters native Live TV or guide requests. Personal group preferences only affect the separate groups page.
-- Apps with channel support can browse **Channels → Live-TV Gruppen**. Optional playlists named **Live-TV: <group>** provide another entry for apps without channel support. Each native group folder also offers **Fernsehprogramm → day → channel → program**. Program folders contain timing/episode/description and a clearly labeled **live ansehen** entry. This is a browsable program guide; the stock Fire TV app does not render the web timeline.
-- Choose personal groups or shared admin-managed groups with per-user access rules. Display/player preferences always belong to the current user. Only channels permitted by Jellyfin are included.
+**Stable version: 0.3.2.0** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
 
-Built for **Jellyfin 12.0**. Jellyfin 12.1 and native device playback require separate validation; this build does not claim those checks.
+The plugin uses Jellyfin's existing channels and EPG data. Its groups page works independently of the original Jellyfin Live TV views.
+
+## Contents
+
+- [Requirements and client support](#requirements-and-client-support)
+- [Installation](#installation)
+- [Upgrading](#upgrading)
+- [User permissions](#user-permissions)
+- [Quick start](#quick-start)
+- [Personal and central groups](#personal-and-central-groups)
+- [Creating and editing groups](#creating-and-editing-groups)
+- [Views and program guide](#views-and-program-guide)
+- [Remote playback](#remote-playback)
+- [Native apps and program lists](#native-apps-and-program-lists)
+- [Optional playlists](#optional-playlists)
+- [Settings reference](#settings-reference)
+- [Data storage and backups](#data-storage-and-backups)
+- [Troubleshooting](#troubleshooting)
+- [Support](#support)
+- [License](#license)
+
+## Requirements and client support
+
+Configure working Live TV in Jellyfin before using the plugin. For program information, configure/import an EPG source and map it to the relevant channels. The plugin does not supply a new XMLTV feed.
+
+| Component/client | Function |
+| --- | --- |
+| Jellyfin 12.0 server | Target server version; plugin ABI is 12.0.0.0. |
+| Jellyfin Web on desktop/mobile | Independent groups page, timeline guide, group management and remote target selection. |
+| Mobile clients loading the server's Jellyfin Web interface | Same web integration when the injected page script is loaded. Fully native clients do not automatically receive this UI. |
+| Official Jellyfin Android TV app, including Fire TV | Group folders/native EPG lists and remote playback target with the app in the foreground and its internal player enabled. |
+| Other apps with channel support | Group folders and native program lists, subject to the client's channel capabilities. |
+| Playlist-based apps | Optional mirrored group playlists, subject to the client's support for these media items. |
+| File Transformation plugin | Required for injecting the independent web interface. |
+| Plugin Pages 3.x | Optional user-menu shortcut; does not replace File Transformation. |
+
+Remote playback requires the internal player in the official Jellyfin Android TV app. External players are not supported.
+
+The current interface uses German labels. This English documentation includes the actual UI labels where needed.
 
 ## Installation
 
-1. Add this repository in Dashboard → Plugins → Repositories:
-   ```
+### Stable plugin repository
+
+1. Open **Dashboard → Plugins → Repositories** and add a repository using this URL:
+
+   ```text
    https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/latest/download/manifest.json
    ```
+
 2. Add the File Transformation repository:
-   ```
+
+   ```text
    https://www.iamparadox.dev/jellyfin/plugins/manifest.json
    ```
-3. Install **Live-TV Groups** and **File Transformation** for your Jellyfin version, then restart Jellyfin.
-4. Open **Live-TV Gruppen** through the channels/library entry. If **Plugin Pages 3.x** is installed, the plugin also registers a user-menu entry automatically. Plugin Pages is optional and uses the same group page.
-5. Use **Einstellungen** on that page for personal preferences. Global integrations and registration status are under Dashboard → Plugins → Live-TV Groups.
 
-## Upgrading from 0.2.x
+3. Install **Live-TV Groups 0.3.2.0** and a **File Transformation** version compatible with your Jellyfin server.
+4. Restart Jellyfin.
+5. Open **Dashboard → Plugins → Live-TV Groups**. Verify web integration is enabled and check the integration status.
+6. Grant intended users access to the **Live-TV Gruppen** channel; see [User permissions](#user-permissions).
+7. Reload Jellyfin Web or close/reopen the web-based mobile client. Open **Live-TV Gruppen** under **My Media** or the client's channel/library section.
 
-Group IDs, channel references and playlist IDs are preserved. Old `ActiveGuideGroupId`, `EnableGuideFilter` and client-exception values no longer activate any filter. The native-guide selection folders and the button/overlay in original Live TV have been removed. After updating and restarting Jellyfin, original Live TV shows all channels permitted by Jellyfin, independently of every group action.
+When compatible Plugin Pages is installed and web integration is registered, a user-menu shortcut is registered automatically. The channel/library entry remains available without Plugin Pages.
 
-The replacement guide is a separate component built from the original layout reference. It does not overwrite Jellyfin's guide component or global API client. Program clicks open Jellyfin's normal details page, including its playback/recording controls. Channel playback uses the current Jellyfin session, with native details as a fallback.
+### Manual installation
 
-## Fire TV / Android TV
+1. Download `live-tv-groups_0.3.2.0.zip` from the [0.3.2.0 release](https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/tag/v0.3.2.0).
+2. Stop Jellyfin and preserve the plugin data/configuration.
+3. Move the older binary installation outside the scanned plugins directory.
+4. Create a folder such as `Live-TV Groups_0.3.2.0` inside Jellyfin's plugins directory.
+5. Extract **both** `Jellyfin.Plugin.LiveTvGroups.dll` and `meta.json` into it. Keep only one installed binary copy.
+6. Start Jellyfin and confirm the installed version.
 
-Install **0.3.0.2** or later from the development catalog, restart Jellyfin, then fully close and reopen the TV app to discard old channel listings. Open **Live-TV Gruppen → group** for sender playback; open its **Fernsehprogramm → day → sender → program** for program information and the sender's **live ansehen** action. This always starts the current live stream, including when the selected program is in the future; it is not catch-up or recording playback.
+The package contains matching plugin identity/version metadata and automatic update support. Add the stable repository to receive subsequent stable updates.
 
-The Fire TV app uses the native Android TV client. Its standard timeline belongs to original Live TV and does not have a plugin-page/group-route hook. A second timeline inside the stock TV app requires a client change. No filtering or alteration of original Live TV is used as a workaround. App-guide timing can be changed under Dashboard → Plugins → Live-TV Groups.
+## Upgrading
 
-The server contracts and app navigation hierarchy have automated coverage. End-to-end playback on an actual Fire TV device still needs validation after installation. If it fails, record the selected sender, time and displayed error, and check the corresponding Jellyfin server log. Whether normal Live TV plays that same sender is a useful comparison.
+Install updates from the plugin catalog under **Dashboard → Plugins**.
 
-## Remote Live TV (development branch)
+Install the offered update and restart Jellyfin. Your groups, channel order, access rules, display preferences and selected player are preserved.
 
-On **dev-remote-live-tv**, the independent web/mobile **Live-TV Gruppen** EPG includes **Abspielen auf** and **Geräte aktualisieren**. Choose an active TV, then tap the **channel number/logo** in the guide or its play card in Sender/Programme. Program cells still open native program details. Selecting **Dieses Gerät** restores the existing local behavior.
+Reload the browser/mobile web client and fully close/reopen the TV app to clear stale scripts and listings.
 
-The chosen target is saved automatically per Jellyfin user as PreferredTargetDeviceId/PreferredTargetDeviceName. A remembered offline target stays selected, with a warning; failed remote commands never start playback on the phone. The server resolves the current session each time. Normally both clients use the same Jellyfin user; controlling another user's TV requires **EnableRemoteControlOfOtherUsers**, and both users must be allowed to play the selected Live TV channel.
+For upgrades from older stable versions, personal groups are preserved and personal mode remains the default. Central mode is an explicit administrator choice.
 
-V1 requires the official **Jellyfin Android TV** app (also used on Fire TV) open in the foreground with its **internal player**. The server cannot reliably detect foreground state or the external-player setting; a sent command is not playback confirmation. No TV wake-up, app launch, pause/stop panel or catch-up playback is included. Standard remote-capable sessions are also listed, but V1 hardware validation targets Android TV/Fire TV.
+The previous 0.2.x native Live TV/guide filter is no longer active. Old filter settings and guide-group selections do not filter original Live TV. Use the independent groups page or native group folders.
 
-### Test this branch
+## User permissions
 
-1. Use Jellyfin **12.0** (the plugin targets ABI 12.0.0.0) and the existing web integration dependencies. Back up the per-user plugin data.
-2. Download **live-tv-groups-dev** from this branch's successful **Build** action; its artifact ZIP contains the plugin DLL and installation meta.json. Alternatively, check out this branch, run `dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release --output out`, then `node .github/scripts/write-dev-meta.cjs out`.
-3. Stop Jellyfin. Move the previous plugin binaries outside the plugins directory (preserve user data/configuration). Create a directory named **Live-TV Groups_0.3.1.2** under plugins and extract both the DLL and meta.json there. Keep only one installed copy and restart Jellyfin. Confirm plugin version **0.3.1.2**.
-4. Reload/reopen Jellyfin Web or the web-based mobile client. On the Fire TV, open Jellyfin using the same user and disable **Use external player**.
-5. Open **Live-TV Gruppen → Fernsehprogramm**, refresh devices, choose the TV, and tap a channel's number/logo. Verify the channel starts on the TV while the phone keeps the EPG; tap another channel to switch.
-6. Reopen the EPG to check the target is remembered. Restart the TV app, refresh devices, and play again to exercise new-session resolution. Close the TV app and check unavailable-target/error behavior; select **Dieses Gerät** to return to local playback.
+Jellyfin channel access and plugin group visibility are separate permission layers.
 
-Version ordering is **0.3.1.0 < 0.3.1.2 < 0.3.2.0**. The stable manifest remains unchanged. The packaged meta.json records version 0.3.1.2, the existing plugin GUID/ABI, and autoUpdate=true so the manual installation retains automatic future updates. Manual/branch-artifact installation and dev-catalog installation are both supported. For direct Jellyfin installation, add https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/dev-channel/manifest-dev.json and select version 0.3.1.2. The dev-release tag workflow accepts commits reachable from origin/dev or origin/dev-remote-live-tv and requires the tag version to match the project version. The v0.3.1.2-dev pre-release publishes this branch to the shared dev catalog. Before the stable release, set Version to **0.3.2.0** and remove the development InformationalVersion override. Jellyfin can then offer the higher stable version through the existing stable catalog.
+### Allow access to the plugin channel
 
-## Shared or personal groups
+An ordinary user needs Live TV access **and** access to the separate plugin channel:
 
-In the plugin dashboard, select **Gruppenverwaltung**:
+1. Open **Dashboard → Users → affected user → Access**.
+2. Under **Channels**, explicitly allow **Live-TV Gruppen**, or choose an appropriate all-channels policy.
+3. Save.
+4. Sign the user out and back in.
 
-- **Persönliche Gruppen je Benutzer** (default): everyone creates their own groups; other users cannot access them.
-- **Zentrale Gruppen vom Admin**: administrators create the shared collection. Ordinary users can browse allowed groups, use their guide and remote player, and keep personal display/player preferences.
+A user may be allowed to watch ordinary Live TV while the plugin entry is missing under My Media. Granting the plugin channel resolves that case.
 
-The admin can optionally copy their personal groups into the shared collection. Copying preserves originals and skips already imported IDs. Switching modes preserves both collections. Back up the users directory including the new administration.json.
+Jellyfin media playback rights, disabled-account restrictions, channel access and parental controls continue to apply.
 
-For each central group, use **Live-TV Gruppen → Gruppen verwalten → Benutzerfreigabe**. Choose **Alle Benutzer außer ausgewählten** to exclude checked users, or **Nur ausgewählte Benutzer** to allow checked users. Administrators retain management access. Group rules apply to the plugin web guide, native group/EPG folders, plugin stream opening and remote playback for both users involved. They do not remove access to channels in Jellyfin’s original Live TV. A channel occurring in another allowed group remains accessible through that group.
+### Group visibility
 
-Users still need **Dashboard → Benutzer → Zugriff → Kanäle → Live-TV Gruppen**, plus ordinary Live TV/playback rights. Save and log out/in after changing Jellyfin channel access. This resolved Robert’s missing My Media entry; no automatic changes to Jellyfin permissions are made.
+- Personal mode exposes that user's own groups.
+- Central mode exposes groups allowed by their user policies.
+- Administrators retain access to manage all central groups.
+- Personal display hiding is a preference; administrator group exclusions are access rules.
 
-The groups page has a direct **Fernsehprogramm** button. The **Sender** view displays channel cards/current programs; select the guide to see the full timeline. Display view preferences remain personal.
+Group rules apply to the plugin guide, native group/EPG folders, plugin stream resolution/opening and central-group remote playback. They do not remove access to the same channels in original Jellyfin Live TV. A channel also present in another allowed group remains accessible through that group.
 
-When Android TV reports an active player, remote switching sends an authorized native Stop, waits up to five seconds for PlaybackStopped, allows 500 ms for route disposal, rechecks current session/permissions and sends one PlayNow from position zero. Commands are serialized per device. Missing stop confirmation or a changed session returns an error rather than blindly resending. This addresses the suspected player replacement/cleanup race; actual Fire TV validation is still required.
+The plugin does not automatically change Jellyfin user/channel policies.
 
-## Settings
+## Quick start
 
-| Location | Setting | Effect |
+### Personal groups
+
+1. Open **Live-TV Gruppen → Gruppen verwalten** (Manage groups).
+2. Select **Neue Gruppe**, enter a name and save.
+3. Select **Sender auswählen** (Choose channels), select/search for channels, and save.
+4. Open **Fernsehprogramm** to view the timeline.
+
+### Shared groups for users
+
+1. As administrator, open **Dashboard → Plugins → Live-TV Groups**.
+2. Under **Gruppenverwaltung**, select **Zentrale Gruppen vom Admin**.
+3. Optionally check **Meine persönlichen Gruppen in zentrale Gruppen kopieren** to copy your existing personal groups.
+4. Save, then open **Live-TV Gruppen → Gruppen verwalten**.
+5. Create/edit central groups and configure **Benutzerfreigabe** per group.
+6. Ensure intended users have Jellyfin access to the plugin channel.
+
+The groups-page **Verwaltung** dialog also offers the mode/copy controls.
+
+### Phone as TV guide
+
+1. Open Jellyfin on Fire TV with the internal player enabled.
+2. Use the same Jellyfin account on phone and TV for the simplest setup.
+3. On the phone, open **Live-TV Gruppen → Fernsehprogramm**.
+4. Refresh devices and choose the TV under **Abspielen auf**.
+5. Tap a channel number/logo. The phone keeps the guide open while the TV plays.
+
+## Personal and central groups
+
+| Mode | Collection | Editing | Visibility |
+| --- | --- | --- | --- |
+| **Persönliche Gruppen je Benutzer** | Separate collection for each user. | The owner edits their own collection. | That user. |
+| **Zentrale Gruppen vom Admin** | One shared server-wide collection. | Administrators. | Users allowed per group, plus administrators. |
+
+Switching modes preserves both collections. Enabling central mode does not delete personal groups; returning to personal mode does not delete central groups.
+
+The optional copy operation preserves group IDs/channel order, keeps personal originals and skips IDs already present in the central collection. It does not overwrite previously imported central groups.
+
+### Central user access
+
+Use **Gruppen verwalten → Benutzerfreigabe** on a central group:
+
+| Policy | Meaning of checked users |
+| --- | --- |
+| **Alle Benutzer außer ausgewählten** | Checked users are excluded; other eligible users can see the group. |
+| **Nur ausgewählte Benutzer** | Checked users are allowed; other ordinary users cannot see the group. |
+
+Administrators are labeled as always having management access. An explicit exclusion takes precedence over an allowance. A group policy does not grant ordinary Live TV rights to an otherwise restricted/disabled user.
+
+Use **Aktualisieren** on an already open page to reload the current mode and visible groups. Refresh or reopen the TV app if it still shows an older group listing.
+
+## Creating and editing groups
+
+Users with editing permission can:
+
+- Create groups with a nonempty name of up to 100 characters.
+- Rename/delete groups.
+- Search/select channels that Jellyfin permits the editing user to access.
+- Filter the picker with **Nur ausgewählte Sender** (Only selected channels).
+- Reorder groups by drag-and-drop or up/down buttons.
+- Reorder a specific group's channels through **Reihenfolge ändern**.
+- Open a group directly from its management card.
+
+Deleting a group removes grouping information, not the underlying Jellyfin channels. Obsolete mirrored playlists are removed during synchronization.
+
+**Alle sichtbaren Gruppen** is a combined viewing scope. Channel editing requires a specific group. Central mode gives ordinary users read-only group content, playback controls and personal settings.
+
+## Views and program guide
+
+The selected group applies to all three views. **Alle sichtbaren Gruppen** combines personally visible, authorized groups and removes duplicate channels.
+
+| View | UI label | Content |
 | --- | --- | --- |
-| Groups page | Visible groups | Hides groups from the selector and combined scope without deleting them. |
-| Groups page | Default group / view | Initial selection when remembering the last view is disabled. |
-| Groups page | Remember last group and view | Saves the selection per user. |
-| Groups page | EPG zoom | Compact, normal or large time slots. |
-| Dashboard | Web integration | Independent groups page; requires File Transformation and a server restart after changing. |
-| Dashboard | App channel | Offers groups through Jellyfin's channel interface. The channel also remains available as the web entry while web integration is enabled. |
-| Dashboard | App-guide timezone | Timezone used in native program lists; defaults to Europe/Vienna. The web guide continues to use the device timezone. |
-| Dashboard | Playlist synchronization | Mirrors groups as user playlists; requires the app channel. Turning it off removes the mirrored playlists. |
-| Dashboard | Status | File Transformation registration and optional Plugin Pages installation/registration. Server registration alone does not prove successful client startup. |
+| Programs | **Programme** | Current, next and later programs in the loaded window. |
+| Timeline guide | **Fernsehprogramm** | Channels/programs on a time axis. |
+| Channel cards | **Sender** | Channel numbers/logos and current programs when available. |
 
-## Notes
+### Timeline features
 
-- Existing Jellyfin EPG data is used. Empty rows mean no programs are available for the selected period; the plugin does not obtain XMLTV data itself. Unresolved channels and discarded invalid program data are reported in the guide.
-- After an M3U re-import, channel references are resolved again by ID, then name/number. Ambiguous matches and advanced repair/import/export tools remain future work.
-- **App channel and playlists:** a dedicated media-source provider delegates source discovery and stream opening to Jellyfin's native Live TV provider. The real live-stream object is retained for sharing, probing, closing and native tuner handling. The plugin no longer opens/probes provider URLs independently or bypasses the normal tuner path. Native media-source delivery behavior still applies; this is not a new URL-hiding proxy.
-- Playlists synchronize shortly after changes, at startup and every six hours. A scheduled task is available for manual synchronization.
-- Web integration depends on Jellyfin Web's channel-list route/container. Major client updates may require a plugin update. The current UI is tested on desktop and narrow mobile viewports.
-- Groups are stored as per-user JSON in `<jellyfin data>/plugins/LiveTvGroups/users/` and survive updates. Backup that directory before installing development builds.
+- Six-hour time window and 30-minute time labels.
+- Seven calendar-day buttons, date/time inputs and earlier/later navigation.
+- **Jetzt** (Now) and **Heute Abend** (Tonight) shortcuts.
+- Compact, normal or large zoom.
+- Current-time indicator and live-program highlighting.
+- Horizontal scrolling with readable captions on narrow screens.
+- Preserved group, guide window and scroll state when returning from program details.
+- Guide data refresh approximately every five minutes while an active viewing screen is running.
 
-## Development
+Web times use the device/browser timezone. Native app lists use the administrator's app-guide timezone.
 
-```bash
-dotnet test --configuration Release
-npm ci
-npx playwright install chromium
-npm run test:web
+A **program cell/card** opens Jellyfin's ordinary details page. A **channel number/logo** in the guide or a **Sender channel card** starts playback on the chosen target. Playback buttons on native program details belong to Jellyfin and are not redirected by the plugin target selector.
+
+The direct **Fernsehprogramm** button opens the timeline. A user seeing channel cards in Sender view does not lack EPG permission merely because the timeline is not selected.
+
+### Missing data
+
+The plugin reads Jellyfin's imported EPG. It does not obtain a new XMLTV feed or create catch-up recordings.
+
+Empty rows can mean no programs exist for that channel/time period. The guide reports unresolved saved channels and discarded incomplete program records. A saved group's channel count can exceed the count currently accessible to a restricted user.
+
+## Remote playback
+
+### Supported target
+
+The supported remote target is official Jellyfin Android TV / Fire TV, **open in the foreground with the internal player**. No TV wake-up or automatic app launch is provided.
+
+Keep the Jellyfin TV app open on screen. If an external player is configured, switch to the internal player before using remote playback.
+
+### Target selection
+
+- **Abspielen auf** (Play on) chooses the output device.
+- **Geräte aktualisieren** (Refresh devices) reloads connected, authorized targets.
+- **Dieses Gerät** (This device) restores the current browser/mobile client's playback behavior.
+- Device ID and server-reported name are saved per user.
+- An offline preferred TV remains selected and displays an unavailable warning.
+- Remote errors remain on the guide and do not silently fall back to playback on the phone.
+- Device discovery refreshes approximately every minute while an active viewing screen is running.
+
+The target list includes connected, authorized players. Official Android TV / Fire TV devices can appear even if the client does not advertise remote-control support.
+
+The preferred device is remembered for each user. Reopening the TV app does not require selecting it again when Jellyfin recognizes the same device.
+
+### Accounts and rights
+
+The simplest configuration uses the same user on phone and TV.
+
+To control a TV signed in as another user, an administrator must allow the controlling account to remotely control other users in Jellyfin's user settings. Both users need Live TV/media playback permission and access to the requested channel. In central mode, both must also have that channel in an authorized group.
+
+### Switching a running channel
+
+Tap the new channel once. The plugin stops the current stream and starts the selected channel after the player is ready. A brief pause while switching is normal.
+
+If the TV disconnects or does not confirm that playback stopped, the guide displays an error. Reopen the TV app, refresh devices and try again.
+
+Successful command delivery does not prove that a tuner stream opened or that video was displayed. Check the TV and server logs if a command succeeds without playback.
+
+This version provides start/switch actions, not a separate pause/volume/stop remote-control panel.
+
+## Native apps and program lists
+
+Apps with channel support can browse:
+
+```text
+Channels / My Media
+└── Live-TV Gruppen
+    └── Group
+        ├── Channel
+        └── Fernsehprogramm
+            └── Day
+                └── Channel
+                    └── Program
+                        └── live ansehen
 ```
 
-Browser tests use a local Jellyfin-shell/API fixture. They cover navigation isolation, details/back state, preferences, overlapping groups, search, delayed responses/retry, mobile guide labels/date navigation and group CRUD/order. They do not replace testing a newly installed server plugin or native TV apps. To use installed Chrome locally, set `LTVG_BROWSER_CHANNEL=chrome`.
+The native EPG contains seven local calendar days, channel lists, timing, episode information and descriptions. Day boundaries follow the configured timezone, including daylight-saving changes.
 
-### Release process
+**live ansehen** starts the current live stream. Selecting a past/future program does not play a recording or catch-up stream.
 
-Development happens on `dev`; `main` contains stable releases.
+The stock Fire TV / Android TV client uses browsable folders for this guide. It does not render the browser timeline inside the native TV app. Original Jellyfin Live TV/its timeline remain independent.
 
-1. Add changes under `## Unreleased` in `CHANGELOG.md` and push `dev`.
-2. Tag its tested commit with a four-part development version, for example `v0.3.0.1-dev`. Pushing that tag creates a GitHub **pre-release** and updates **manifest-dev.json**. It does not change `main` or the stable manifest.
-3. After testing, merge the approved changes into `main`, update the changelog and push a stable tag with a higher version. Stable publication is a separate action.
+Grouped playback uses Jellyfin's Live TV streaming and transcoding. Users can play only channels permitted by their Jellyfin account and, in central mode, the group's access policy.
 
-### Testing development builds
+## Optional playlists
 
-Add a second plugin repository:
+Enable **Gruppen zusätzlich als Wiedergabelisten anlegen** for clients with playlists but no channel interface.
+
+Each visible group is mirrored as **Live-TV: Group name** for its relevant user. Entries reference the plugin's grouped media items; native Live TV channels cannot simply be added as ordinary playlist items.
+
+- Requires the app channel setting.
+- Synchronizes shortly after edits, at startup and on a default six-hour schedule.
+- Mode/central group/access-policy changes schedule user synchronization.
+- Removes obsolete mirrors for deleted or no-longer-visible groups.
+- Turning the feature off removes plugin-created mirrors.
+- Manual task: **Live-TV Gruppen als Wiedergabelisten synchronisieren**.
+
+Playlist mappings remain per user even when the collection is central. Client playback capabilities still apply; Wholphin is an intended playlist-based entry use case.
+
+## Settings reference
+
+### Administrator settings
+
+Location: **Dashboard → Plugins → Live-TV Groups**.
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| Group administration / **Gruppenverwaltung** | Personal | Choose personal or central ownership; also available in groups-page administration. |
+| Copy personal groups | Unchecked | Copy admin personal groups into the central collection without deleting originals. |
+| Web integration | Enabled | Inject the independent web page through File Transformation. Restart after changing integration registration settings. |
+| App channel | Enabled | Offer groups to native apps. It also remains available as a web entry while web integration is enabled. |
+| App-guide timezone | Europe/Vienna | Timezone for native EPG lists; examples: Europe/Berlin or UTC. |
+| Playlist sync | Disabled | Mirror visible groups as user playlists; requires app channel. |
+| Integration status | Read-only | File Transformation and optional Plugin Pages detection/registration status/errors. |
+| Central group user policy | All eligible users for a new group | Edit through **Gruppen verwalten → Benutzerfreigabe**. |
+
+Successful server registration does not prove that a client loaded the injected script.
+
+### Personal settings
+
+Location: **Einstellungen** on the groups page. These remain personal in both modes.
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| Visible groups | All authorized groups | Hide from the selector/combined scope without deletion or a security-policy change. |
+| Default group | All visible groups | Starting group when remembering is disabled. |
+| Default view | Timeline guide | Starting Programs/Guide/Channels view when remembering is disabled. |
+| Remember last group/view | Enabled | Reopen the last viewing selection; management is not a remembered normal view. |
+| EPG zoom | Normal | Compact, normal or large time-axis spacing. |
+| Preferred player | This device | Saved automatically by the target selector, independently of display preferences. |
+
+## Data storage and backups
+
+Data is stored in the `users` subdirectory of the plugin's Jellyfin data folder:
+
+```text
+<plugin data folder>/
+└── users/
+    ├── <user-id-without-hyphens>.json
+    └── administration.json
 ```
-https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/dev-channel/manifest-dev.json
-```
-Install the `[DEV]` version and restart Jellyfin. The next stable version must be higher than the development version to be offered as an update.
 
-License: GPL-3.0
+Per-user files contain personal groups, ordered channel references, personal preferences, preferred device identity/name and playlist mappings. The central file contains the operating mode, shared groups and access policies.
+
+This data directory is separate from a versioned binary installation directory. Preserve the complete data folder and Jellyfin-managed plugin configuration when upgrading/moving the server. Stop Jellyfin before restoring a backup to prevent ongoing changes from overwriting restored files.
+
+If a tuner rescan/M3U re-import changes channel IDs, references can be matched using stored IDs, names and numbers. If a channel cannot be matched, open **Sender auswählen** and select its replacement.
+
+## Troubleshooting
+
+| Symptom | Action |
+| --- | --- |
+| Ordinary user cannot find Live-TV Gruppen in My Media | Allow the plugin channel under **Users → Access → Channels**, save and sign out/in. Ordinary Live TV access alone is insufficient. Also check personal home/library visibility. |
+| Channel cards appear instead of EPG | Select **Fernsehprogramm** or its direct button. **Sender** is a separate, possibly remembered view. |
+| No groups for a user | Personal mode may have no groups for that account. In central mode check group policy and Jellyfin rights; refresh after changes. |
+| Native folders appear instead of custom web UI | Check File Transformation, web integration/status, restart and browser reload/cache. Plugin Pages alone does not inject the interface. |
+| Channels have no programs | Check imported EPG, channel mapping, selected time/date and ordinary Jellyfin Live TV. |
+| Saved channel missing | Check user/parental rights, tuner availability and rescan matching; correct unresolved references through channel selection. |
+| Fire TV absent from target list | Open Jellyfin in the foreground, use the same account or grant cross-user remote permission, then refresh. Ensure the TV app is connected to your Jellyfin server. |
+| Remembered target unavailable | Reopen the TV app and refresh devices. The preference intentionally does not switch to local playback. |
+| No stop confirmation on sender change | Check TV connection/internal-player setting. Reopen the TV app and retry. The selected channel starts only after the current player has stopped. |
+| Command succeeds but no picture | Check TV/internal player, ordinary playback of the same sender, tuner/transcoding and matching server logs. |
+| Native listing stale | Fully close/reopen or refresh the app. The app may keep a cached group listing. |
+| Playlists missing/outdated | Enable app channel/playlist sync, check group access and run the manual synchronization task. |
+| Old version after manual installation | Remove duplicate binary installations, use matching DLL/meta.json in the versioned folder and restart. |
+
+For an issue report, include server/plugin/client versions, mode, affected accounts, channel, approximate time, displayed error and relevant log excerpts. State whether phone, TV or both are affected, and whether ordinary Live TV plays the channel.
+
+## Support
+
+If you encounter a problem, open an issue in the [GitHub issue tracker](https://github.com/iEnki/jellyfin-plugin-livetv-groups/issues). Include the information listed above and remove passwords, access tokens and other private information from logs.
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
+
+## License
+
+Live-TV Groups is distributed under the [GNU General Public License v3.0](LICENSE).
