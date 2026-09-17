@@ -1,0 +1,123 @@
+name: Beta release
+
+# Push beta with an increased numeric project version to publish an installable test build.
+# It creates a GitHub pre-release and adds the build to manifest-beta.json on the "beta-channel" release.
+# The public manifest.json is not changed.
+on:
+  push:
+    branches: [beta]
+    paths-ignore: ['**/*.md', 'manifest.json']
+
+concurrency:
+  group: beta-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  TARGET_ABI: '12.0.0.0'
+
+jobs:
+  beta-release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Verify beta branch
+        run: |
+          git fetch origin beta main
+          git merge-base --is-ancestor HEAD origin/beta || { echo 'Beta builds must reference beta.' >&2; exit 1; }
+
+      - name: Determine version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(dotnet msbuild src/Jellyfin.Plugin.LiveTvGroups -getProperty:Version)"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Beta versions need four numeric version parts (got $version)." >&2
+            exit 1
+          fi
+          informational_version="$(dotnet msbuild src/Jellyfin.Plugin.LiveTvGroups -getProperty:InformationalVersion)"
+          [[ "$informational_version" == *-beta* ]] || { echo 'Expected a beta build marker.' >&2; exit 1; }
+          git show origin/main:manifest.json > stable-manifest.json
+          jq -e --arg v "$version" '($v | split(".") | map(tonumber)) > (.[0].versions | map(.version | split(".") | map(tonumber)) | max)' stable-manifest.json >/dev/null || { echo 'Beta must be newer than the latest stable version.' >&2; exit 1; }
+          if gh release view beta-channel >/dev/null 2>&1; then
+            gh release download beta-channel --pattern manifest-beta.json --dir "$RUNNER_TEMP"
+            jq -e --arg v "$version" '($v | split(".") | map(tonumber)) > (.[0].versions | map(.version | split(".") | map(tonumber)) | max)' "$RUNNER_TEMP/manifest-beta.json" >/dev/null || { echo 'Increase the numeric version for each beta.' >&2; exit 1; }
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}-beta" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: dotnet test --configuration Release
+
+      - name: Check client and package metadata
+        run: |
+          node --check src/Jellyfin.Plugin.LiveTvGroups/Web/client.js
+          npm run test:packaging
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Test web integration
+        run: npm run test:web
+
+      - name: Build
+        run: |
+          dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release \
+            -p:Version=${{ steps.version.outputs.version }} --output out
+          node .github/scripts/write-dev-meta.cjs out
+          zip -j "live-tv-groups_${{ steps.version.outputs.version }}-beta.zip" out/Jellyfin.Plugin.LiveTvGroups.dll out/meta.json
+
+      - name: Release notes
+        run: |
+          # "## Unreleased" section of CHANGELOG.md, if present.
+          awk '$0 == "## Unreleased" {f=1; next} /^## /{f=0} f' CHANGELOG.md | sed '/./,$!d' > notes.md
+          if [ ! -s notes.md ]; then echo "Beta build ${{ steps.version.outputs.tag }}" > notes.md; fi
+          { echo "[BETA] Beta build for testing – do not use in production."; echo; cat notes.md; } > release-notes.md
+
+      - name: Create GitHub pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" "live-tv-groups_${{ steps.version.outputs.version }}-beta.zip" \
+            --prerelease --target "${{ github.sha }}" --title "Live-TV Groups ${{ steps.version.outputs.tag }} (BETA)" --notes-file release-notes.md
+
+      - name: Update manifest-beta.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          zip="live-tv-groups_${version}-beta.zip"
+          jq -n --arg v "$version" --arg abi "$TARGET_ABI" \
+             --arg url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ steps.version.outputs.tag }}/${zip}" \
+             --arg sum "$(md5sum "$zip" | cut -d' ' -f1)" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             --rawfile log release-notes.md \
+             '{version: $v, changelog: $log, targetAbi: $abi, sourceUrl: $url, checksum: $sum, timestamp: $ts}' > entry.json
+          git show origin/main:manifest.json > stable-manifest.json
+          bash .github/scripts/update-dev-manifest.sh stable-manifest.json entry.json beta-channel manifest-beta.json "[BETA]"
+
+      - name: Keep existing development repository installable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view dev-channel >/dev/null 2>&1; then
+            bash .github/scripts/update-dev-manifest.sh stable-manifest.json entry.json dev-channel manifest-dev.json '[BETA]'
+          fi
+
+      - name: Attach beta catalog to the version release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ steps.version.outputs.tag }}" manifest-beta.json --clobber

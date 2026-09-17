@@ -73,6 +73,18 @@ The interface supports English and German. This documentation uses the English l
 
 When compatible Plugin Pages is installed and web integration is registered, a user-menu shortcut is registered automatically. The channel/library entry remains available without Plugin Pages.
 
+### Optional beta repository
+
+To test features before their stable release, add this separate repository under **Dashboard → Plugins → Repositories**:
+
+```text
+https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/beta-channel/manifest-beta.json
+```
+
+Install or update **Live-TV Groups** from the plugin catalog and restart Jellyfin. Beta builds use the same plugin identity and preserve existing settings and groups. The beta catalog includes stable versions as well as newer beta versions; the existing development repository also receives beta builds.
+
+Jellyfin compares four-part numeric versions. Beta updates and a later stable release need higher version numbers to be offered as updates. Removing the beta repository stops future beta offers; it does not downgrade an already installed beta. To return to stable immediately, follow manual installation and preserve plugin data/configuration.
+
 ### Manual installation
 
 1. Download the plugin ZIP from the [latest release](https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/latest).

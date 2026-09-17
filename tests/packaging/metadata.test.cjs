@@ -15,6 +15,9 @@ test('manual package retains plugin identity, actual version and automatic futur
     const project = fs.readFileSync(path.join(__dirname, '../../src/Jellyfin.Plugin.LiveTvGroups/Jellyfin.Plugin.LiveTvGroups.csproj'), 'utf8');
     const expectedVersion = project.match(/<Version>([^<]+)<\/Version>/)[1];
     assert.equal(result.version, expectedVersion);
+    if (project.includes('-beta</InformationalVersion>')) assert.ok(result.changelog.startsWith('[BETA]'));
+    else if (project.includes('-dev')) assert.ok(result.changelog.startsWith('[DEV]'));
+    else assert.ok(!/^\[(BETA|DEV)\]/.test(result.changelog));
     assert.equal(result.autoUpdate, true);
     assert.equal(result.status, 'Active');
     assert.deepEqual(result.assemblies, ['Jellyfin.Plugin.LiveTvGroups.dll']);

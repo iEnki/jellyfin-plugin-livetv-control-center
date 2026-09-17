@@ -4,7 +4,7 @@ name: Release
 # and add the version to manifest.json (the Jellyfin plugin repository).
 on:
   push:
-    tags: ['v*', '!v*-dev']
+    tags: ['v*', '!v*-dev', '!v*-beta']
 
 permissions:
   contents: write
@@ -46,7 +46,7 @@ jobs:
           fi
           project_version="$(dotnet msbuild src/Jellyfin.Plugin.LiveTvGroups -getProperty:Version)"
           informational_version="$(dotnet msbuild src/Jellyfin.Plugin.LiveTvGroups -getProperty:InformationalVersion)"
-          if [ "$version" != "$project_version" ] || [[ "$informational_version" == *-dev* ]]; then
+          if [ "$version" != "$project_version" ] || [[ "$informational_version" == *-dev* || "$informational_version" == *-beta* ]]; then
             echo "Stable tag must match the project version and contain no development marker." >&2; exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -115,3 +115,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         # Development builds older than this release are dropped from the dev channel.
         run: bash .github/scripts/update-dev-manifest.sh manifest.json
+
+      - name: Refresh beta catalog when present
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view beta-channel >/dev/null 2>&1; then
+            bash .github/scripts/update-dev-manifest.sh manifest.json '' beta-channel manifest-beta.json '[BETA]'
+          fi

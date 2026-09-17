@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add an installable beta channel with a dedicated repository URL, automatic catalog publication and compatibility with the existing development repository.
+
 - Add an optional administrator setting to hide the original Live TV My Media entry in web and web-based mobile clients when a usable groups entry is visible.
 - Keep the Live TV menu, recordings, permissions, server streaming and native TV apps unchanged; restore the original entry when groups are unavailable or the user changes.
 - Localize the dashboard option in English and German and document its web-only behavior.
