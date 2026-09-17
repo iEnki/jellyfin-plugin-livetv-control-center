@@ -7,3 +7,5 @@ out/
 *.zip
 TestResults/
 node_modules/
+
+docs/
