@@ -30,6 +30,12 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public bool EnableWebIntegration { get; set; } = true;
 
+    /// <summary>Hide only the original My Media entry in web clients when a usable groups entry is present.</summary>
+    public bool HideOriginalLiveTvHomeEntry { get; set; }
+
+    internal bool ShouldHideOriginalLiveTvHomeEntry(bool hasAccessibleChannel)
+        => HideOriginalLiveTvHomeEntry && EnableWebIntegration && EnableAppChannel && hasAccessibleChannel;
+
     /// <summary>
     /// Gets or sets a value indicating whether groups are exposed as a channel for native apps.
     /// </summary>

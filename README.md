@@ -14,6 +14,7 @@ The plugin uses Jellyfin's existing channels and EPG data. Its groups page works
 - [Installation](#installation)
 - [Upgrading](#upgrading)
 - [User permissions](#user-permissions)
+- [Home screen entry](#home-screen-entry)
 - [Language and display name](#language-and-display-name)
 - [Quick start](#quick-start)
 - [Phone as TV guide and remote](#phone-as-tv-guide-and-remote)
@@ -122,6 +123,18 @@ Jellyfin media playback rights, disabled-account restrictions, channel access an
 Group rules apply to the plugin guide, native group/EPG folders, plugin stream resolution/opening and central-group remote playback. They do not remove access to the same channels in original Jellyfin Live TV. A channel also present in another allowed group remains accessible through that group.
 
 The plugin does not automatically change Jellyfin user/channel policies.
+
+## Home screen entry
+
+Administrators can optionally hide the original **Live TV** tile or library button under **My Media**, leaving **Live-TV Groups** as the entry for browsing grouped channels and their program guide.
+
+1. Open **Dashboard → Plugins → Live-TV Groups**.
+2. Enable **Hide the original Live TV entry on the web home screen** and save.
+3. Reload Jellyfin Web or reopen web-based mobile clients.
+
+The option is disabled by default and applies to all users of the web interface. It requires web integration, the app channel and user access to the plugin channel. The original Live TV entry is hidden only when an accessible groups entry is visible in the same My Media section. If that entry is missing or unavailable, original Live TV remains visible.
+
+This changes the web home screen only. The normal Live TV menu, recordings, schedules, permissions and streaming remain available. Native Smart TV, Android TV and Fire TV apps retain their existing home screens, group folders and playback. Fully native mobile clients are also unaffected. Disable the option and reload clients to restore the original web home entry.
 
 ## Language and display name
 
@@ -333,6 +346,7 @@ Location: **Dashboard → Plugins → Live-TV Groups**.
 | Group administration | Personal | Choose personal or central ownership; also available in groups-page administration. |
 | Copy personal groups | Unchecked | Copy admin personal groups into the central collection without deleting originals. |
 | Web integration | Enabled | Inject the independent web page through File Transformation. Restart after changing integration registration settings. |
+| Hide original Live TV home entry | Disabled | Hide only the original My Media tile/button in web clients when an accessible groups entry is visible. Reload clients after changing. |
 | App channel | Enabled | Offer groups to native apps. It also remains available as a web entry while web integration is enabled. |
 | App-guide timezone | Europe/Vienna | Timezone for native EPG lists; examples: Europe/Berlin or UTC. |
 | Playlist sync | Disabled | Mirror visible groups as user playlists; requires app channel. |

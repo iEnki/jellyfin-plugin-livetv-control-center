@@ -42,6 +42,13 @@
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
+                            <input id="HideOriginalLiveTvHomeEntry" type="checkbox" is="emby-checkbox" />
+                            <span>Hide the original Live TV entry on the web home screen</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Only hides the My Media tile or button when an accessible groups entry is visible. Does not change the Live TV menu, recordings, permissions or native TV apps. Requires web integration and the app channel. Reload web and mobile clients after saving.</div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
                             <input id="EnableAppChannel" type="checkbox" is="emby-checkbox" />
                             <span>Offer groups as an app channel</span>
                         </label>
@@ -115,6 +122,7 @@
                         page.querySelector('#AppGuideTimeZone').value = config.AppGuideTimeZone || 'Europe/Vienna';
                         page.querySelector('#EnableWebIntegration').checked = config.EnableWebIntegration;
                         page.querySelector('#EnableAppChannel').checked = config.EnableAppChannel;
+                        page.querySelector('#HideOriginalLiveTvHomeEntry').checked = config.HideOriginalLiveTvHomeEntry === true;
                         page.querySelector('#EnablePlaylistSync').checked = config.EnablePlaylistSync;
                     }).catch(function () { Dashboard.alert(t("Could not load settings.")); }).finally(function () { Dashboard.hideLoadingMsg(); });
                 });
@@ -131,6 +139,7 @@
                         config.AppGuideTimeZone = zone;
                         config.EnableWebIntegration = page.querySelector('#EnableWebIntegration').checked;
                         config.EnableAppChannel = page.querySelector('#EnableAppChannel').checked;
+                        config.HideOriginalLiveTvHomeEntry = page.querySelector('#HideOriginalLiveTvHomeEntry').checked;
                         if (page.querySelector('#EnablePlaylistSync').checked && !page.querySelector('#EnableAppChannel').checked) { throw new Error(t("Playlists require the app channel.")); }
                         config.EnablePlaylistSync = page.querySelector('#EnablePlaylistSync').checked;
                         return fetch(ApiClient.getUrl('LiveTvGroups/Administration'), {

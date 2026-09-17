@@ -76,8 +76,10 @@ public class LocalizationTests
         Assert.Equal("Live-TV Groups", channel.Name);Assert.Equal(1,writes);
         await service.UpdateDisplayName(CancellationToken.None);Assert.Equal(1,writes);
     }
-    [Fact]
-    public async Task EntryFindsRenamedChannelByIdentityAndRespectsUserChannelQuery()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task EntryFindsRenamedChannelByIdentityAndRespectsUserChannelQuery(bool hasChannelAccess)
     {
         var user = new Jellyfin.Database.Implementations.Entities.User("viewer", "test", "test") { Id = Guid.NewGuid() };
         var id = Guid.NewGuid();
@@ -87,8 +89,8 @@ public class LocalizationTests
         {
             Assert.Equal("GetChannelsAsync",m.Name);
             Assert.Equal(user.Id,Assert.IsType<MediaBrowser.Model.Channels.ChannelQuery>(a![0]).UserId);
-            return Task.FromResult(new MediaBrowser.Model.Querying.QueryResult<MediaBrowser.Model.Dto.BaseItemDto>(0,1,
-                [new MediaBrowser.Model.Dto.BaseItemDto { Id=id,Name="Custom renamed channel" }]));
+            return Task.FromResult(new MediaBrowser.Model.Querying.QueryResult<MediaBrowser.Model.Dto.BaseItemDto>(0,hasChannelAccess ? 1 : 0,
+                hasChannelAccess ? [new MediaBrowser.Model.Dto.BaseItemDto { Id=id,Name="Custom renamed channel" }] : []));
         });
         using var services = new ServiceCollection().AddSingleton(library).AddSingleton(channels).BuildServiceProvider();
         var http = new DefaultHttpContext { RequestServices=services, User=new ClaimsPrincipal(new ClaimsIdentity([new Claim("Jellyfin-UserId",user.Id.ToString())],"test")) };
@@ -96,7 +98,9 @@ public class LocalizationTests
         var api = new GroupsController(null!,users,null!,new WebInjectionStatus(),null!) { ControllerContext=new ControllerContext { HttpContext=http } };
         var result=Assert.IsType<OkObjectResult>(await api.GetEntry());
         var json=System.Text.Json.JsonSerializer.SerializeToElement(result.Value);
-        Assert.Equal(id,json.GetProperty("ChannelId").GetGuid());
+        if (hasChannelAccess) Assert.Equal(id,json.GetProperty("ChannelId").GetGuid());
+        else Assert.Equal(System.Text.Json.JsonValueKind.Null,json.GetProperty("ChannelId").ValueKind);
+        Assert.False(json.GetProperty("HideOriginalLiveTvHomeEntry").GetBoolean());
         Assert.Equal("Live-TV Gruppen",json.GetProperty("DisplayName").GetString());
     }
 

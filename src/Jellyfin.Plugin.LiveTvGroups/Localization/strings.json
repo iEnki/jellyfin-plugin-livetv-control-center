@@ -164,6 +164,8 @@
     "File Transformation is not installed.": "Plugin \"File Transformation\" ist nicht installiert.",
     "Organize Live TV into personal or centrally managed groups with a guide and TV remote playback.": "Live-TV-Sender in persönliche oder zentral verwaltete Gruppen mit Fernsehprogramm und TV-Fernsteuerung einteilen.",
     "Live-TV Groups → Manage groups → User access": "Live-TV Gruppen → Gruppen verwalten → Benutzerfreigabe",
-    "Unsupported File Transformation version.": "Nicht unterstützte Version von File Transformation."
+    "Unsupported File Transformation version.": "Nicht unterstützte Version von File Transformation.",
+    "Hide the original Live TV entry on the web home screen": "Normalen Live-TV-Eintrag auf der Web-Startseite ausblenden",
+    "Only hides the My Media tile or button when an accessible groups entry is visible. Does not change the Live TV menu, recordings, permissions or native TV apps. Requires web integration and the app channel. Reload web and mobile clients after saving.": "Blendet nur die Kachel oder Schaltfläche unter Meine Medien aus, wenn ein zugänglicher Gruppen-Eintrag sichtbar ist. Live-TV-Menü, Aufnahmen, Berechtigungen und native TV-Apps bleiben unverändert. Benötigt Web-Integration und App-Kanal. Web- und Handy-Clients nach dem Speichern neu laden."
   }
 }

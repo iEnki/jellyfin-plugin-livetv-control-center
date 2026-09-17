@@ -7,6 +7,8 @@
     const displayName = () => entry?.DisplayName || t('Live-TV Groups');
     const PAGE = 'ltvg-page', MODAL = 'ltvg-modal';
     const views = { programs:'Programs', guide:'TV guide', channels:'Channels', manage:'Manage groups' };
+    let entryRequest = 0;
+    const hiddenHomeEntries = new Set();
     let entry = null, userKey = '', entryPending = false, scheduled = false, host = null, timer = null;
     let access = { Mode:'personal', CanManage:false, IsAdministrator:false };
     let groups = [], prefs = null, active = false, request = 0, abort = null, lastRoute = '';
@@ -55,7 +57,7 @@
     function styles() {
         if (document.getElementById('ltvg-styles')) return;
         const link = document.createElement('link'); link.id = 'ltvg-styles'; link.rel = 'stylesheet';
-        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.2.1'));
+        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.2.2'));
         document.head.appendChild(link);
     }
     function ownRoute() {
@@ -460,22 +462,69 @@
             active=true;lastRoute=window.location.hash;boot();
         }else if(lastRoute!==window.location.hash&&prefs){capture();readRoute();lastRoute=window.location.hash;render();}
     }
+    function clearHomeEntries() {
+        hiddenHomeEntries.forEach(element => element.removeAttribute('data-ltvg-hidden-home-entry'));
+        hiddenHomeEntries.clear();
+    }
+    function entryRoute(link) {
+        try {
+            const href = link.getAttribute('href');
+            if (!href?.startsWith('#/')) return null;
+            return new URL(href.slice(1), location.origin);
+        } catch (_) { return null; }
+    }
+    function adaptHomeEntries() {
+        const keep = new Set();
+        if (entry?.HideOriginalLiveTvHomeEntry === true && entry.ChannelId) {
+            document.querySelectorAll('.homePage:not(.hide) .homeSectionsContainer .itemsContainer').forEach(container => {
+                if (container.closest('#favoritesTab')) return;
+                const links = Array.from(container.querySelectorAll('a[href]'));
+                const own = links.find(link => {
+                    const url = entryRoute(link);
+                    return url?.pathname === '/list' && id(url.searchParams.get('parentId')) === id(entry.ChannelId)
+                        && url.searchParams.get('liveTvGroups') === '1' && link.getClientRects().length
+                        && getComputedStyle(link).visibility !== 'hidden';
+                });
+                if (!own) return;
+                links.forEach(link => {
+                    const url = entryRoute(link);
+                    if (url?.pathname !== '/livetv') return;
+                    const server = url.searchParams.get('serverId');
+                    if (server && server !== client().serverId()) return;
+                    // Recordings and schedules are distinct destinations, even on the home screen.
+                    const tab = url.searchParams.get('tab');
+                    if (tab && !['0','1','2'].includes(tab)) return;
+                    const element = link.closest('.card') || (link.matches('.homeLibraryButton') ? link : null);
+                    if (element && container.contains(element)) keep.add(element);
+                });
+            });
+        }
+        hiddenHomeEntries.forEach(element => {
+            if (!keep.has(element)) { element.removeAttribute('data-ltvg-hidden-home-entry'); hiddenHomeEntries.delete(element); }
+        });
+        if (keep.size && !document.getElementById('ltvg-home-entry-style')) {
+            const style = document.createElement('style');style.id = 'ltvg-home-entry-style';
+            style.textContent = '.homePage .homeSectionsContainer [data-ltvg-hidden-home-entry]{display:none!important}';document.head.appendChild(style);
+        }
+        keep.forEach(element => { element.setAttribute('data-ltvg-hidden-home-entry', '');hiddenHomeEntries.add(element); });
+    }
     function ensure() {
         const current=client();const key=current?.getCurrentUserId?.()+'|'+current?.serverId?.();
-        if(!current?.accessToken?.()||!current.getCurrentUserId()){if(active)stop();entry=null;userKey='';return;}
-        if(key!==userKey){stop();entry=null;prefs=null;groups=[];players=[];playerRequest++;playerBusy=false;playbackBusy=false;playerMessage='';positions.clear();userKey=key;}
-        if(!entry&&!entryPending){entryPending=true;const expected=key;api('GET','Entry').then(result=>{if(expected===userKey)entry=result;}).catch(()=>{}).finally(()=>{entryPending=false;if(entry)schedule();});return;}
-        if(!entry?.ChannelId)return;
-        // Rewrite only the own channel entry. Never touch Live TV links or requests.
+        if(!current?.accessToken?.()||!current.getCurrentUserId()){clearHomeEntries();if(active)stop();entry=null;entryRequest++;entryPending=false;userKey='';return;}
+        if(key!==userKey){clearHomeEntries();entryRequest++;entryPending=false;stop();entry=null;prefs=null;groups=[];players=[];playerRequest++;playerBusy=false;playbackBusy=false;playerMessage='';positions.clear();userKey=key;}
+        if(!entry&&!entryPending){clearHomeEntries();entryPending=true;const expected=key,generation=++entryRequest;api('GET','Entry').then(result=>{if(expected===userKey&&generation===entryRequest)entry=result;}).catch(()=>{}).finally(()=>{if(generation!==entryRequest)return;entryPending=false;if(entry)schedule();});return;}
+        if(!entry?.ChannelId){clearHomeEntries();return;}
+        // Rewrite the own entry; the optional home adaptation only changes presentation.
         document.querySelectorAll('a[href*="parentId="]').forEach(link=>{
             try{const url=new URL(link.getAttribute('href').replace(/^#/,'') ,location.origin);if(url.pathname==='/list'&&id(url.searchParams.get('parentId'))===id(entry.ChannelId)&&!url.searchParams.has('liveTvGroups'))link.setAttribute('href',routeUrl());}catch(_){}
         });
+        adaptHomeEntries();
         mount();
     }
     function schedule() { if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;ensure();}); }
     window.addEventListener('hashchange',schedule);document.addEventListener('viewshow',schedule);
     window.addEventListener('resize',keepLabelsVisible);
-    function start() { new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});schedule(); }
-    new MutationObserver(()=>{stop();entry=null;schedule();}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+    function start() { new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['href','class','hidden','style']});schedule(); }
+    new MutationObserver(()=>{clearHomeEntries();stop();entryRequest++;entryPending=false;entry=null;schedule();}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
     document.body?start():document.addEventListener('DOMContentLoaded',start);
 })();

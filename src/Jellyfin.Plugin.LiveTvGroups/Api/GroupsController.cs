@@ -369,7 +369,17 @@ public class GroupsController : Controller
         var channels = await HttpContext.RequestServices.GetRequiredService<MediaBrowser.Controller.Channels.IChannelManager>()
             .GetChannelsAsync(new MediaBrowser.Model.Channels.ChannelQuery { UserId = user.Id }).ConfigureAwait(false);
         var channel = channels.Items.FirstOrDefault(c => c.Id == Channel.GroupsChannel.GetInternalId(HttpContext.RequestServices.GetRequiredService<ILibraryManager>()));
-        return Ok(new { ChannelId = channel?.Id, DisplayName = PluginLocalization.DisplayName(Plugin.Instance?.Configuration, string.IsNullOrWhiteSpace(Request.Headers.AcceptLanguage.ToString()) ? PluginLocalization.ServerLanguage(HttpContext.RequestServices) : Request.Headers.AcceptLanguage.ToString()), Version = typeof(Plugin).Assembly.GetName().Version?.ToString() });
+        var configuration = Plugin.Instance?.Configuration;
+        var language = string.IsNullOrWhiteSpace(Request.Headers.AcceptLanguage.ToString())
+            ? PluginLocalization.ServerLanguage(HttpContext.RequestServices)
+            : Request.Headers.AcceptLanguage.ToString();
+        return Ok(new
+        {
+            ChannelId = channel?.Id,
+            HideOriginalLiveTvHomeEntry = configuration?.ShouldHideOriginalLiveTvHomeEntry(channel is not null) == true,
+            DisplayName = PluginLocalization.DisplayName(configuration, language),
+            Version = typeof(Plugin).Assembly.GetName().Version?.ToString()
+        });
     }
 
     /// <summary>Gets available channels for the groups editor only.</summary>
