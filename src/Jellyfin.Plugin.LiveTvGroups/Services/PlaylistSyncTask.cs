@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using MediaBrowser.Model.Tasks;
 
 namespace Jellyfin.Plugin.LiveTvGroups.Services;
@@ -12,24 +13,27 @@ namespace Jellyfin.Plugin.LiveTvGroups.Services;
 public class PlaylistSyncTask : IScheduledTask
 {
     private readonly PlaylistSyncService _syncService;
+    private readonly IServiceProvider _services;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PlaylistSyncTask"/> class.
     /// </summary>
     /// <param name="syncService">Playlist sync service.</param>
-    public PlaylistSyncTask(PlaylistSyncService syncService)
+    /// <param name="services">Server services.</param>
+    public PlaylistSyncTask(PlaylistSyncService syncService, IServiceProvider services)
     {
         _syncService = syncService;
+        _services = services;
     }
 
     /// <inheritdoc />
-    public string Name => "Live-TV Gruppen als Wiedergabelisten synchronisieren";
+    public string Name => PluginLocalization.Text("Synchronize Live-TV Groups playlists", PluginLocalization.ServerLanguage(_services));
 
     /// <inheritdoc />
     public string Key => "LiveTvGroupsPlaylistSync";
 
     /// <inheritdoc />
-    public string Description => "Legt für jede Sendergruppe eine Wiedergabeliste an (für Apps ohne Kanal-Unterstützung wie Wholphin) und hält sie aktuell.";
+    public string Description => PluginLocalization.Text("Creates and updates playlists for channel groups for apps without channel support, such as Wholphin.", PluginLocalization.ServerLanguage(_services));
 
     /// <inheritdoc />
     public string Category => "Live TV";

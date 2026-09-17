@@ -1,20 +1,22 @@
 <div id="ltvg-entry" class="padded-top">
-    <h1>Live-TV Gruppen</h1>
-    <p role="status">Gruppen werden geöffnet…</p>
-    <button type="button" class="raised emby-button" hidden>Erneut versuchen</button>
+    <h1>Live-TV Groups</h1>
+    <p role="status">Opening groups…</p>
+    <button type="button" class="raised emby-button" hidden>Try again</button>
 </div>
 <script>
 (function () {
+    const t = key => window.LiveTvGroupsI18n?.t(key) || key;
     var root = document.getElementById('ltvg-entry');
+    window.LiveTvGroupsI18n?.translate(root);
     var button = root.querySelector('button');
     function open() {
         button.hidden = true;
         ApiClient.getJSON(ApiClient.getUrl('LiveTvGroups/Entry')).then(function (entry) {
-            if (!root.isConnected) return;
-            if (!entry.ChannelId) throw new Error('Gruppenzugang nicht verfügbar. Bitte prüfe die Plugin-Einstellungen.');
+            if (!root.isConnected) return;root.querySelector('h1').textContent=entry.DisplayName || t('Live-TV Groups');
+            if (!entry.ChannelId) throw new Error(t("Groups are unavailable. Check the plugin settings."));
             window.location.hash = '#/list?parentId=' + encodeURIComponent(entry.ChannelId) + '&serverId=' + encodeURIComponent(ApiClient.serverId()) + '&liveTvGroups=1';
         }).catch(function (error) {
-            root.querySelector('[role="status"]').textContent = error.message || 'Gruppen konnten nicht geöffnet werden.';
+            root.querySelector('[role="status"]').textContent = error.message || t("Could not open groups.");
             button.hidden = false;
         });
     }

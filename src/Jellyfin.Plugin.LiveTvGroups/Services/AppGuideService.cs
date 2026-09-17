@@ -22,7 +22,8 @@ namespace Jellyfin.Plugin.LiveTvGroups.Services;
 public class AppGuideService(GroupService groups, IServiceProvider services)
 {
     private const string Root = "ltvepg", Day = "ltvepgday", Channel = "ltvepgchannel", Program = "ltvepgprogram";
-    private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-AT");
+    private CultureInfo Culture => PluginLocalization.Culture(services);
+    private string T(string key) => PluginLocalization.Text(key, PluginLocalization.Language(services));
 
     public static string GetRootId(Guid groupId) => Root + "_" + groupId.ToString("N");
     public static bool Handles(string folderId) => folderId.StartsWith("ltvepg", StringComparison.Ordinal);
@@ -39,9 +40,9 @@ public class AppGuideService(GroupService groups, IServiceProvider services)
             var days = Enumerable.Range(0, 7).Select(offset =>
             {
                 var date = today.AddDays(offset);
-                var title = offset == 0 ? "Heute" : offset == 1 ? "Morgen" : date.ToString("dddd", German);
+                var title = offset == 0 ? T("Today") : offset == 1 ? T("Tomorrow") : date.ToString("dddd", Culture);
                 return Folder(Day + "_" + route.Group.ToString("N") + "_" + date.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
-                    title + " · " + date.ToString("dd.MM.yyyy", German), offset + 1, "Fernsehprogramm der Gruppe „" + group.Name + "“. Zeitangaben gemäß Plugin-Einstellungen.");
+                    title + " · " + date.ToString("d", Culture), offset + 1, T("TV guide for group “") + group.Name + T("”. Times follow the plugin settings."));
             }).ToList();
             return Result(days);
         }
@@ -62,9 +63,9 @@ public class AppGuideService(GroupService groups, IServiceProvider services)
             return Result(channels.Select((channel, index) =>
             {
                 var count = programs.Count(p => p.ChannelId == channel.Id);
-                var overview = "Fernsehprogramm dieses Senders für den gewählten Tag. Falls die Liste leer ist, wurden für diesen Tag keine Programmdaten importiert.";
+                var overview = T("Programs for this channel on the selected day. An empty list means no program data was imported for that day.");
                 var item = Folder(Channel + "_" + route.Group.ToString("N") + "_" + route.Date.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "_" + channel.Id.ToString("N"),
-                    channel.Name + (count == 0 ? " · Keine Programmdaten" : string.Empty), index + 1, overview);
+                    channel.Name + (count == 0 ? " · " + T("No program data") : string.Empty), index + 1, overview);
                 item.ImageUrl = LocalLogo(channel);
                 return item;
             }).ToList());
@@ -89,8 +90,8 @@ public class AppGuideService(GroupService groups, IServiceProvider services)
         return Result([new ChannelItemInfo
         {
             Id = "ltvepglive_" + group.Id.ToString("N") + "_" + selectedProgram.Id.ToString("N") + "_" + Fingerprint(selectedProgram, zone) + "_" + selectedChannel.Id.ToString("N"),
-            Name = selectedChannel.Name + " live ansehen", Overview = Overview(selectedProgram, selectedChannel.Name, zone)
-                + "\n\nDieser Eintrag startet den aktuellen Live-Sender. Er ist keine Aufnahme oder Wiederholung dieser Sendung.",
+            Name = selectedChannel.Name + T(" watch live"), Overview = Overview(selectedProgram, selectedChannel.Name, zone)
+                + "\n\n" + T("This entry starts the current live channel. It is not a recording or replay of this program."),
             Type = ChannelItemType.Media, MediaType = ChannelMediaType.Video, ContentType = ChannelMediaContentType.Clip,
             IsLiveStream = true, IndexNumber = 1, ImageUrl = LocalLogo(selectedChannel)
         }]);
@@ -107,14 +108,14 @@ public class AppGuideService(GroupService groups, IServiceProvider services)
             TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(day.Date.AddDays(1), DateTimeKind.Unspecified), zone));
 
     // Jellyfin copies channel Overview only at item creation. Changed program metadata needs a new item id.
-    private static string Fingerprint(BaseItemDto program, TimeZoneInfo zone)
+    private string Fingerprint(BaseItemDto program, TimeZoneInfo zone)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
-            { program.Name, program.EpisodeTitle, program.Overview, program.StartDate, program.EndDate, Zone = zone.Id })))).Substring(0, 12);
+            { program.Name, program.EpisodeTitle, program.Overview, program.StartDate, program.EndDate, Zone = zone.Id, Language = Culture.Name })))).Substring(0, 12);
 
-    private static string Range(BaseItemDto program, TimeZoneInfo zone)
-        => Local(program.StartDate!.Value, zone).ToString("dd.MM. HH:mm", German) + " – " + Local(program.EndDate!.Value, zone).ToString("HH:mm", German);
+    private string Range(BaseItemDto program, TimeZoneInfo zone)
+        => Local(program.StartDate!.Value, zone).ToString("g", Culture) + " – " + Local(program.EndDate!.Value, zone).ToString("t", Culture);
     private static DateTime Local(DateTime utc, TimeZoneInfo zone) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone);
-    private static string Overview(BaseItemDto p, string channel, TimeZoneInfo zone)
+    private string Overview(BaseItemDto p, string channel, TimeZoneInfo zone)
         => channel + " · " + Range(p, zone) + " (" + zone.Id + ")\n" + p.Name + (string.IsNullOrEmpty(p.EpisodeTitle) ? string.Empty : "\n" + p.EpisodeTitle)
             + (string.IsNullOrEmpty(p.Overview) ? string.Empty : "\n\n" + p.Overview);
     private static string? LocalLogo(LiveTvChannel channel)

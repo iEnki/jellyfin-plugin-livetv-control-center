@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added English and German interface translations following Jellyfin display language.
+- Added a configurable shared display name with localized automatic defaults.
+- Preserved the original channel ID when changing display names, including stream and playlist resolution.
+- Updated the English user documentation to use English interface labels.
+
 ## 0.3.2.0
 
 ### Remote Live TV playback

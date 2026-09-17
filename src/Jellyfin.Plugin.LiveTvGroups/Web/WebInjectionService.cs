@@ -73,7 +73,7 @@ public class WebInjectionService : IHostedService
             _status.FileTransformationInstalled = assembly is not null;
             if (assembly is null)
             {
-                _status.Error = "Plugin \"File Transformation\" ist nicht installiert.";
+                _status.Error = "File Transformation is not installed.";
                 _logger.LogWarning("File Transformation plugin not found; Live-TV Groups web integration is not available");
                 return Task.CompletedTask;
             }
@@ -83,7 +83,7 @@ public class WebInjectionService : IHostedService
             var parse = payloadType?.GetMethod("Parse", [typeof(string)]);
             if (register is null || parse is null)
             {
-                _status.Error = "Nicht unterstützte Version von \"File Transformation\".";
+                _status.Error = "Unsupported File Transformation version.";
                 _logger.LogWarning("Unsupported File Transformation plugin version");
                 return Task.CompletedTask;
             }

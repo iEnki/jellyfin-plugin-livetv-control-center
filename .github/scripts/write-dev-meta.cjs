@@ -11,7 +11,7 @@ function metadata() {
     // Stable projects produce stable metadata without the development marker.
     const development = /<InformationalVersion>[^<]*-dev[.<]/.test(project);
     return {
-        category: catalog.category, changelog: development ? '[DEV] Remote Live TV branch test build.' : 'Live-TV Groups '+version+'. See the GitHub release notes for details.',
+        category: catalog.category, changelog: development ? '[DEV] Live-TV Groups development build.' : 'Live-TV Groups '+version+'. See the GitHub release notes for details.',
         description: catalog.description, guid: catalog.guid, name: catalog.name,
         overview: catalog.overview, owner: catalog.owner, targetAbi: catalog.versions[0].targetAbi,
         version, status: 'Active', autoUpdate: true, assemblies: ['Jellyfin.Plugin.LiveTvGroups.dll']

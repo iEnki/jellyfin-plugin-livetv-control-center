@@ -9,19 +9,21 @@ const root='11111111111111111111111111111111',crime='222222222222222222222222222
 const a='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',b='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',c='cccccccccccccccccccccccccccccccc';
 function fixture(){return {access:{Mode:'personal',CanManage:true,IsAdministrator:false},adminUsers:[{Id:'user',Name:'Robert',IsAdministrator:true,HasLiveTvAccess:true},{Id:'other',Name:'Normaler Benutzer',IsAdministrator:false,HasLiveTvAccess:true}],policies:{},groups:[{Id:crime,Name:'Crime',ChannelCount:2},{Id:sport,Name:'Sport',ChannelCount:2}],refs:{[crime]:[a,b],[sport]:[a,c]},prefs:{HiddenGroupIds:[],DefaultGroupId:crime,DefaultView:'guide',Zoom:5,RememberLastView:false,LastGroupId:null,LastView:'guide'},players:[{DeviceId:'living-tv',Name:'Wohnzimmer Fire TV',Client:'Jellyfin Android TV',UsesAndroidTvDiscoveryFallback:true}],remotePlays:[],remoteFailure:false,preferenceFailure:false,requests:[],fail:false,delay:false};}
 const channels=[{Id:a,Name:'RTL Crime',ChannelNumber:'127'},{Id:b,Name:'Investigation',ChannelNumber:'7'},{Id:c,Name:'Sport',ChannelNumber:'58'}];
+function localizationScript(){return 'window.LiveTvGroupsTranslations='+fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Localization/strings.json'),'utf8')+';\n'+fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web/localization.js'),'utf8');}
 let fixtures=new Map();
 const shell=`<!doctype html><html><head><meta charset="utf-8"><title>Jellyfin groups regression</title><link rel="stylesheet" href="/LiveTvGroups/client.css"><style>body{background:#101010;color:#eee;font:16px Arial;margin:0}header{padding:20px}.page{padding:20px}.hide{display:none}</style></head><body><header><a href="#/list?parentId=${root}&serverId=server">Live-TV Gruppen</a> <a href="#/livetv">Live TV</a> <a href="#/userpluginsettings.html?pageUrl=/LiveTvGroups/page.html">Plugin Pages</a></header><div class="page libraryPage"><div class="native-content">Original content</div></div><script>
 window.ApiClient={accessToken:()=>new URLSearchParams(location.search).get('fixture'),getCurrentUserId:()=> 'user',serverId:()=> 'server',deviceId:()=> 'device',getUrl:(p,q)=> '/'+p+(q?'?'+new URLSearchParams(q):''),getScaledImageUrl:()=>'',getJSON:async u=>{const r=await fetch(u,{headers:{Authorization:'MediaBrowser Token="'+new URLSearchParams(location.search).get('fixture')+'"'}});return r.json();},ajax:async()=>[]};
 function native(){const own=location.hash.includes('parentId=${root}');document.querySelector('.libraryPage').classList.toggle('hide',location.hash.startsWith('#/details'));const target=document.querySelector('.native-content');target.textContent=location.hash.startsWith('#/details')?'Details':own?'Original group folder':'Original Live TV: all 432 channels';if(location.hash.startsWith('#/livetv'))fetch('/LiveTv/Channels');if(location.hash.startsWith('#/userpluginsettings'))fetch('/LiveTvGroups/page.html').then(r=>r.text()).then(html=>target.append(document.createRange().createContextualFragment(html)));document.dispatchEvent(new Event('viewshow'));}window.addEventListener('hashchange',native);native();</script><script src="/LiveTvGroups/client.js"></script></body></html>`;
 before(async()=>{
  server=http.createServer(async(req,res)=>{const key=(req.headers.authorization||'').match(/Token="([^"]+)"/)?.[1];const fixtureId=new URL(req.url,'http://local').searchParams.get('fixture');const f=fixtures.get(key||fixtureId);const u=new URL(req.url,'http://local');const send=(value,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(status===204?'':JSON.stringify(value));};
- if(u.pathname.endsWith('client.js')||u.pathname.endsWith('client.css')){res.setHeader('Content-Type',u.pathname.endsWith('.js')?'application/javascript':'text/css');res.end(fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web',path.basename(u.pathname))));return;}
+ if(u.pathname.endsWith('localization.js')){res.setHeader('Content-Type','application/javascript');res.end(localizationScript());return;}
+ if(u.pathname.endsWith('client.js')||u.pathname.endsWith('client.css')){res.setHeader('Content-Type',u.pathname.endsWith('.js')?'application/javascript':'text/css');res.end((u.pathname.endsWith('client.js')?localizationScript():'')+fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web',path.basename(u.pathname))));return;}
  if(u.pathname.endsWith('/page.html')){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web/page.html')));return;}
  if(u.pathname==='/dashboard'){
-  const bootstrap='<script>window.ApiClient={accessToken:()=>new URLSearchParams(location.search).get("fixture"),getUrl:p=>"/"+p,getJSON:async p=>{const r=await fetch(p,{headers:{Authorization:\'MediaBrowser Token="\'+ApiClient.accessToken()+\'"\'}});if(!r.ok)throw Error("Unavailable");return r.json();},getPluginConfiguration:async()=>({AppGuideTimeZone:"Europe/Vienna",EnableWebIntegration:true,EnableAppChannel:true,EnablePlaylistSync:false}),updatePluginConfiguration:async()=>({})};window.Dashboard={showLoadingMsg:()=>{},hideLoadingMsg:()=>{},alert:message=>{window.dashboardError=message;},processPluginConfigurationUpdateResult:()=>{window.dashboardSaved=true;}};window.addEventListener("load",()=>document.querySelector("#LiveTvGroupsConfigPage").dispatchEvent(new Event("pageshow")));</script>';
-  res.setHeader('Content-Type','text/html');res.end(fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Configuration/configPage.html'),'utf8').replace('</head>',bootstrap+'</head>'));return;
+  const bootstrap='<script>window.ApiClient={accessToken:()=>new URLSearchParams(location.search).get("fixture"),getUrl:p=>"/"+p,getJSON:async p=>{const r=await fetch(p,{headers:{Authorization:\'MediaBrowser Token="\'+ApiClient.accessToken()+\'"\'}});if(!r.ok)throw Error("Unavailable");return r.json();},getPluginConfiguration:async()=>({AppGuideTimeZone:"Europe/Vienna",EnableWebIntegration:true,EnableAppChannel:true,EnablePlaylistSync:false}),updatePluginConfiguration:async (pluginId,config)=>{window.dashboardConfiguration=config;return{};}};window.Dashboard={showLoadingMsg:()=>{},hideLoadingMsg:()=>{},alert:message=>{window.dashboardError=message;},processPluginConfigurationUpdateResult:()=>{window.dashboardSaved=true;}};window.addEventListener("load",()=>document.querySelector("#LiveTvGroupsConfigPage").dispatchEvent(new Event("pageshow")));</script>';
+  res.setHeader('Content-Type','text/html');res.end(fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Configuration/configPage.html'),'utf8').replace('<html>','<html lang="'+(u.searchParams.get('language')||'de-DE')+'">').replace('</head>',bootstrap+'</head>'));return;
  }
- if(u.pathname==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(shell);return;}
+ if(u.pathname==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(shell.replace('<html>','<html lang="'+(u.searchParams.get('language')||'de-DE')+'">')); return;}
  if(u.pathname==='/LiveTv/Channels'){send({Items:Array.from({length:432},(_,i)=>({Id:i}))});return;}
  if(!f){send({},401);return;}f.requests.push(req.method+' '+u.pathname);let data='';for await(const chunk of req)data+=chunk;const body=data?JSON.parse(data):null;
  if(u.pathname==='/LiveTvGroups/Access'){send(f.access);return;}
@@ -32,7 +34,7 @@ before(async()=>{
  }
  const policy=u.pathname.match(/^\/LiveTvGroups\/Administration\/Groups\/([^/]+)\/Access$/);
  if(policy){if(!f.access.IsAdministrator){send({},403);return;}f.policies[policy[1]]=body;send(null,204);return;}
- if(u.pathname.endsWith('/Entry')){send({ChannelId:root,Version:'0.3.1.0'});return;}
+ if(u.pathname.endsWith('/Entry')){send({ChannelId:root,Version:'0.3.2.1',DisplayName:f.displayName});return;}
  if(u.pathname==='/LiveTvGroups/Players'){send(f.players);return;}
  if(u.pathname==='/LiveTvGroups/Players/Preference'){
   if(f.preferenceFailure){send('Preference unavailable',500);return;}
@@ -55,7 +57,7 @@ before(async()=>{
  browser=await chromium.launch({headless:true,...(process.env.LTVG_BROWSER_CHANNEL?{channel:process.env.LTVG_BROWSER_CHANNEL}:{})});
 });
 after(async()=>{await browser?.close();server?.close();});
-async function open(t,viewport={width:1440,height:1000},at=null){const key=Math.random().toString(36).slice(2),f=fixture();fixtures.set(key,f);const context=await browser.newContext({viewport,timezoneId:'Europe/Vienna'});const page=await context.newPage();if(at)await page.clock.install({time:new Date(at)});const errors=[];page.on('pageerror',e=>errors.push(e.message));t.after(async()=>{if(t.passed===false)console.log(await page.locator('#ltvg-page').innerText().catch(()=>''));await context.close();fixtures.delete(key);assert.deepEqual(errors,[]);});await page.goto(url+'/?fixture='+key+'#/list?parentId='+root+'&serverId=server');await page.locator('.ltvg-guide-prog').first().waitFor();if(process.env.LTVG_QA_DIR)await page.screenshot({path:path.join(process.env.LTVG_QA_DIR,viewport.width<500?'groups-mobile.png':'groups-desktop.png')});return {page,f};}
+async function open(t,viewport={width:1440,height:1000},at=null,language='de-DE'){const key=Math.random().toString(36).slice(2),f=fixture();fixtures.set(key,f);const context=await browser.newContext({viewport,timezoneId:'Europe/Vienna'});const page=await context.newPage();if(at)await page.clock.install({time:new Date(at)});const errors=[];page.on('pageerror',e=>errors.push(e.message));t.after(async()=>{if(t.passed===false)console.log(await page.locator('#ltvg-page').innerText().catch(()=>''));await context.close();fixtures.delete(key);assert.deepEqual(errors,[]);});await page.goto(url+'/?fixture='+key+'&language='+language+'#/list?parentId='+root+'&serverId=server');await page.locator('.ltvg-guide-prog').first().waitFor();if(process.env.LTVG_QA_DIR)await page.screenshot({path:path.join(process.env.LTVG_QA_DIR,viewport.width<500?'groups-mobile.png':'groups-desktop.png')});return {page,f};}
 test('own guide, details and return preserve group and scroll; original Live TV stays intact',async t=>{const {page,f}=await open(t);assert.equal(await page.locator('.ltvg-guide-row').count(),3);await page.locator('.ltvg-guide-scroll').evaluate(e=>e.scrollLeft=450);await page.locator('.ltvg-guide-caption').first().click();await page.waitForURL(/#\/details\?/) ;await page.locator('#ltvg-page').waitFor({state:'detached'});await page.goBack();await page.locator('.ltvg-guide-prog').first().waitFor();assert.match(page.url(),/group=/);assert.equal(await page.locator('.ltvg-guide-scroll').evaluate(e=>e.scrollLeft),450);await page.getByRole('link',{name:'Live TV',exact:true}).click();await page.locator('#ltvg-page').waitFor({state:'detached'});assert.equal(await page.locator('[data-ltvg-host]').count(),0);assert.match(await page.locator('.native-content').innerText(),/all 432/);assert.equal(await page.locator('#ltvg-open-button').count(),0);assert.ok(f.requests.every(r=>!r.includes('GuideFilter')));});
 test('visible groups and zoom persist; union deduplicates channels',async t=>{const {page,f}=await open(t);await page.getByLabel('Gruppe',{exact:true}).selectOption('all');await page.waitForFunction(()=>document.querySelectorAll('.ltvg-guide-row').length===4);await page.getByRole('button',{name:'Einstellungen',exact:true}).click();await page.locator('[data-group="'+sport+'"]').uncheck();await page.locator('[name="zoom"]').selectOption('8');await page.getByRole('button',{name:'Speichern',exact:true}).click();await page.locator('#ltvg-modal').waitFor({state:'detached'});assert.deepEqual(f.prefs.HiddenGroupIds,[sport]);assert.equal(f.prefs.Zoom,8);assert.equal(await page.getByLabel('Gruppe',{exact:true}).locator('option').count(),2);await page.reload();await page.locator('.ltvg-guide-prog').first().waitFor();assert.equal(await page.getByLabel('Zoom',{exact:true}).inputValue(),'8');});
 test('sender search hides nonmatches and selected-only filter works',async t=>{const {page}=await open(t);await page.getByLabel('Ansicht',{exact:true}).selectOption('channels');await page.getByRole('button',{name:'Sender auswählen',exact:true}).click();await page.getByRole('button',{name:'Speichern',exact:true}).waitFor({state:'visible'});await page.getByRole('searchbox').fill('Crime');await page.waitForFunction(()=>document.querySelector('.ltvg-picker-count').textContent.includes('1 Treffer'));assert.equal(await page.locator('.ltvg-picker .ltvg-picker-row:visible').count(),1);await page.getByRole('searchbox').fill('');await page.getByLabel('Nur ausgewählte Sender').check();assert.equal(await page.locator('.ltvg-picker .ltvg-picker-row:visible').count(),2);await page.getByRole('button',{name:'Abbrechen'}).click();});
@@ -199,4 +201,64 @@ test('refresh reloads mode and visible group permissions on an already open page
  assert.equal(await page.getByRole('button',{name:'Gruppen verwalten',exact:true}).count(),0);
  assert.equal(await page.getByLabel('Gruppe',{exact:true}).inputValue(),'all');
  assert.equal(await page.getByLabel('Gruppe',{exact:true}).locator('option').count(),2);
+});
+
+
+test('English Jellyfin language localizes the guide, management and remote playback',async t=>{
+ const {page,f}=await open(t,{width:1440,height:1000},null,'en-US');
+ assert.equal(await page.getByRole('heading',{name:'Live-TV Groups',exact:true}).count(),1);
+ await page.getByLabel('View',{exact:true}).selectOption('channels');
+ await page.getByRole('button',{name:'Choose channels',exact:true}).click();
+ await page.getByPlaceholder('Search channels…').waitFor();
+ await page.getByRole('button',{name:'Cancel',exact:true}).click();
+ await page.getByLabel('Play on',{exact:true}).selectOption('living-tv');
+ await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ await page.locator('[data-action="play"]').first().click();
+ await page.getByRole('status').filter({hasText:'Playback command sent to Wohnzimmer Fire TV.'}).waitFor();
+ await page.getByRole('button',{name:'Manage groups',exact:true}).click();
+ await page.getByRole('button',{name:'New group',exact:true}).waitFor();
+ assert.equal(f.remotePlays.length,1);
+});
+
+test('custom display name is escaped and user content is not translated',async t=>{
+ const {page,f}=await open(t,{width:1440,height:1000},null,'en-GB');
+ f.displayName='Family <TV> & Guide';f.groups[0].Name='Einstellungen';await page.reload();
+ await page.getByRole('heading',{name:'Family <TV> & Guide',exact:true}).waitFor();
+ assert.equal(await page.locator('h1 tv').count(),0);
+ assert.equal(await page.getByLabel('Group',{exact:true}).locator('option').filter({hasText:'Einstellungen'}).count(),1);
+});
+
+test('unsupported display languages fall back to English',async t=>{
+ const {page}=await open(t,{width:390,height:844},null,'fr-FR');
+ await page.getByRole('heading',{name:'Live-TV Groups',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Settings',exact:true}).click();
+ await page.getByRole('heading',{name:'Group settings',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Cancel',exact:true}).click();
+});
+
+
+test('administrator can save a custom display name and restore the automatic default',async t=>{
+ const {page,f}=await open(t,{width:1440,height:1000},null,'en-US');f.access.IsAdministrator=true;
+ await page.goto(page.url().replace('/?','/dashboard?').split('#')[0]);
+ await page.waitForFunction(()=>!document.querySelector('#GroupMode').disabled);
+ await page.getByLabel('Display name',{exact:true}).fill('Family TV');
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ await page.waitForFunction(()=>window.dashboardConfiguration?.DisplayName==='Family TV');
+ assert.equal(await page.getByLabel('Display name',{exact:true}).getAttribute('placeholder'),'Live-TV Groups');
+ await page.getByLabel('Display name',{exact:true}).fill('');
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ await page.waitForFunction(()=>window.dashboardConfiguration?.DisplayName===null);
+ assert.equal(await page.evaluate(()=>window.dashboardError),undefined);
+});
+
+test('changing Jellyfin display language refreshes the plugin without changing group data',async t=>{
+ const {page,f}=await open(t);
+ await page.evaluate(()=>document.documentElement.lang='en-US');
+ await page.getByRole('heading',{name:'Live-TV Groups',exact:true}).waitFor();
+ await page.getByLabel('View',{exact:true}).selectOption('channels');
+ await page.getByRole('button',{name:'Choose channels',exact:true}).waitFor();
+ assert.equal(f.groups[0].Name,'Crime');
+ await page.evaluate(()=>document.documentElement.lang='de-DE');
+ await page.getByRole('heading',{name:'Live-TV Gruppen',exact:true}).waitFor();
+ await page.getByLabel('Ansicht',{exact:true}).waitFor();
 });
