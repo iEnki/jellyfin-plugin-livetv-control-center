@@ -41,7 +41,7 @@ jobs:
           version="${tag#v}"
           # Jellyfin expects four-part versions.
           while [ "$(echo "$version" | tr -cd '.' | wc -c)" -lt 3 ]; do version="$version.0"; done
-          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Expected a four-part plugin version." >&2; exit 1
           fi
           project_version="$(dotnet msbuild src/Jellyfin.Plugin.LiveTvGroups -getProperty:Version)"
