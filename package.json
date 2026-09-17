@@ -1,6 +1,7 @@
 {
   "private": true,
   "scripts": {
+    "test:packaging": "node --test tests/packaging/*.test.cjs",
     "test:web": "node --test tests/web/client.test.cjs"
   },
   "devDependencies": {

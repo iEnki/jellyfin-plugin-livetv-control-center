@@ -51,13 +51,13 @@ V1 requires the official **Jellyfin Android TV** app (also used on Fire TV) open
 ### Test this branch
 
 1. Use Jellyfin **12.0** (the plugin targets ABI 12.0.0.0) and the existing web integration dependencies. Back up the per-user plugin data.
-2. Download **live-tv-groups-dev** from this branch's successful **Build** action; its artifact ZIP contains the plugin DLL. Alternatively, check out this branch and run `dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release --output out`.
-3. Stop Jellyfin. Replace the installed Live-TV Groups DLL with this DLL in the appropriate plugin directory. Keep only one installed copy and restart Jellyfin. Confirm plugin version **0.3.1.1**.
+2. Download **live-tv-groups-dev** from this branch's successful **Build** action; its artifact ZIP contains the plugin DLL and installation meta.json. Alternatively, check out this branch, run `dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release --output out`, then `node .github/scripts/write-dev-meta.cjs out`.
+3. Stop Jellyfin. Move the previous plugin binaries outside the plugins directory (preserve user data/configuration). Create a directory named **Live-TV Groups_0.3.1.1** under plugins and extract both the DLL and meta.json there. Keep only one installed copy and restart Jellyfin. Confirm plugin version **0.3.1.1**.
 4. Reload/reopen Jellyfin Web or the web-based mobile client. On the Fire TV, open Jellyfin using the same user and disable **Use external player**.
 5. Open **Live-TV Gruppen → Fernsehprogramm**, refresh devices, choose the TV, and tap a channel's number/logo. Verify the channel starts on the TV while the phone keeps the EPG; tap another channel to switch.
 6. Reopen the EPG to check the target is remembered. Restart the TV app, refresh devices, and play again to exercise new-session resolution. Close the TV app and check unavailable-target/error behavior; select **Dieses Gerät** to return to local playback.
 
-Version ordering is **0.3.1.0 < 0.3.1.1 < 0.3.2.0**. The stable manifest remains unchanged. Installing manually or from a branch artifact does not add this build to the shared development catalog. The current dev-release tag workflow only accepts commits reachable from origin/dev; this feature branch is not tagged. Before the stable release, set Version to **0.3.2.0** and remove the development InformationalVersion override. Jellyfin can then offer the higher stable version through the existing stable catalog.
+Version ordering is **0.3.1.0 < 0.3.1.1 < 0.3.2.0**. The stable manifest remains unchanged. The packaged meta.json records version 0.3.1.1, the existing plugin GUID/ABI, and autoUpdate=true so the manual installation retains automatic future updates. Installing manually or from a branch artifact does not add this build to the shared development catalog. The current dev-release tag workflow only accepts commits reachable from origin/dev; this feature branch is not tagged. Before the stable release, set Version to **0.3.2.0** and remove the development InformationalVersion override. Jellyfin can then offer the higher stable version through the existing stable catalog.
 
 ## Settings
 

@@ -35,8 +35,9 @@ Target preferences use the existing atomic per-user GroupStore, with a dedicated
 - Dev assembly/file/package version: **0.3.1.1**.
 - Informational version: $(Version)-dev.remote-live-tv (+ SDK source revision when present).
 - Required ordering: **0.3.1.0 < 0.3.1.1 < 0.3.2.0**; the actual published DLL version was inspected.
+- A generated installation meta.json uses the existing plugin GUID/ABI, the project version, Active status and autoUpdate=true. This avoids stale metadata from replacing only the DLL, or Jellyfin disabling automatic updates for a folder-only installation. The instructions use a fresh versioned plugin directory and preserve per-user data.
 - No stable or development release tag was pushed and no shared plugin catalog was changed.
-- Branch CI now runs on dev-* pushes and uploads live-tv-groups-dev (DLL at ZIP root) after successful tests/build.
+- Branch CI now runs on dev-* pushes and uploads live-tv-groups-dev (DLL and installation meta.json at ZIP root) after successful tests/build.
 - Test through that branch artifact or the locally supplied DLL ZIP. This is a manual test installation, not a new shared dev-catalog entry.
 - Before releasing, change project Version to 0.3.2.0 and remove the dev InformationalVersion override. The higher stable version can then be offered normally by Jellyfin.
 - The existing dev-release tag workflow requires commits reachable from origin/dev; it deliberately remains unchanged.
@@ -48,6 +49,7 @@ Target preferences use the existing atomic per-user GroupStore, with a dedicated
 - Browser plugin not available; the repository's regular Playwright workflow was used with bundled Chromium and a local HTTP Jellyfin shell/API fixture.
 - UI flow: independent groups EPG -> choose/remember Fire TV -> channel click -> remote device command and EPG remains open. Reload, offline retained target, failed command, failed preference save, explicit local selection and narrow mobile layout were exercised.
 - Page identity/nonempty content, interaction outcomes, no runtime page errors, and mobile viewport overflow were checked. Local screenshots were saved outside the repository; the mobile selected-target screenshot was visually inspected.
+- Package metadata integration test: **1 passed**; validates identity/version/update flags, generated JSON and an unchanged stable catalog.
 - node --check client.js passed.
 - Scoped dotnet format whitespace --verify-no-changes for new C# classes/tests passed.
 - dotnet publish --configuration Release succeeded; plugin build had no compiler warnings/errors.
@@ -66,6 +68,7 @@ Target preferences use the existing atomic per-user GroupStore, with a dedicated
 ## Research sources
 
 - Jellyfin 12.0 SessionManager: https://github.com/jellyfin/jellyfin/blob/v12.0/Emby.Server.Implementations/Session/SessionManager.cs (GetSessionToRemoteControl, SendPlayCommand, AssertCanControl, GetSessionByAuthenticationToken, GetSessions).
+- Plugin installation metadata: https://github.com/jellyfin/jellyfin/blob/v12.0/Emby.Server.Implementations/Plugins/PluginManager.cs and https://github.com/jellyfin/jellyfin/blob/v12.0/MediaBrowser.Common/Plugins/PluginManifest.cs.
 - SessionInfo: https://github.com/jellyfin/jellyfin/blob/v12.0/MediaBrowser.Controller/Session/SessionInfo.cs (IsActive, SupportsRemoteControl, session controllers).
 - SessionController: https://github.com/jellyfin/jellyfin/blob/v12.0/Jellyfin.Api/Controllers/SessionController.cs.
 - External-player upstream limitation: https://github.com/jellyfin/jellyfin-androidtv/issues/5731.

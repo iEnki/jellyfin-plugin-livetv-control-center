@@ -29,10 +29,16 @@ jobs:
       - name: Test independent groups page
         run: npm run test:web
 
+      - name: Test package metadata
+        run: npm run test:packaging
       - name: Build test plugin
         run: dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release --no-restore --output out
+      - name: Write installation metadata
+        run: node .github/scripts/write-dev-meta.cjs out
       - uses: actions/upload-artifact@v4
         with:
           name: live-tv-groups-dev
-          path: out/Jellyfin.Plugin.LiveTvGroups.dll
+          path: |
+            out/Jellyfin.Plugin.LiveTvGroups.dll
+            out/meta.json
           if-no-files-found: error
