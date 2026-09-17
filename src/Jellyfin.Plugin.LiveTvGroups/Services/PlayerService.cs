@@ -66,7 +66,7 @@ public class PlayerService
         var target = EligibleSessions(user).FirstOrDefault(s => string.Equals(s.DeviceId, deviceId, StringComparison.Ordinal));
         if (target is null)
         {
-            throw new PlayerUnavailableException("Das Zielgerät ist nicht verfügbar. Jellyfin am TV öffnen und Geräte aktualisieren.");
+            throw new PlayerUnavailableException("Target unavailable. Open Jellyfin on the TV and refresh devices.");
         }
 
         var targetUser = _users.GetUserById(target.UserId);
@@ -84,17 +84,17 @@ public class PlayerService
             for (var attempt = 0; ; attempt++)
             {
                 target = EligibleSessions(user).FirstOrDefault(s => s.DeviceId == deviceId && s.Id == sessionId && s.UserId == owner)
-                    ?? throw new PlayerUnavailableException("Die TV-Sitzung hat sich während des Senderwechsels geändert. Geräte aktualisieren.");
+                    ?? throw new PlayerUnavailableException("TV session changed while switching. Refresh devices.");
                 if (target.NowPlayingItem is null) { break; }
-                if (attempt >= 50) { throw new PlayerUnavailableException("Der TV hat das Beenden der Wiedergabe nicht bestätigt. Bitte erneut versuchen."); }
+                if (attempt >= 50) { throw new PlayerUnavailableException("TV did not confirm playback stopped. Please try again."); }
                 await WaitForPlayer(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
             }
 
             // PlaybackStopped is sent before Android finishes disposing the player route.
             await WaitForPlayer(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
             target = EligibleSessions(user).FirstOrDefault(s => s.DeviceId == deviceId && s.Id == sessionId && s.UserId == owner)
-                ?? throw new PlayerUnavailableException("Die TV-Sitzung ist nicht mehr verfügbar.");
-            if (target.NowPlayingItem is not null) { throw new PlayerUnavailableException("Am TV wurde bereits eine andere Wiedergabe gestartet."); }
+                ?? throw new PlayerUnavailableException("TV session is no longer available.");
+            if (target.NowPlayingItem is not null) { throw new PlayerUnavailableException("Another playback has already started on the TV."); }
             user = _users.GetUserById(user.Id) ?? throw new SecurityException("Der aufrufende Benutzer ist nicht mehr verfügbar.");
             var currentTargetUser = _users.GetUserById(owner) ?? throw new SecurityException("Kein angemeldeter Benutzer am Zielgerät.");
             RequirePlaybackAccess(user); RequirePlaybackAccess(currentTargetUser);

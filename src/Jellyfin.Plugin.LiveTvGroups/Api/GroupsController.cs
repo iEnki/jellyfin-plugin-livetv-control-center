@@ -98,7 +98,7 @@ public class GroupsController : Controller
         var name = request.Name?.Trim();
         if (string.IsNullOrEmpty(name) || name.Length > 100)
         {
-            return BadRequest("Name fehlt.");
+            return BadRequest("Name is required.");
         }
 
         var group = _groups.Update(user, doc =>
@@ -133,7 +133,7 @@ public class GroupsController : Controller
         var name = request.Name?.Trim();
         if (string.IsNullOrEmpty(name) || name.Length > 100)
         {
-            return BadRequest("Name fehlt.");
+            return BadRequest("Name is required.");
         }
 
         var found = _groups.Update(user, doc =>
@@ -196,7 +196,7 @@ public class GroupsController : Controller
 
         if (!_groups.CanManage(user)) { return Forbid(); }
 
-        if (groupIds.Distinct().Count() != groupIds.Length) { return BadRequest("Doppelte Gruppen-ID."); }
+        if (groupIds.Distinct().Count() != groupIds.Length) { return BadRequest("Duplicate group ID."); }
 
         _groups.Update(user, doc =>
         {
@@ -267,7 +267,7 @@ public class GroupsController : Controller
         var accessible = _groups.GetAccessibleChannels(user);
         if (channelIds.Any(id => !accessible.ContainsKey(id)))
         {
-            return BadRequest("Unbekannter oder nicht erlaubter Sender.");
+            return BadRequest("Unknown or forbidden channel.");
         }
 
         var refs = channelIds.Distinct().Select(id => GroupService.ToRef(accessible[id])).ToList();
@@ -344,7 +344,7 @@ public class GroupsController : Controller
             || !GroupPreferences.IsValidView(preferences.LastView)
             || preferences.Zoom is not (3 or 5 or 8))
         {
-            return BadRequest("Ungültige Gruppeneinstellungen.");
+            return BadRequest("Invalid group settings.");
         }
         preferences.HiddenGroupIds = preferences.HiddenGroupIds.Distinct().ToList();
         _groups.Store.Update(user.Id, doc =>
@@ -368,8 +368,8 @@ public class GroupsController : Controller
         if (user is null) { return Unauthorized(); }
         var channels = await HttpContext.RequestServices.GetRequiredService<MediaBrowser.Controller.Channels.IChannelManager>()
             .GetChannelsAsync(new MediaBrowser.Model.Channels.ChannelQuery { UserId = user.Id }).ConfigureAwait(false);
-        var channel = channels.Items.FirstOrDefault(c => c.Name == Channel.GroupsChannel.ChannelName);
-        return Ok(new { ChannelId = channel?.Id, Version = typeof(Plugin).Assembly.GetName().Version?.ToString() });
+        var channel = channels.Items.FirstOrDefault(c => c.Id == Channel.GroupsChannel.GetInternalId(HttpContext.RequestServices.GetRequiredService<ILibraryManager>()));
+        return Ok(new { ChannelId = channel?.Id, DisplayName = PluginLocalization.DisplayName(Plugin.Instance?.Configuration, string.IsNullOrWhiteSpace(Request.Headers.AcceptLanguage.ToString()) ? PluginLocalization.ServerLanguage(HttpContext.RequestServices) : Request.Headers.AcceptLanguage.ToString()), Version = typeof(Plugin).Assembly.GetName().Version?.ToString() });
     }
 
     /// <summary>Gets available channels for the groups editor only.</summary>
@@ -433,7 +433,21 @@ public class GroupsController : Controller
     /// <returns>The script.</returns>
     [HttpGet("client.js")]
     [AllowAnonymous]
-    public ActionResult GetClientScript() => ServeResource("client.js", "application/javascript");
+    public ActionResult GetClientScript() => Content(LocalizationScript() + ReadScript("client.js"), "application/javascript");
+
+    [HttpGet("localization.js")]
+    [AllowAnonymous]
+    public ActionResult GetLocalizationScript() => Content(LocalizationScript(), "application/javascript");
+
+    private static string LocalizationScript()
+        => "window.LiveTvGroupsTranslations=" + JsonSerializer.Serialize(PluginLocalization.Strings) + ";\n" + ReadScript("localization.js");
+
+    private static string ReadScript(string file)
+    {
+        using var stream = typeof(Plugin).Assembly.GetManifestResourceStream("Jellyfin.Plugin.LiveTvGroups.Web." + file)!;
+        using var reader = new System.IO.StreamReader(stream);
+        return reader.ReadToEnd();
+    }
 
     /// <summary>
     /// Serves the web client stylesheet.
@@ -502,8 +516,8 @@ public class GroupsController : Controller
         var user = GetUser();
         if (user is null) { return Unauthorized(); }
         if (!user.HasPermission(PermissionKind.IsAdministrator)) { return Forbid(); }
-        if (request.Mode is not ("personal" or "shared")) { return BadRequest("Ungültiger Gruppenmodus."); }
-        if (request.ImportPersonalGroups && request.Mode != "shared") { return BadRequest("Übernahme nur für zentrale Gruppen."); }
+        if (request.Mode is not ("personal" or "shared")) { return BadRequest("Invalid group mode."); }
+        if (request.ImportPersonalGroups && request.Mode != "shared") { return BadRequest("Import is only available for central groups."); }
         _groups.Store.UpdateAdministration(config =>
         {
             config.Mode = request.Mode;
@@ -535,7 +549,7 @@ public class GroupsController : Controller
         var users = _userManager.GetUsers().Select(u => u.Id).ToHashSet();
         if (request.AllowedUserIds is null || request.DeniedUserIds is null
             || request.AllowedUserIds.Concat(request.DeniedUserIds).Any(id => !users.Contains(id)))
-        { return BadRequest("Unbekannter Benutzer."); }
+        { return BadRequest("Unknown user."); }
         var found = _groups.Store.UpdateAdministration(config =>
         {
             var group = config.Mode == "shared" ? config.Groups.FirstOrDefault(g => g.Id == groupId) : null;

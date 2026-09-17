@@ -235,6 +235,27 @@ public class NativeAppTests
         Assert.Null(f.Bridge.Token);
     }
 
+    [Fact]
+    public async Task NativeEnglishGuideUsesEnglishLabelsAndSeparatesLanguageCache()
+    {
+        using var f = new Fixture();
+        var provider = new GroupsChannel(f.Services.GetRequiredService<GroupService>(), f.Services, NullLogger<GroupsChannel>.Instance);
+        var germanCache = provider.GetCacheKey(f.User.Id.ToString());
+        f.Http.HttpContext!.Request.Headers.AcceptLanguage = "en-US";
+        Assert.NotEqual(germanCache, provider.GetCacheKey(f.User.Id.ToString()));
+        var folder = await provider.GetChannelItems(new InternalChannelItemQuery { UserId=f.User.Id,FolderId=GroupsChannel.GetFolderExternalId(f.Group) }, CancellationToken.None);
+        var root = folder.Items.Single(i=>i.Type==ChannelItemType.Folder);
+        Assert.Equal("TV guide",root.Name);
+        var guide=f.Services.GetRequiredService<AppGuideService>();
+        var days=await guide.GetItems(f.User,root.Id,CancellationToken.None);
+        Assert.StartsWith("Today",days.Items[0].Name,StringComparison.Ordinal);
+        var channel=Assert.Single((await guide.GetItems(f.User,days.Items[0].Id,CancellationToken.None)).Items);
+        var program=Assert.Single((await guide.GetItems(f.User,channel.Id,CancellationToken.None)).Items);
+        var live=Assert.Single((await guide.GetItems(f.User,program.Id,CancellationToken.None)).Items);
+        Assert.Contains("watch live",live.Name,StringComparison.Ordinal);
+        Assert.Contains("not a recording",live.Overview,StringComparison.Ordinal);
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly string _directory = Path.Combine(Path.GetTempPath(), "ltvg-native-" + Guid.NewGuid().ToString("N"));
@@ -253,7 +274,7 @@ public class NativeAppTests
         public Fixture()
         {
             User.SetPermission(PermissionKind.EnableLiveTvAccess, true);
-            Authenticate(User.Id);
+            Authenticate(User.Id); Http.HttpContext!.Request.Headers.AcceptLanguage = "de-DE";
             Accessible = [Channel];
             Store = new GroupStore(_directory);
             Store.Update(User.Id, doc => { doc.Groups.Add(new ChannelGroup { Id = Group, Name = "Crime", Channels = [GroupService.ToRef(Channel), GroupService.ToRef(Forbidden)] }); return true; });
@@ -261,7 +282,7 @@ public class NativeAppTests
             services.AddSingleton(Store).AddSingleton<GroupService>().AddSingleton<GroupGuideService>().AddSingleton<AppGuideService>();
             services.AddSingleton<IHttpContextAccessor>(Http).AddSingleton<LiveTvStreamBridge>(Bridge);
             services.AddSingleton(InterfaceStub.Create<IUserManager>((method, args) => method.Name == "GetUserById" && Equals(args![0], User.Id) ? User : null));
-            services.AddSingleton(InterfaceStub.Create<ILibraryManager>((method, args) => method.Name == "GetItemById" && Equals(args![0], Root) ? new Folder { Id = Root, Name = GroupsChannel.ChannelName } : null));
+            services.AddSingleton(InterfaceStub.Create<ILibraryManager>((method, args) => method.Name == "GetNewItemId" ? Root : method.Name == "GetItemById" && Equals(args![0], Root) ? new Folder { Id = Root, Name = "Custom group display name" } : null));
             services.AddSingleton(InterfaceStub.Create<IDtoService>((method, args) => method.Name == "GetBaseItemDtos" ? ((IEnumerable<BaseItem>)args![0]!).Select(i => new BaseItemDto { Id = i.Id, Name = i.Name }).ToList() : throw new NotSupportedException(method.Name)));
             services.AddSingleton(InterfaceStub.Create<ILiveTvManager>((method, args) => method.Name switch
             {

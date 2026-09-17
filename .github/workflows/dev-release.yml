@@ -46,8 +46,8 @@ jobs:
 
       - name: Verify development branch
         run: |
-          git fetch origin dev dev-remote-live-tv
-          if git merge-base --is-ancestor HEAD origin/dev || git merge-base --is-ancestor HEAD origin/dev-remote-live-tv; then
+          git fetch origin dev dev-remote-live-tv dev-localization
+          if git merge-base --is-ancestor HEAD origin/dev || git merge-base --is-ancestor HEAD origin/dev-remote-live-tv || git merge-base --is-ancestor HEAD origin/dev-localization; then
             exit 0
           fi
           echo "Dev tags must reference a commit on an authorized development branch." >&2

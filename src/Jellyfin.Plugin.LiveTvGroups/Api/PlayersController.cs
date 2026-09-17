@@ -45,7 +45,7 @@ public class PlayersController(
         {
             // Resolve the server-owned name, and validate authorization even for guessed DeviceIds.
             var target = request.DeviceId is null ? null : players.FindPlayer(user, request.DeviceId);
-            if (request.DeviceId is not null && target is null) { return Conflict("Das Zielgerät ist nicht verfügbar oder nicht erlaubt."); }
+            if (request.DeviceId is not null && target is null) { return Conflict("Target unavailable or not allowed."); }
             groups.Store.Update(user.Id, doc =>
             {
                 doc.Preferences.PreferredTargetDeviceId = target?.DeviceId;
@@ -68,16 +68,16 @@ public class PlayersController(
             if (auth.IsApiKey || string.IsNullOrEmpty(auth.Token)) { return Unauthorized(); }
             var caller = await sessions.GetSessionByAuthenticationToken(auth.Token, auth.DeviceId,
                 HttpContext.Connection.RemoteIpAddress?.ToString()).ConfigureAwait(false);
-            if (caller is null) { return Conflict("Keine aktive aufrufende Sitzung. Bitte erneut anmelden."); }
+            if (caller is null) { return Conflict("No active controlling session. Please sign in again."); }
             await players.Play(user, caller, deviceId, channelId, HttpContext.RequestAborted).ConfigureAwait(false);
             return NoContent();
         }
         catch (SecurityException) { return Forbid(); }
         catch (PlayerUnavailableException e) { return Conflict(e.Message); }
-        catch (ResourceNotFoundException) { return Conflict("Die TV-Sitzung wurde beendet. Geräte aktualisieren und erneut versuchen."); }
-        catch (ArgumentException) { return BadRequest("Jellyfin konnte diesen Sender am Zielgerät nicht abspielen."); }
-        catch (WebSocketException) { return StatusCode(502, "Die Verbindung zum Zielgerät wurde unterbrochen."); }
-        catch (IOException) { return StatusCode(502, "Der Wiedergabebefehl konnte nicht an das Zielgerät gesendet werden."); }
+        catch (ResourceNotFoundException) { return Conflict("TV session ended. Refresh devices and try again."); }
+        catch (ArgumentException) { return BadRequest("Jellyfin could not play this channel on the target."); }
+        catch (WebSocketException) { return StatusCode(502, "Target connection was interrupted."); }
+        catch (IOException) { return StatusCode(502, "Could not send the playback command to the target."); }
     }
 
     private User? GetUser()

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.3.2.1
+
+### Language and display name
+
+- Add English and German interface translations following Jellyfin display language; other interface languages fall back to English.
+- Use client locale for web dates and times. Native guide labels use the language sent by the client, falling back to server display language.
+- Add an optional administrator-defined display name; empty restores the translated default. The shared library name follows server language, while the web title follows client language.
+- Update the optional Plugin Pages shortcut after restart. Preserve channel identity, user permissions, groups, stream ownership and playlist mappings when changing display names.
+- Separate native guide caches and program metadata by language/culture. User-created names and imported EPG text remain unchanged.
+- Provide fully English user documentation, including language selection and custom display-name instructions.
+
+### Installation
+
+- Publish stable 0.3.2.1 with matching DLL and installation metadata. Existing stable 0.3.2.0 installations can update normally.
+- Development build 0.3.2.1 uses the same numeric version. Jellyfin does not treat this stable package as a higher version; reinstall the stable package manually to replace that development binary. Preserve plugin data and configuration.
+
 ## 0.3.2.0
 
 ### Remote Live TV playback

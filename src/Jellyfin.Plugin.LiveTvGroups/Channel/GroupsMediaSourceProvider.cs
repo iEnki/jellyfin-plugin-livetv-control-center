@@ -42,7 +42,7 @@ public class GroupsMediaSourceProvider(GroupService groups, IServiceProvider ser
     public async Task<IEnumerable<MediaSourceInfo>> GetMediaSources(BaseItem item, CancellationToken cancellationToken)
     {
         if (item is not Video || item.ChannelId == Guid.Empty
-            || services.GetRequiredService<ILibraryManager>().GetItemById(item.ChannelId)?.Name != GroupsChannel.ChannelName)
+            || item.ChannelId != GroupsChannel.GetInternalId(services.GetRequiredService<ILibraryManager>()))
             return [];
         var userId = CurrentUserId;
         var channel = Resolve(item.ExternalId, userId);

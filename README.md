@@ -2,7 +2,7 @@
 
 Organize Jellyfin Live TV into personal channel groups or a shared collection managed by administrators. Live-TV Groups provides an independent browser/mobile program guide, grouped folders for native apps, optional playlists, and remote playback on Jellyfin Android TV / Fire TV.
 
-**Stable version: 0.3.2.0** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
+**Stable version: 0.3.2.1** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its groups page works independently of the original Jellyfin Live TV views.
 
@@ -12,6 +12,7 @@ The plugin uses Jellyfin's existing channels and EPG data. Its groups page works
 - [Installation](#installation)
 - [Upgrading](#upgrading)
 - [User permissions](#user-permissions)
+- [Language and display name](#language-and-display-name)
 - [Quick start](#quick-start)
 - [Personal and central groups](#personal-and-central-groups)
 - [Creating and editing groups](#creating-and-editing-groups)
@@ -42,7 +43,7 @@ Configure working Live TV in Jellyfin before using the plugin. For program infor
 
 Remote playback requires the internal player in the official Jellyfin Android TV app. External players are not supported.
 
-This documentation uses English terminology for controls and navigation. Labels may differ in older plugin versions.
+The interface supports English and German. This documentation uses the English labels.
 
 ## Installation
 
@@ -60,7 +61,7 @@ This documentation uses English terminology for controls and navigation. Labels 
    https://www.iamparadox.dev/jellyfin/plugins/manifest.json
    ```
 
-3. Install **Live-TV Groups 0.3.2.0** and a **File Transformation** version compatible with your Jellyfin server.
+3. Install **Live-TV Groups** and a **File Transformation** version compatible with your Jellyfin server.
 4. Restart Jellyfin.
 5. Open **Dashboard → Plugins → Live-TV Groups**. Verify web integration is enabled and check the integration status.
 6. Grant intended users access to the **Live-TV Groups** channel; see [User permissions](#user-permissions).
@@ -70,10 +71,10 @@ When compatible Plugin Pages is installed and web integration is registered, a u
 
 ### Manual installation
 
-1. Download `live-tv-groups_0.3.2.0.zip` from the [0.3.2.0 release](https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/tag/v0.3.2.0).
+1. Download the plugin ZIP from the [latest release](https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/latest).
 2. Stop Jellyfin and preserve the plugin data/configuration.
 3. Move the older binary installation outside the scanned plugins directory.
-4. Create a folder such as `Live-TV Groups_0.3.2.0` inside Jellyfin's plugins directory.
+4. Create a folder such as `Live-TV Groups_<version>` inside Jellyfin's plugins directory.
 5. Extract **both** `Jellyfin.Plugin.LiveTvGroups.dll` and `meta.json` into it. Keep only one installed binary copy.
 6. Start Jellyfin and confirm the installed version.
 
@@ -119,11 +120,26 @@ Group rules apply to the plugin guide, native group/EPG folders, plugin stream r
 
 The plugin does not automatically change Jellyfin user/channel policies.
 
+## Language and display name
+
+The web page and administrator settings follow the **Display language** selected in Jellyfin. English and German are included; other languages use English interface text. Dates and times follow the active client locale and the documented guide timezone. Channel names, group names and imported EPG titles/descriptions are not translated.
+
+The shared channel/library entry has one name for the server. With no custom name, it uses the server's **Preferred display language**. The web page uses the current client's display language. Native app guide text uses the language sent by the client, falling back to the server language when the client does not supply one.
+
+To choose your own name:
+
+1. Open **Dashboard → Plugins → Live-TV Groups**.
+2. Enter **Display name**, for example **Family TV**. Leave it empty to restore the translated default.
+3. Save. The channel/library name updates within approximately 30 seconds.
+4. Reload browser/mobile clients or refresh the TV app. Restart Jellyfin to update the optional Plugin Pages menu shortcut.
+
+A custom name is shared by all users and appears in the channel/library entry, web page title and optional menu shortcut. The plugin catalog and dashboard plugin name remain **Live-TV Groups**. Renaming preserves the channel identity, user permissions, groups and playlist mappings. The maximum length is 100 characters.
+
 ## Quick start
 
 ### Personal groups
 
-1. Open **Live-TV Groups → Manage groups**.
+1. Open **Live-TV Groups → Manage groups** (Manage groups).
 2. Select **New group**, enter a name and save.
 3. Select **Choose channels**, select/search for channels, and save.
 4. Open **TV guide** to view the timeline.
@@ -178,7 +194,7 @@ Users with editing permission can:
 - Create groups with a nonempty name of up to 100 characters.
 - Rename/delete groups.
 - Search/select channels that Jellyfin permits the editing user to access.
-- Filter the picker with **Selected channels only**.
+- Filter the picker with **Selected channels only** (Only selected channels).
 - Reorder groups by drag-and-drop or up/down buttons.
 - Reorder a specific group's channels through **Change order**.
 - Open a group directly from its management card.
@@ -305,6 +321,7 @@ Location: **Dashboard → Plugins → Live-TV Groups**.
 
 | Setting | Default | Effect |
 | --- | --- | --- |
+| Display name | Automatic | Translated default, or an administrator-defined name shared by all users. |
 | Group administration | Personal | Choose personal or central ownership; also available in groups-page administration. |
 | Copy personal groups | Unchecked | Copy admin personal groups into the central collection without deleting originals. |
 | Web integration | Enabled | Inject the independent web page through File Transformation. Restart after changing integration registration settings. |

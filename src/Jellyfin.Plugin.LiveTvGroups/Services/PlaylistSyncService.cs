@@ -219,7 +219,7 @@ public class PlaylistSyncService
     {
         var channelManager = _serviceProvider.GetRequiredService<IChannelManager>();
         var channels = await channelManager.GetChannelsInternalAsync(new ChannelQuery { UserId = user.Id }).ConfigureAwait(false);
-        var channel = channels.Items.FirstOrDefault(c => string.Equals(c.Name, GroupsChannel.ChannelName, StringComparison.Ordinal));
+        var channel = channels.Items.FirstOrDefault(c => c.Id == GroupsChannel.GetInternalId(_serviceProvider.GetRequiredService<ILibraryManager>()));
         if (channel is null)
         {
             return null;

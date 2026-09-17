@@ -25,7 +25,7 @@ namespace Jellyfin.Plugin.LiveTvGroups.Channel;
 public class GroupsChannel : IChannel, IHasCacheKey
 {
     /// <summary>
-    /// The channel name; Jellyfin derives the internal channel id from it.
+    /// Fixed provider identity. Never localize: Jellyfin derives the channel ID from it.
     /// </summary>
     public const string ChannelName = "Live-TV Gruppen";
 
@@ -59,11 +59,16 @@ public class GroupsChannel : IChannel, IHasCacheKey
     /// <inheritdoc />
     public string Name => ChannelName;
 
-    /// <inheritdoc />
-    public string Description => "Eigene Sendergruppen aus Live-TV.";
+    public static Guid GetInternalId(ILibraryManager library)
+        => library.GetNewItemId("Channel " + ChannelName, typeof(MediaBrowser.Controller.Channels.Channel));
+
+    private string T(string key) => PluginLocalization.Text(key, PluginLocalization.Language(_serviceProvider));
 
     /// <inheritdoc />
-    public string DataVersion => "6"; // Invalidates cached guide-selection folders while preserving existing channel/playback item IDs.
+    public string Description => T("Grouped Live TV channels.");
+
+    /// <inheritdoc />
+    public string DataVersion => "7"; // Invalidates cached guide-selection folders while preserving existing channel/playback item IDs.
 
     /// <inheritdoc />
     public string HomePageUrl => "https://github.com/iEnki/jellyfin-plugin-livetv-groups";
@@ -106,7 +111,7 @@ public class GroupsChannel : IChannel, IHasCacheKey
         }
 
         var revision = _groups.Store.Get(id).Revision;
-        return id.ToString("N", CultureInfo.InvariantCulture) + "-" + revision.ToString(CultureInfo.InvariantCulture) + "-"
+        return PluginLocalization.Culture(_serviceProvider).Name + "-" + id.ToString("N", CultureInfo.InvariantCulture) + "-" + revision.ToString(CultureInfo.InvariantCulture) + "-"
             + _groups.Store.GetAdministration().Revision.ToString(CultureInfo.InvariantCulture) + "-"
             + string.Join(",", UserManager.GetUserById(id) is { } user ? _groups.GetGroups(user).Select(g => g.Id) : []) + "-"
             + (DateTime.UtcNow.Ticks / TimeSpan.FromMinutes(5).Ticks).ToString(CultureInfo.InvariantCulture);
@@ -144,8 +149,8 @@ public class GroupsChannel : IChannel, IHasCacheKey
                 return new ChannelItemResult();
             }
 
-            var epg = Folder(AppGuideService.GetRootId(group.Id), "Fernsehprogramm");
-            epg.IndexNumber = 0; epg.Overview = "Programmdaten dieser Gruppe nach Tagen und Sendern. Der originale Live-TV-Guide bleibt unverändert.";
+            var epg = Folder(AppGuideService.GetRootId(group.Id), T("TV guide"));
+            epg.IndexNumber = 0; epg.Overview = T("Program data for this group, organized by day and channel. Original Live TV remains unchanged.");
             items = [epg];
             foreach (var channel in _groups.ResolveChannels(user, group, _groups.GetAccessibleChannels(user)))
             {

@@ -3,8 +3,10 @@
     'use strict';
     if (window.__liveTvGroupsLoaded) return;
     window.__liveTvGroupsLoaded = true;
+    const t = key => window.LiveTvGroupsI18n.t(key);
+    const displayName = () => entry?.DisplayName || t('Live-TV Groups');
     const PAGE = 'ltvg-page', MODAL = 'ltvg-modal';
-    const views = { programs: 'Programme', guide: 'Fernsehprogramm', channels: 'Sender', manage: 'Gruppen verwalten' };
+    const views = { programs:'Programs', guide:'TV guide', channels:'Channels', manage:'Manage groups' };
     let entry = null, userKey = '', entryPending = false, scheduled = false, host = null, timer = null;
     let access = { Mode:'personal', CanManage:false, IsAdministrator:false };
     let groups = [], prefs = null, active = false, request = 0, abort = null, lastRoute = '';
@@ -24,8 +26,8 @@
     const client = () => window.ApiClient;
     const id = value => String(value || '').replace(/-/g, '').toLowerCase();
     const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-    const time = value => new Date(value).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-    const dayLabel = value => new Date(value).toLocaleDateString([], { weekday:'short', day:'2-digit', month:'2-digit' });
+    const time = value => new Date(value).toLocaleTimeString(window.LiveTvGroupsI18n.locale(), { hour:'2-digit', minute:'2-digit' });
+    const dayLabel = value => new Date(value).toLocaleDateString(window.LiveTvGroupsI18n.locale(), { weekday:'short', day:'2-digit', month:'2-digit' });
     const page = () => document.getElementById(PAGE);
     const visible = () => groups.filter(g => !prefs.HiddenGroupIds.some(hidden => id(hidden) === id(g.Id)));
     const selected = () => state.group === 'all' ? visible() : groups.filter(g => id(g.Id) === id(state.group));
@@ -36,12 +38,12 @@
     function logo(item) { const url = image(item); return url ? '<img alt="" loading="lazy" src="'+esc(url)+'">' : '<span class="material-icons" aria-hidden="true">live_tv</span>'; }
     async function api(method, path, body, signal) {
         const response = await fetch(client().getUrl('LiveTvGroups/' + path), {
-            method, signal, headers: { Authorization:'MediaBrowser Token="'+client().accessToken()+'"', 'Content-Type':'application/json' },
+            method, signal, headers: { Authorization:'MediaBrowser Token="'+client().accessToken()+'"', 'Accept-Language':window.LiveTvGroupsI18n.locale(), 'Content-Type':'application/json' },
             body:body === undefined ? undefined : JSON.stringify(body)
         });
         if (!response.ok) {
             const text = await response.text();
-            throw new Error(response.status === 401 ? 'Bitte erneut anmelden.' : response.status === 403 ? 'Kein Zugriff auf Live-TV.' : text || 'Anfrage fehlgeschlagen (HTTP '+response.status+').');
+            throw new Error(response.status === 401 ? t("Please sign in again.") : response.status === 403 ? t("No Live TV access.") : t(text) || t("Request failed (HTTP ")+response.status+').');
         }
         return response.status === 204 ? null : response.json();
     }
@@ -53,7 +55,7 @@
     function styles() {
         if (document.getElementById('ltvg-styles')) return;
         const link = document.createElement('link'); link.id = 'ltvg-styles'; link.rel = 'stylesheet';
-        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.2.0'));
+        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.2.1'));
         document.head.appendChild(link);
     }
     function ownRoute() {
@@ -100,8 +102,8 @@
     function playerOptions() {
         const target = prefs?.PreferredTargetDeviceId || '';
         const available = players.some(p => p.DeviceId === target);
-        return '<option value="">Dieses Gerät</option>'
-            + (target && !available ? '<option value="'+esc(target)+'">'+esc(prefs.PreferredTargetDeviceName || 'TV')+' · nicht verfügbar</option>' : '')
+        return ("<option value=\"\">" + t("This device") + "</option>")
+            + (target && !available ? '<option value="'+esc(target)+'">'+esc(prefs.PreferredTargetDeviceName || 'TV')+(t(" · unavailable") + "</option>") : '')
             + players.map(p => '<option value="'+esc(p.DeviceId)+'">'+esc(p.Name)+' ('+esc(p.Client)+')</option>').join('');
     }
     function updatePlayers() {
@@ -119,18 +121,18 @@
             if (!active || seq !== playerRequest || expected !== userKey) return;
             players = result.filter(p => p.DeviceId !== client().deviceId());
             playerMessage = prefs?.PreferredTargetDeviceId && !players.some(p => p.DeviceId === prefs.PreferredTargetDeviceId)
-                ? 'Zielgerät nicht verfügbar. Jellyfin am TV öffnen und Geräte aktualisieren.' : '';
+                ? t("Target unavailable. Open Jellyfin on the TV and refresh devices.") : '';
             updatePlayers();
         } catch(e) {
             if (!active || seq !== playerRequest || expected !== userKey) return;
-            players = []; playerMessage = 'Geräte konnten nicht geladen werden. '+e.message; updatePlayers();
+            players = []; playerMessage = t("Could not load devices. ")+e.message; updatePlayers();
         }
     }
     async function choosePlayer(selector) {
         if (playerBusy || playbackBusy) { updatePlayers(); return; }
         const expected = userKey, deviceId = selector.value || null;
         const target = players.find(p => p.DeviceId === deviceId);
-        playerBusy = true; playerMessage = 'Speichert Zielgerät…'; updatePlayers();
+        playerBusy = true; playerMessage = t("Saving target…"); updatePlayers();
         try {
             await api('PUT','Players/Preference',{ DeviceId:deviceId });
             if (expected !== userKey || !active) return;
@@ -138,7 +140,7 @@
             prefs.PreferredTargetDeviceName = target?.Name || null;
             playerMessage = '';
         } catch(e) {
-            if (expected === userKey && active) { playerMessage = 'Zielgerät konnte nicht gespeichert werden.'; error(e); }
+            if (expected === userKey && active) { playerMessage = t("Could not save the target device."); error(e); }
         } finally {
             if (expected === userKey) { playerBusy = false; updatePlayers(); }
         }
@@ -147,32 +149,32 @@
         if (playerBusy || playbackBusy) return;
         const expected = userKey, deviceId = prefs.PreferredTargetDeviceId;
         const targetName = prefs.PreferredTargetDeviceName || 'TV';
-        playbackBusy = true; playerMessage = 'Sendet Wiedergabebefehl…'; updatePlayers();
+        playbackBusy = true; playerMessage = t("Sending playback command…"); updatePlayers();
         page()?.querySelector('.ltvg-error')?.setAttribute('hidden','');
         try {
             // Resolve DeviceId again on the server for every click; never cache or persist SessionId.
             await api('POST','Players/'+encodeURIComponent(deviceId)+'/Play/'+encodeURIComponent(channelId));
-            if (expected === userKey && active) playerMessage = 'Wiedergabebefehl an '+targetName+' gesendet.';
+            if (expected === userKey && active) playerMessage = t("Playback command sent to {name}.").replace("{name}",targetName);
         } catch(e) {
-            if (expected === userKey && active) { playerMessage = 'Wiedergabebefehl fehlgeschlagen.'; error(e); }
+            if (expected === userKey && active) { playerMessage = t("Playback command failed."); error(e); }
         } finally {
             if (expected === userKey) { playbackBusy = false; updatePlayers(); }
         }
     }
     function chrome() {
         const root = page(); if (!root || !prefs) return;
-        root.innerHTML = '<div class="ltvg-header"><h1>Live-TV Gruppen</h1><div class="ltvg-actions">'
-            +(access.IsAdministrator ? button('administration','Verwaltung') : '')+button('guide','Fernsehprogramm')+button('settings','<span class="material-icons" aria-hidden="true">settings</span><span>Einstellungen</span>')+'</div></div>'
-            +'<div class="ltvg-toolbar"><label class="ltvg-view-label"><span class="ltvg-sr">Ansicht</span><select data-control="view" aria-label="Ansicht" class="ltvg-view">'
-            +Object.keys(views).filter(v => v !== 'manage' || access.CanManage).map(v => '<option value="'+v+'"'+(v===state.view?' selected':'')+'>'+views[v]+'</option>').join('')+'</select></label>'
-            +'<label><span class="ltvg-sr">Gruppe</span><select class="ltvg-input" data-control="group" aria-label="Gruppe"><option value="all">Alle sichtbaren Gruppen</option>'
+        root.innerHTML = ("<div class=\"ltvg-header\"><h1>" + esc(displayName()) + "</h1><div class=\"ltvg-actions\">")
+            +(access.IsAdministrator ? button('administration',t("Administration")) : '')+button('guide',t("TV guide"))+button('settings',("<span class=\"material-icons\" aria-hidden=\"true\">settings</span><span>" + t("Settings") + "</span>"))+'</div></div>'
+            +("<div class=\"ltvg-toolbar\"><label class=\"ltvg-view-label\"><span class=\"ltvg-sr\">" + t("View") + "</span><select data-control=\"view\" aria-label=\"" + t("View") + "\" class=\"ltvg-view\">")
+            +Object.keys(views).filter(v => v !== 'manage' || access.CanManage).map(v => '<option value="'+v+'"'+(v===state.view?' selected':'')+'>'+t(views[v])+'</option>').join('')+'</select></label>'
+            +("<label><span class=\"ltvg-sr\">" + t("Group") + "</span><select class=\"ltvg-input\" data-control=\"group\" aria-label=\"" + t("Group") + "\"><option value=\"all\">" + t("All visible groups") + "</option>")
             +visible().map(g=>'<option value="'+esc(g.Id)+'"'+(id(g.Id)===id(state.group)?' selected':'')+'>'+esc(g.Name)+'</option>').join('')+'</select></label>'
-            +'<div class="ltvg-actions ltvg-end">'+button('refresh','Aktualisieren')+(access.CanManage ? button('manage','Gruppen verwalten') : '')+'</div></div>'
-            +'<div class="ltvg-player-toolbar"><label>Abspielen auf <select class="ltvg-input" data-control="player" aria-label="Abspielen auf">'+playerOptions()+'</select></label>'
-            +button('players-refresh','Geräte aktualisieren')
+            +'<div class="ltvg-actions ltvg-end">'+button('refresh',t("Refresh"))+(access.CanManage ? button('manage',t("Manage groups")) : '')+'</div></div>'
+            +("<div class=\"ltvg-player-toolbar\"><label>" + t("Play on") + " <select class=\"ltvg-input\" data-control=\"player\" aria-label=\"" + t("Play on") + "\">")+playerOptions()+'</select></label>'
+            +button('players-refresh',t("Refresh devices"))
             +'<span class="ltvg-player-status" role="status" aria-live="polite">'+esc(playerMessage)+'</span></div>'
-            +'<p class="ltvg-player-hint">Am TV muss Jellyfin im Vordergrund mit internem Player geöffnet sein.</p>'
-            +'<div class="ltvg-error" role="alert" hidden><span></span>'+button('refresh','Erneut versuchen')+'</div>'
+            +("<p class=\"ltvg-player-hint\">" + t("Jellyfin must be open in the foreground on the TV with the internal player.") + "</p>")
+            +'<div class="ltvg-error" role="alert" hidden><span></span>'+button('refresh',t("Try again"))+'</div>'
             +'<div class="ltvg-content" aria-live="polite"></div>';
         root.querySelector('[data-control="group"]').value = state.group;
         updatePlayers();
@@ -189,7 +191,7 @@
             const results = await Promise.all([api('GET','Groups',undefined,abort.signal), api('GET','Preferences',undefined,abort.signal), api('GET','Access',undefined,abort.signal)]);
             if (!active || seq !== request) return;
             groups = results[0]; prefs = results[1]; access = results[2]; readRoute(); chrome(); writeRoute(); refreshPlayers(); await render();
-        } catch(e) { if (seq===request) { if (!prefs) { page().innerHTML='<h1>Live-TV Gruppen</h1><div class="ltvg-error" role="alert"><span></span>'+button('refresh','Erneut versuchen')+'</div>'; } error(e); } }
+        } catch(e) { if (seq===request) { if (!prefs) { page().innerHTML=("<h1>" + esc(displayName()) + "</h1><div class=\"ltvg-error\" role=\"alert\"><span></span>")+button('refresh',t("Try again"))+'</div>'; } error(e); } }
     }
     async function render(keep = false) {
         if (!active || !prefs) return;
@@ -197,8 +199,8 @@
         const seq = ++request; abort?.abort(); abort = new AbortController(); const signal = abort.signal;
         if (state.view === 'manage' && !access.CanManage) state.view = 'guide';
         if (state.view === 'manage') { renderGroups(); return; }
-        if (!selected().length) { content('<p class="ltvg-empty">Keine sichtbaren Gruppen. Prüfe deine Gruppeneinstellungen oder wende dich an den Administrator.</p>'+(access.CanManage ? button('create','Neue Gruppe') : '')); return; }
-        if (!keep) content('<p class="ltvg-empty" role="status">Lädt…</p>');
+        if (!selected().length) { content(("<p class=\"ltvg-empty\">" + t("No visible groups. Check your group settings or contact an administrator.") + "</p>")+(access.CanManage ? button('create',t("New group")) : '')); return; }
+        if (!keep) content(("<p class=\"ltvg-empty\" role=\"status\">" + t("Loading…") + "</p>"));
         try {
             if (state.view === 'channels') {
                 const result = await api('GET','Channels?'+scopeQuery(),undefined,signal);
@@ -214,30 +216,30 @@
             }
             restore(); clearInterval(timer); tick = 0;
             timer = setInterval(() => { if (!active) return; tick++; refreshPlayers(); if (tick%5===0) render(true); else if (state.view==='guide') updateNow(); },60000);
-        } catch(e) { if (seq===request) { if (!keep) content('<p class="ltvg-empty">Daten konnten nicht geladen werden.</p>'); error(e); } }
+        } catch(e) { if (seq===request) { if (!keep) content(("<p class=\"ltvg-empty\">" + t("Could not load data.") + "</p>")); error(e); } }
     }
     function renderGroups() {
-        content('<div class="ltvg-section-heading"><h2>Sendergruppen</h2>'+button('create','Neue Gruppe','','ltvg-primary')+'</div>'
+        content(("<div class=\"ltvg-section-heading\"><h2>" + t("Channel groups") + "</h2>")+button('create',t("New group"),'','ltvg-primary')+'</div>'
             +'<div class="ltvg-grid" data-list="groups">'+groups.map(g=>'<article class="ltvg-card ltvg-group-card" draggable="true" data-id="'+esc(g.Id)+'">'
-                +button('open','<strong>'+esc(g.Name)+'</strong><span>'+g.ChannelCount+' Sender'+(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?' · Ausgeblendet':'')+'</span>','data-id="'+esc(g.Id)+'"','ltvg-card-main')
-                +'<div class="ltvg-card-tools">'+button('rename','Umbenennen','data-id="'+esc(g.Id)+'"')+button('delete','Löschen','data-id="'+esc(g.Id)+'"')
-                +(access.Mode === 'shared' && access.IsAdministrator ? button('group-access','Benutzerfreigabe','data-id="'+esc(g.Id)+'"') : '')
-                +button('group-up','↑','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+' nach oben"')+button('group-down','↓','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+' nach unten"')+'</div></article>').join('')+'</div>'
-            +(!groups.length?'<p class="ltvg-empty">Noch keine Gruppen.</p>':''));
+                +button('open','<strong>'+esc(g.Name)+'</strong><span>'+g.ChannelCount+t(" channels")+(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?t(" · Hidden"):'')+'</span>','data-id="'+esc(g.Id)+'"','ltvg-card-main')
+                +'<div class="ltvg-card-tools">'+button('rename',t("Rename"),'data-id="'+esc(g.Id)+'"')+button('delete',t("Delete"),'data-id="'+esc(g.Id)+'"')
+                +(access.Mode === 'shared' && access.IsAdministrator ? button('group-access',t("User access"),'data-id="'+esc(g.Id)+'"') : '')
+                +button('group-up','↑','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+(t(" up") + "\""))+button('group-down','↓','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+(t(" down") + "\""))+'</div></article>').join('')+'</div>'
+            +(!groups.length?("<p class=\"ltvg-empty\">" + t("No groups yet.") + "</p>"):''));
         dragSort(page().querySelector('[data-list="groups"]'), async ids=>{ await api('PUT','Groups/Order',ids); await reloadGroups(); });
     }
     function channelCard(channel) {
         const program = channel.CurrentProgram;
         return '<article class="ltvg-channel-card" data-id="'+esc(channel.Id)+'"'+(state.reorder?' draggable="true"':'')+'>'
-            +button('play','<span class="ltvg-logo">'+logo(channel)+'</span><span class="ltvg-card-title">'+esc(channel.ChannelNumber ? channel.ChannelNumber+' '+channel.Name : channel.Name)+'</span><span class="ltvg-card-sub">'+(program?esc(program.Name)+'<br>'+time(program.StartDate)+' – '+time(program.EndDate):'Keine Programmdaten')+'</span>', 'data-id="'+esc(channel.Id)+'" '+(state.reorder?'disabled':''),'ltvg-media-card')
-            +(state.reorder?'<div class="ltvg-card-tools">'+button('channel-up','↑','data-id="'+esc(channel.Id)+'" aria-label="Sender nach oben"')+button('channel-down','↓','data-id="'+esc(channel.Id)+'" aria-label="Sender nach unten"')+'</div>':'')+'</article>';
+            +button('play','<span class="ltvg-logo">'+logo(channel)+'</span><span class="ltvg-card-title">'+esc(channel.ChannelNumber ? channel.ChannelNumber+' '+channel.Name : channel.Name)+'</span><span class="ltvg-card-sub">'+(program?esc(program.Name)+'<br>'+time(program.StartDate)+' – '+time(program.EndDate):t("No program data"))+'</span>', 'data-id="'+esc(channel.Id)+'" '+(state.reorder?'disabled':''),'ltvg-media-card')
+            +(state.reorder?'<div class="ltvg-card-tools">'+button('channel-up','↑','data-id="'+esc(channel.Id)+("\" aria-label=\"" + t("Move channel up") + "\""))+button('channel-down','↓','data-id="'+esc(channel.Id)+("\" aria-label=\"" + t("Move channel down") + "\""))+'</div>':'')+'</article>';
     }
     function renderChannels() {
         const editable = access.CanManage && state.group !== 'all';
-        content('<div class="ltvg-section-heading"><span>'+loadedChannels.length+' Sender</span><div class="ltvg-actions">'
-            +(editable?button('edit-channels','Sender auswählen','','ltvg-primary')+button('reorder',state.reorder?'Fertig':'Reihenfolge ändern'):'')+'</div></div>'
+        content('<div class="ltvg-section-heading"><span>'+loadedChannels.length+(t(" channels") + "</span><div class=\"ltvg-actions\">")
+            +(editable?button('edit-channels',t("Choose channels"),'','ltvg-primary')+button('reorder',state.reorder?t("Done"):t("Change order")):'')+'</div></div>'
             +'<div class="ltvg-grid ltvg-channel-grid" data-list="channels">'+loadedChannels.map(channelCard).join('')+'</div>'
-            +(!loadedChannels.length?'<p class="ltvg-empty">Diese Gruppe enthält keine verfügbaren Sender.</p>':''));
+            +(!loadedChannels.length?("<p class=\"ltvg-empty\">" + t("This group contains no available channels.") + "</p>"):''));
         if (state.reorder) dragSort(page().querySelector('[data-list="channels"]'), async ids=>{ await api('PUT','Groups/'+state.group+'/Channels',ids); await render(true); });
     }
     function programCard(program, channel) {
@@ -250,27 +252,27 @@
         const current = programs.filter(p=>Date.parse(p.StartDate)<=now && Date.parse(p.EndDate)>now);
         const next = loadedChannels.map(c=>programs.find(p=>id(p.ChannelId)===id(c.Id) && Date.parse(p.StartDate)>now)).filter(Boolean);
         const nextIds = new Set(next.map(p=>p.Id)); const later = programs.filter(p=>Date.parse(p.StartDate)>now && !nextIds.has(p.Id));
-        content([['Gerade läuft',current],['Als Nächstes',next],['Später',later]].map(([title,items])=>'<section class="ltvg-program-section"><h2>'+title+'</h2>'
-            +(items.length?'<div class="ltvg-program-rail">'+items.map(p=>programCard(p,channelMap.get(id(p.ChannelId)))).join('')+'</div>':'<p class="ltvg-empty">Keine Programmdaten in diesem Zeitraum.</p>')+'</section>').join('')+diagnostics(data));
+        content([[t("Now playing"),current],[t("Up next"),next],[t("Later"),later]].map(([title,items])=>'<section class="ltvg-program-section"><h2>'+title+'</h2>'
+            +(items.length?'<div class="ltvg-program-rail">'+items.map(p=>programCard(p,channelMap.get(id(p.ChannelId)))).join('')+'</div>':("<p class=\"ltvg-empty\">" + t("No program data in this time period.") + "</p>"))+'</section>').join('')+diagnostics(data));
     }
     function diagnostics(data) {
-        return (data.MissingChannelCount?'<p class="ltvg-hint">'+data.MissingChannelCount+' gespeicherte Sender sind derzeit nicht verfügbar. Prüfe die Senderauswahl.</p>':'')
-            +(data.InvalidProgramCount?'<p class="ltvg-hint">'+data.InvalidProgramCount+' unvollständige Programme konnten nicht dargestellt werden.</p>':'');
+        return (data.MissingChannelCount?'<p class="ltvg-hint">'+data.MissingChannelCount+(t(" saved channels are currently unavailable. Check your channel selection.") + "</p>"):'')
+            +(data.InvalidProgramCount?'<p class="ltvg-hint">'+data.InvalidProgramCount+(t(" incomplete programs could not be displayed.") + "</p>"):'');
     }
     function renderGuide(data) {
         const start = Date.parse(data.Start), end = Date.parse(data.End), width = (end-start)/60000*prefs.Zoom;
         const today = new Date(); today.setHours(0,0,0,0);
         let days = ''; for(let n=0;n<7;n++) { const date=new Date(today);date.setDate(date.getDate()+n);
-            days+=button('day','<span>'+date.toLocaleDateString([],{weekday:'short'})+'</span><span>'+date.getDate()+'</span>','data-date="'+date.getTime()+'" aria-label="'+esc(dayLabel(date))+'" aria-pressed="'+(new Date(start).toDateString()===date.toDateString())+'"','ltvg-day'); }
-        let html='<nav class="ltvg-days" aria-label="Programmtag">'+days+'</nav><div class="ltvg-guide-toolbar">'
-            +button('earlier','‹ früher')+button('now','Jetzt')+button('evening','Heute Abend')+button('later','später ›')
-            +'<label>Datum <input type="date" class="ltvg-input" data-control="date" value="'+localDate(new Date(start))+'"></label>'
-            +'<label>Uhrzeit <input type="time" class="ltvg-input" data-control="time" value="'+new Date(start).toTimeString().slice(0,5)+'"></label>'
-            +'<label>Zoom <select class="ltvg-input" data-control="zoom" aria-label="Zoom">'+[3,5,8].map(z=>'<option value="'+z+'"'+(prefs.Zoom===z?' selected':'')+'>'+({3:'Kompakt',5:'Normal',8:'Groß'}[z])+'</option>').join('')+'</select></label>'
+            days+=button('day','<span>'+date.toLocaleDateString(window.LiveTvGroupsI18n.locale(),{weekday:'short'})+'</span><span>'+date.getDate()+'</span>','data-date="'+date.getTime()+'" aria-label="'+esc(dayLabel(date))+'" aria-pressed="'+(new Date(start).toDateString()===date.toDateString())+'"','ltvg-day'); }
+        let html=("<nav class=\"ltvg-days\" aria-label=\"" + t("Program day") + "\">")+days+'</nav><div class="ltvg-guide-toolbar">'
+            +button('earlier',t("‹ Earlier"))+button('now',t("Now"))+button('evening',t("Tonight"))+button('later',t("Later ›"))
+            +("<label>" + t("Date ") + "<input type=\"date\" class=\"ltvg-input\" data-control=\"date\" value=\"")+localDate(new Date(start))+'"></label>'
+            +("<label>" + t("Time ") + "<input type=\"time\" class=\"ltvg-input\" data-control=\"time\" value=\"")+new Date(start).toTimeString().slice(0,5)+'"></label>'
+            +'<label>Zoom <select class="ltvg-input" data-control="zoom" aria-label="Zoom">'+[3,5,8].map(z=>'<option value="'+z+'"'+(prefs.Zoom===z?' selected':'')+'>'+({3:t("Compact"),5:'Normal',8:t("Large")}[z])+'</option>').join('')+'</select></label>'
             +'<span class="ltvg-guide-range">'+esc(dayLabel(start))+' '+time(start)+' – '+time(end)+'</span></div>';
-        if (!loadedChannels.length) { content(html+'<p class="ltvg-empty">Diese Gruppe enthält keine verfügbaren Sender.</p>'+diagnostics(data)); return; }
+        if (!loadedChannels.length) { content(html+("<p class=\"ltvg-empty\">" + t("This group contains no available channels.") + "</p>")+diagnostics(data)); return; }
         const byChannel = new Map(); (data.Programs||[]).forEach(p=>{const key=id(p.ChannelId);if(!byChannel.has(key))byChannel.set(key,[]);byChannel.get(key).push(p);});
-        html+='<div class="ltvg-guide-scroll" tabindex="0" aria-label="Programmführer"><div class="ltvg-guide" style="width:calc(var(--ltvg-channel-width) + '+width+'px)">'
+        html+=("<div class=\"ltvg-guide-scroll\" tabindex=\"0\" aria-label=\"" + t("Program guide") + "\"><div class=\"ltvg-guide\" style=\"width:calc(var(--ltvg-channel-width) + ")+width+'px)">'
             +'<div class="ltvg-guide-row ltvg-guide-timeline"><div class="ltvg-guide-ch"></div><div class="ltvg-guide-cells" style="width:'+width+'px">';
         for(let minute=0;minute<(end-start)/60000;minute+=30) html+='<span class="ltvg-guide-slot" style="left:'+(minute*prefs.Zoom)+'px;width:'+(30*prefs.Zoom)+'px">'+time(start+minute*60000)+'</span>';
         html+='</div></div>';
@@ -282,7 +284,7 @@
                 html+=button('details','<span class="ltvg-guide-caption"><span class="ltvg-guide-title">'+(p.TimerId?'● ':'')+esc(p.Name)+'</span><span class="ltvg-guide-sub">'+esc(p.EpisodeTitle||'')+'</span><span class="ltvg-guide-sub">'+time(p.StartDate)+' – '+time(p.EndDate)+'</span></span>',
                     'data-id="'+esc(p.Id)+'" data-focus="program-'+esc(p.Id)+'" data-left="'+left+'" data-width="'+size+'" data-from="'+Date.parse(p.StartDate)+'" data-to="'+Date.parse(p.EndDate)+'" style="left:'+left+'px;width:'+size+'px" title="'+esc(p.Name+(p.EpisodeTitle?' – '+p.EpisodeTitle:''))+' ('+time(p.StartDate)+' – '+time(p.EndDate)+')"','ltvg-guide-prog');
             });
-            if (!count) html+='<span class="ltvg-guide-noprog">Keine Programmdaten</span>';
+            if (!count) html+=("<span class=\"ltvg-guide-noprog\">" + t("No program data") + "</span>");
             html+='</div></div>';
         });
         html+='<div class="ltvg-guide-now" hidden></div></div></div>'+diagnostics(data);
@@ -319,36 +321,36 @@
     }
     function modalError(wrapper,e) { const target=wrapper.querySelector('.ltvg-modal-error');target.hidden=false;target.textContent=e.message; }
     function askName(title,initial='') {
-        return new Promise(resolve=>{ const wrapper=modal('<h2 id="ltvg-dialog-title">'+esc(title)+'</h2><form><label>Name<input class="ltvg-input" maxlength="100" required value="'+esc(initial)+'"></label><div class="ltvg-modal-actions">'+button('cancel','Abbrechen')+'<button class="ltvg-btn ltvg-primary" type="submit">Speichern</button></div></form>',()=>resolve(null));
+        return new Promise(resolve=>{ const wrapper=modal('<h2 id="ltvg-dialog-title">'+esc(title)+'</h2><form><label>Name<input class="ltvg-input" maxlength="100" required value="'+esc(initial)+'"></label><div class="ltvg-modal-actions">'+button('cancel',t("Cancel"))+("<button class=\"ltvg-btn ltvg-primary\" type=\"submit\">" + t("Save") + "</button></div></form>"),()=>resolve(null));
             wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;wrapper.querySelector('form').onsubmit=e=>{e.preventDefault();const value=wrapper.querySelector('input').value.trim();modalCancel=null;closeModal();resolve(value||null);}; });
     }
     function confirmDelete(name) {
-        return new Promise(resolve=>{const wrapper=modal('<h2 id="ltvg-dialog-title">Gruppe löschen</h2><p>Gruppe „'+esc(name)+'“ löschen? Die Sender bleiben erhalten.</p><div class="ltvg-modal-actions">'+button('cancel','Abbrechen')+button('confirm','Löschen','','ltvg-danger')+'</div>',()=>resolve(false));
+        return new Promise(resolve=>{const wrapper=modal(("<h2 id=\"ltvg-dialog-title\">" + t("Delete group") + "</h2><p>" + t("Delete group “"))+esc(name)+(t("”? Channels are retained.") + "</p><div class=\"ltvg-modal-actions\">")+button('cancel',t("Cancel"))+button('confirm',t("Delete"),'','ltvg-danger')+'</div>',()=>resolve(false));
             wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;wrapper.querySelector('[data-action="confirm"]').onclick=()=>{modalCancel=null;closeModal();resolve(true);}; });
     }
     async function settings() {
-        const wrapper=modal('<h2 id="ltvg-dialog-title">Gruppeneinstellungen</h2><form><fieldset><legend>Sichtbare Gruppen</legend>'+groups.map(g=>'<label class="ltvg-picker-row"><input type="checkbox" data-group="'+esc(g.Id)+'"'+(!prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?' checked':'')+'>'+esc(g.Name)+'</label>').join('')+'</fieldset>'
-            +'<label>Standardgruppe<select class="ltvg-input" name="group"><option value="">Alle sichtbaren Gruppen</option>'+groups.map(g=>'<option value="'+esc(g.Id)+'">'+esc(g.Name)+'</option>').join('')+'</select></label>'
-            +'<label>Standardansicht<select class="ltvg-input" name="view">'+['programs','guide','channels'].map(v=>'<option value="'+v+'">'+views[v]+'</option>').join('')+'</select></label>'
-            +'<label class="ltvg-picker-row"><input type="checkbox" name="remember">Letzte Gruppe und Ansicht merken</label>'
-            +'<label>EPG-Zoom<select class="ltvg-input" name="zoom"><option value="3">Kompakt</option><option value="5">Normal</option><option value="8">Groß</option></select></label>'
-            +'<div class="ltvg-modal-actions">'+button('cancel','Abbrechen')+'<button type="submit" class="ltvg-btn ltvg-primary">Speichern</button></div></form>');
+        const wrapper=modal(("<h2 id=\"ltvg-dialog-title\">" + t("Group settings") + "</h2><form><fieldset><legend>" + t("Visible groups") + "</legend>")+groups.map(g=>'<label class="ltvg-picker-row"><input type="checkbox" data-group="'+esc(g.Id)+'"'+(!prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?' checked':'')+'>'+esc(g.Name)+'</label>').join('')+'</fieldset>'
+            +("<label>" + t("Default group") + "<select class=\"ltvg-input\" name=\"group\"><option value=\"\">" + t("All visible groups") + "</option>")+groups.map(g=>'<option value="'+esc(g.Id)+'">'+esc(g.Name)+'</option>').join('')+'</select></label>'
+            +("<label>" + t("Default view") + "<select class=\"ltvg-input\" name=\"view\">")+['programs','guide','channels'].map(v=>'<option value="'+v+'">'+t(views[v])+'</option>').join('')+'</select></label>'
+            +("<label class=\"ltvg-picker-row\"><input type=\"checkbox\" name=\"remember\">" + t("Remember last group and view") + "</label>")
+            +("<label>" + t("Guide zoom") + "<select class=\"ltvg-input\" name=\"zoom\"><option value=\"3\">" + t("Compact") + "</option><option value=\"5\">Normal</option><option value=\"8\">" + t("Large") + "</option></select></label>")
+            +'<div class="ltvg-modal-actions">'+button('cancel',t("Cancel"))+("<button type=\"submit\" class=\"ltvg-btn ltvg-primary\">" + t("Save") + "</button></div></form>"));
         wrapper.querySelector('[name="group"]').value=prefs.DefaultGroupId||'';wrapper.querySelector('[name="view"]').value=prefs.DefaultView;
         wrapper.querySelector('[name="remember"]').checked=prefs.RememberLastView;wrapper.querySelector('[name="zoom"]').value=prefs.Zoom;
         wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;
         wrapper.querySelector('form').onsubmit=async e=>{e.preventDefault();const form=e.target;const save=form.querySelector('[type="submit"]');save.disabled=true;
             const updated={...prefs,HiddenGroupIds:Array.from(wrapper.querySelectorAll('[data-group]:not(:checked)')).map(el=>el.dataset.group),DefaultGroupId:form.elements.group.value||null,DefaultView:form.elements.view.value,RememberLastView:form.elements.remember.checked,Zoom:Number(form.elements.zoom.value)};
-            try{if(updated.DefaultGroupId&&updated.HiddenGroupIds.includes(updated.DefaultGroupId))throw new Error('Die Standardgruppe muss sichtbar sein.');await savePreferences(updated);prefs=updated;closeModal();if(!visible().some(g=>id(g.Id)===id(state.group)))state.group='all';writeRoute();await render();}catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
+            try{if(updated.DefaultGroupId&&updated.HiddenGroupIds.includes(updated.DefaultGroupId))throw new Error(t("The default group must be visible."));await savePreferences(updated);prefs=updated;closeModal();if(!visible().some(g=>id(g.Id)===id(state.group)))state.group='all';writeRoute();await render();}catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
         };
     }
     async function administration() {
         const data = await api('GET','Administration');
-        const wrapper = modal('<h2 id="ltvg-dialog-title">Gruppenverwaltung</h2><form>'
-            +'<label>Betriebsart<select class="ltvg-input" name="mode" aria-label="Betriebsart"><option value="personal">Persönliche Gruppen je Benutzer</option><option value="shared">Zentrale Gruppen vom Admin</option></select></label>'
-            +'<p>Persönlich: Jeder Benutzer erstellt seine eigenen Gruppen. Zentral: Administratoren erstellen Gruppen und bestimmen deren Benutzerfreigabe.</p>'
-            +'<label class="ltvg-picker-row"><input type="checkbox" name="import">Meine persönlichen Gruppen in zentrale Gruppen kopieren</label>'
-            +'<p>Beide Gruppensammlungen bleiben beim Umschalten erhalten. Administratoren können alle zentralen Gruppen verwalten. Die Jellyfin-Kanalberechtigung bleibt Voraussetzung.</p>'
-            +'<div class="ltvg-modal-actions">'+button('cancel','Abbrechen')+'<button type="submit" class="ltvg-btn ltvg-primary">Speichern</button></div></form>');
+        const wrapper = modal(("<h2 id=\"ltvg-dialog-title\">" + t("Group administration") + "</h2><form>")
+            +("<label>" + t("Mode") + "<select class=\"ltvg-input\" name=\"mode\" aria-label=\"" + t("Mode") + "\"><option value=\"personal\">" + t("Personal groups per user") + "</option><option value=\"shared\">" + t("Central groups managed by admins") + "</option></select></label>")
+            +("<p>" + t("Personal: Each user creates their own groups. Central: Administrators create groups and control user access.") + "</p>")
+            +("<label class=\"ltvg-picker-row\"><input type=\"checkbox\" name=\"import\">" + t("Copy my personal groups into central groups") + "</label>")
+            +("<p>" + t("Both collections are retained when switching modes. Administrators can manage all central groups. Jellyfin channel access is still required.") + "</p>")
+            +'<div class="ltvg-modal-actions">'+button('cancel',t("Cancel"))+("<button type=\"submit\" class=\"ltvg-btn ltvg-primary\">" + t("Save") + "</button></div></form>"));
         const form = wrapper.querySelector('form');form.elements.mode.value=data.Configuration.Mode;
         const update=()=>{form.elements.import.disabled=form.elements.mode.value!=='shared';if(form.elements.import.disabled)form.elements.import.checked=false;};
         form.elements.mode.onchange=update;update();wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;
@@ -361,12 +363,12 @@
         const data=await api('GET','Administration'),group=data.Configuration.Groups.find(g=>id(g.Id)===id(groupId));if(!group)return;
         const checks = { all:new Set((group.DeniedUserIds||[]).map(id)), selected:new Set((group.AllowedUserIds||[]).filter(u=>!(group.DeniedUserIds||[]).some(d=>id(d)===id(u))).map(id)) };
         let mode=group.VisibleToAllUsers?'all':'selected';
-        const wrapper=modal('<h2 id="ltvg-dialog-title">Benutzerfreigabe: '+esc(group.Name)+'</h2><form>'
-            +'<label>Sichtbarkeit<select class="ltvg-input" name="visibility" aria-label="Sichtbarkeit"><option value="all">Alle Benutzer außer ausgewählten</option><option value="selected">Nur ausgewählte Benutzer</option></select></label>'
-            +'<p data-access-hint></p><div class="ltvg-picker">'+data.Users.map(u=>'<label class="ltvg-picker-row"><input type="checkbox" data-user="'+esc(u.Id)+'"'+(u.IsAdministrator?' disabled':'')+'>'+esc(u.Name)+(u.IsAdministrator?' · Admin (immer Zugriff)':!u.HasLiveTvAccess?' · ohne Live-TV-Zugriff':'')+'</label>').join('')+'</div>'
-            +'<div class="ltvg-modal-actions">'+button('cancel','Abbrechen')+'<button type="submit" class="ltvg-btn ltvg-primary">Speichern</button></div></form>');
+        const wrapper=modal(("<h2 id=\"ltvg-dialog-title\">" + t("User access") + ": ")+esc(group.Name)+'</h2><form>'
+            +("<label>" + t("Visibility") + "<select class=\"ltvg-input\" name=\"visibility\" aria-label=\"" + t("Visibility") + "\"><option value=\"all\">" + t("All users except selected") + "</option><option value=\"selected\">" + t("Selected users only") + "</option></select></label>")
+            +'<p data-access-hint></p><div class="ltvg-picker">'+data.Users.map(u=>'<label class="ltvg-picker-row"><input type="checkbox" data-user="'+esc(u.Id)+'"'+(u.IsAdministrator?' disabled':'')+'>'+esc(u.Name)+(u.IsAdministrator?t(" · Admin (always has access)"):!u.HasLiveTvAccess?t(" · no Live TV access"):'')+'</label>').join('')+'</div>'
+            +'<div class="ltvg-modal-actions">'+button('cancel',t("Cancel"))+("<button type=\"submit\" class=\"ltvg-btn ltvg-primary\">" + t("Save") + "</button></div></form>"));
         const form=wrapper.querySelector('form');form.elements.visibility.value=mode;
-        const draw=()=>{wrapper.querySelector('[data-access-hint]').textContent=mode==='all'?'Markierte Benutzer sehen diese Gruppe nicht.':'Nur markierte Benutzer sehen diese Gruppe.';
+        const draw=()=>{wrapper.querySelector('[data-access-hint]').textContent=mode==='all'?t("Checked users cannot see this group."):t("Only checked users can see this group.");
             wrapper.querySelectorAll('[data-user]').forEach(el=>el.checked=el.disabled?mode==='selected':checks[mode].has(id(el.dataset.user)));};
         form.elements.visibility.onchange=()=>{wrapper.querySelectorAll('[data-user]:not(:disabled)').forEach(el=>el.checked?checks[mode].add(id(el.dataset.user)):checks[mode].delete(id(el.dataset.user)));mode=form.elements.visibility.value;draw();};draw();
         wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;
@@ -379,11 +381,11 @@
     async function editChannels() {
         const group=groups.find(g=>id(g.Id)===id(state.group));if(!group)return;
         const current=loadedChannels.map(c=>c.Id),chosen=new Set(current);
-        const wrapper=modal('<h2 id="ltvg-dialog-title">Sender für „'+esc(group.Name)+'“</h2><input type="search" class="ltvg-input" aria-label="Sender suchen" placeholder="Sender suchen…"><label class="ltvg-picker-row"><input type="checkbox" data-selected-only>Nur ausgewählte Sender</label><span class="ltvg-picker-count"></span><div class="ltvg-picker"><p role="status">Lädt…</p></div><div class="ltvg-modal-actions">'+button('cancel','Abbrechen')+button('save','Speichern','disabled','ltvg-primary')+'</div>');
+        const wrapper=modal(("<h2 id=\"ltvg-dialog-title\">" + t("Channels for “"))+esc(group.Name)+("”</h2><input type=\"search\" class=\"ltvg-input\" aria-label=\"" + t("Search channels") + "\" placeholder=\"" + t("Search channels…") + "\"><label class=\"ltvg-picker-row\"><input type=\"checkbox\" data-selected-only>" + t("Selected channels only") + "</label><span class=\"ltvg-picker-count\"></span><div class=\"ltvg-picker\"><p role=\"status\">" + t("Loading…") + "</p></div><div class=\"ltvg-modal-actions\">")+button('cancel',t("Cancel"))+button('save',t("Save"),'disabled','ltvg-primary')+'</div>');
         wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;
         try{const result=await api('GET','AvailableChannels');if(!wrapper.isConnected)return;const channels=result.Items||[];
             const list=wrapper.querySelector('.ltvg-picker');list.innerHTML=channels.map(c=>'<label class="ltvg-picker-row" data-search="'+esc(((c.ChannelNumber||'')+' '+c.Name).toLowerCase())+'"><input type="checkbox" value="'+esc(c.Id)+'"'+(chosen.has(c.Id)?' checked':'')+'><span class="ltvg-number">'+esc(c.ChannelNumber||'')+'</span>'+esc(c.Name)+'</label>').join('');
-            const filter=()=>{const term=wrapper.querySelector('[type="search"]').value.trim().toLowerCase(),only=wrapper.querySelector('[data-selected-only]').checked;let matches=0;list.querySelectorAll('.ltvg-picker-row').forEach(row=>{row.hidden=!row.dataset.search.includes(term)||(only&&!chosen.has(row.querySelector('input').value));if(!row.hidden)matches++;});wrapper.querySelector('.ltvg-picker-count').textContent=chosen.size+' ausgewählt · '+matches+' Treffer';};
+            const filter=()=>{const term=wrapper.querySelector('[type="search"]').value.trim().toLowerCase(),only=wrapper.querySelector('[data-selected-only]').checked;let matches=0;list.querySelectorAll('.ltvg-picker-row').forEach(row=>{row.hidden=!row.dataset.search.includes(term)||(only&&!chosen.has(row.querySelector('input').value));if(!row.hidden)matches++;});wrapper.querySelector('.ltvg-picker-count').textContent=chosen.size+t(" selected · ")+matches+t(" matches");};
             list.onchange=e=>{e.target.checked?chosen.add(e.target.value):chosen.delete(e.target.value);filter();};wrapper.querySelector('[type="search"]').oninput=filter;wrapper.querySelector('[data-selected-only]').onchange=filter;filter();
             const save=wrapper.querySelector('[data-action="save"]');save.disabled=false;save.onclick=async()=>{save.disabled=true;const ids=current.filter(value=>chosen.has(value));channels.forEach(c=>{if(chosen.has(c.Id)&&!ids.includes(c.Id))ids.push(c.Id);});try{await api('PUT','Groups/'+group.Id+'/Channels',ids);closeModal();await reloadGroups();}catch(e){modalError(wrapper,e);save.disabled=false;}};
         }catch(e){modalError(wrapper,e);}
@@ -414,12 +416,12 @@
         if(action==='administration'){if(access.IsAdministrator)await administration();return;}
         if(action==='group-access'){if(access.IsAdministrator&&access.Mode==='shared')await groupAccess(value);return;}
         if(!access.CanManage && (['create','rename','delete','edit-channels','manage','reorder'].includes(action)||action.startsWith('group-')||action.startsWith('channel-')))return;
-        if(action==='create'){const name=await askName('Neue Gruppe');if(name){const created=await api('POST','Groups',{Name:name});state.group=created.Id;state.view='channels';writeRoute();await reloadGroups();}return;}
-        if(action==='rename'){const group=groups.find(g=>id(g.Id)===id(value)),name=await askName('Gruppe umbenennen',group.Name);if(name){await api('PUT','Groups/'+value,{Name:name});await reloadGroups();}return;}
+        if(action==='create'){const name=await askName(t("New group"));if(name){const created=await api('POST','Groups',{Name:name});state.group=created.Id;state.view='channels';writeRoute();await reloadGroups();}return;}
+        if(action==='rename'){const group=groups.find(g=>id(g.Id)===id(value)),name=await askName(t("Rename group"),group.Name);if(name){await api('PUT','Groups/'+value,{Name:name});await reloadGroups();}return;}
         if(action==='delete'){const group=groups.find(g=>id(g.Id)===id(value));if(await confirmDelete(group.Name)){await api('DELETE','Groups/'+value);await reloadGroups();}return;}
         if(action==='edit-channels'){await editChannels();return;}
         if(action.startsWith('group-')||action.startsWith('channel-')){await move(action,value);return;}
-        if(action==='details'||action==='play'){capture();writeRoute();if(action==='play'){if(prefs.PreferredTargetDeviceId){await playRemote(value);return;}if(playerBusy||playbackBusy)return;try{const sessions=await client().ajax({type:'GET',url:client().getUrl('Sessions',{deviceId:client().deviceId()})});if(!sessions.length)throw new Error('Keine Sitzung.');await client().ajax({type:'POST',url:client().getUrl('Sessions/'+sessions[0].Id+'/Playing',{playCommand:'PlayNow',itemIds:value})});return;}catch(_) { /* Native details remain the playback fallback. */ }}window.location.hash='#/details?id='+encodeURIComponent(value)+'&serverId='+encodeURIComponent(client().serverId());return;}
+        if(action==='details'||action==='play'){capture();writeRoute();if(action==='play'){if(prefs.PreferredTargetDeviceId){await playRemote(value);return;}if(playerBusy||playbackBusy)return;try{const sessions=await client().ajax({type:'GET',url:client().getUrl('Sessions',{deviceId:client().deviceId()})});if(!sessions.length)throw new Error(t("No session."));await client().ajax({type:'POST',url:client().getUrl('Sessions/'+sessions[0].Id+'/Playing',{playCommand:'PlayNow',itemIds:value})});return;}catch(_) { /* Native details remain the playback fallback. */ }}window.location.hash='#/details?id='+encodeURIComponent(value)+'&serverId='+encodeURIComponent(client().serverId());return;}
         capture();restoreFocus=null;
         if(action==='manage')state.view='manage';
         else if(action==='open'){state.group=value;state.view='guide';if(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(value))){prefs.HiddenGroupIds=prefs.HiddenGroupIds.filter(hidden=>id(hidden)!==id(value));await savePreferences();}}
@@ -454,7 +456,7 @@
         const candidate=document.querySelector('.page.libraryPage:not(.hide)');if(!candidate)return;
         if(host!==candidate||!page()){
             host?.removeAttribute('data-ltvg-host');host=candidate;host.setAttribute('data-ltvg-host','');styles();
-            const root=document.createElement('main');root.id=PAGE;root.className='ltvg-page padded-left padded-right padded-bottom-page';root.innerHTML='<h1>Live-TV Gruppen</h1><p role="status">Lädt…</p>';host.appendChild(root);
+            const root=document.createElement('main');root.id=PAGE;root.className='ltvg-page padded-left padded-right padded-bottom-page';root.innerHTML=("<h1>" + esc(displayName()) + "</h1><p role=\"status\">" + t("Loading…") + "</p>");host.appendChild(root);
             active=true;lastRoute=window.location.hash;boot();
         }else if(lastRoute!==window.location.hash&&prefs){capture();readRoute();lastRoute=window.location.hash;render();}
     }
@@ -474,5 +476,6 @@
     window.addEventListener('hashchange',schedule);document.addEventListener('viewshow',schedule);
     window.addEventListener('resize',keepLabelsVisible);
     function start() { new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});schedule(); }
+    new MutationObserver(()=>{stop();entry=null;schedule();}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
     document.body?start():document.addEventListener('DOMContentLoaded',start);
 })();

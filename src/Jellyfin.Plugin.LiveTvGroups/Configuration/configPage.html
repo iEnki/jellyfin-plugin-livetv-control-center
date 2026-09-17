@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html>
 <head>
     <meta charset="utf-8">
     <title>Live-TV Groups</title>
@@ -9,49 +9,54 @@
         <div data-role="content">
             <div class="content-primary">
                 <h2>Live-TV Groups</h2>
-                <p>Wähle persönliche Gruppen je Benutzer oder zentrale Gruppen vom Admin. Zentrale Benutzerfreigaben bearbeitest du in <b>Live-TV Gruppen → Gruppen verwalten → Benutzerfreigabe</b>.</p><p>Benutzer benötigen Live-TV-Zugriff und die Freigabe des Kanals „Live-TV Gruppen“ unter Dashboard → Benutzer → Zugriff → Kanäle. Danach neu anmelden.</p>
+                <p>Choose personal groups per user or central groups managed by administrators. Configure central user access under <b>Live-TV Groups → Manage groups → User access</b>.</p><p>Users need Live TV access and permission to access the plugin channel under Dashboard → Users → Access → Channels. Sign in again after changing permissions.</p>
 
                 <div class="verticalSection">
-                    <h3>Status Web-Integration</h3>
-                    <div id="ltvgStatus">Lädt…</div>
+                    <h3>Web integration status</h3>
+                    <div id="ltvgStatus">Loading…</div>
                 </div>
 
                 <form id="LiveTvGroupsConfigForm">
                     <div class="inputContainer">
-                        <label class="inputLabel" for="GroupMode">Gruppenverwaltung</label>
-                        <select id="GroupMode" disabled><option value="personal">Persönliche Gruppen je Benutzer</option><option value="shared">Zentrale Gruppen vom Admin</option></select>
-                        <div class="fieldDescription">Beim Umschalten bleiben beide Gruppensammlungen erhalten. Im zentralen Modus dürfen nur Administratoren Gruppen bearbeiten.</div>
+                        <label class="inputLabel" for="DisplayName">Display name</label>
+                        <input id="DisplayName" type="text" is="emby-input" maxlength="100" />
+                        <div class="fieldDescription">Leave empty to use the translated default. This name is shared by all users. Reload clients after saving; restart Jellyfin to update the optional menu shortcut.</div>
                     </div>
-                    <label><input id="ImportPersonalGroups" type="checkbox" disabled /> Meine persönlichen Gruppen in zentrale Gruppen kopieren</label>
                     <div class="inputContainer">
-                        <label class="inputLabel" for="AppGuideTimeZone">Zeitzone für das Fernsehprogramm in TV-Apps</label>
+                        <label class="inputLabel" for="GroupMode">Group administration</label>
+                        <select id="GroupMode" disabled><option value="personal">Personal groups per user</option><option value="shared">Central groups managed by admins</option></select>
+                        <div class="fieldDescription">Both group collections are retained when switching modes. Only administrators can edit groups in central mode.</div>
+                    </div>
+                    <label><input id="ImportPersonalGroups" type="checkbox" disabled /> Copy my personal groups into central groups</label>
+                    <div class="inputContainer">
+                        <label class="inputLabel" for="AppGuideTimeZone">Timezone for the TV app guide</label>
                         <input id="AppGuideTimeZone" type="text" is="emby-input" required placeholder="Europe/Vienna" />
-                        <div class="fieldDescription">Zum Beispiel Europe/Vienna, Europe/Berlin oder UTC. Die Browseransicht verwendet weiterhin die Zeitzone des Geräts.</div>
+                        <div class="fieldDescription">Examples: Europe/Vienna, Europe/Berlin or UTC. The browser guide uses the device timezone.</div>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
                             <input id="EnableWebIntegration" type="checkbox" is="emby-checkbox" />
-                            <span>Gruppen im Web-Client anzeigen</span>
+                            <span>Show groups in the web client</span>
                         </label>
-                        <div class="fieldDescription checkboxFieldDescription">Zeigt unter „Live-TV Gruppen“ eine eigene Ansicht mit Programme, EPG und Sendern. Originales Live-TV bleibt unverändert. Benötigt das Plugin „File Transformation“. Änderung wirkt nach Neustart des Servers.</div>
+                        <div class="fieldDescription checkboxFieldDescription">Adds an independent page with programs, a guide and channels. Requires File Transformation. Restart Jellyfin after changing this setting.</div>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
                             <input id="EnableAppChannel" type="checkbox" is="emby-checkbox" />
-                            <span>Gruppen als Kanal für Apps anbieten</span>
+                            <span>Offer groups as an app channel</span>
                         </label>
-                        <div class="fieldDescription checkboxFieldDescription">Zeigt die Gruppen in Android TV, Mobile und anderen Apps unter „Kanäle → Live-TV Gruppen“. Bei aktivierter Webintegration bleibt der Gruppenkanal auch für den Web-Einstieg sichtbar. Die Wiedergabe nutzt Jellyfins normalen Live-TV-Streamanbieter. Unter jeder Gruppe steht ein Fernsehprogramm als Tages- und Senderlisten bereit.</div>
+                        <div class="fieldDescription checkboxFieldDescription">Offers group folders and a daily guide in supported apps. The channel also remains available as a web entry when web integration is enabled. Playback uses Jellyfin Live TV.</div>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
                             <input id="EnablePlaylistSync" type="checkbox" is="emby-checkbox" />
-                            <span>Gruppen zusätzlich als Wiedergabelisten anlegen</span>
+                            <span>Also create group playlists</span>
                         </label>
-                        <div class="fieldDescription checkboxFieldDescription">Für Apps ohne Kanal-Unterstützung (z. B. Wholphin). Jede Gruppe erscheint als Wiedergabeliste „Live-TV: Name“ des jeweiligen Benutzers. Benötigt den App-Kanal. Beim Ausschalten werden diese Wiedergabelisten wieder entfernt.</div>
+                        <div class="fieldDescription checkboxFieldDescription">For apps without channel support, such as Wholphin. Groups appear as user playlists named Live-TV: Name. Requires the app channel. Disabling this removes the mirrored playlists.</div>
                     </div>
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
-                            <span>Speichern</span>
+                            <span>Save</span>
                         </button>
                     </div>
                 </form>
@@ -59,6 +64,7 @@
         </div>
         <script type="text/javascript">
             (function () {
+    const t = key => window.LiveTvGroupsI18n?.t(key) || key;
                 var pluginId = '7b3792b4-b988-4ec5-b9e5-1a952a652b83';
                 var page = document.querySelector('#LiveTvGroupsConfigPage');
 
@@ -80,57 +86,64 @@
                     var target = page.querySelector('#ltvgStatus');
                     ApiClient.getJSON(ApiClient.getUrl('LiveTvGroups/Status')).then(function (status) {
                         var lines = [];
-                        lines.push('File Transformation: ' + (status.FileTransformationInstalled ? '✔ installiert' : '✖ nicht gefunden'));
-                        lines.push('Skript-Einbindung: ' + (status.Registered ? '✔ aktiv' : '✖ inaktiv'));
-                        lines.push('Plugin Pages (optional): ' + (status.PluginPagesRegistered ? '✔ Menüeintrag aktiv' : status.PluginPagesInstalled ? 'installiert, Menüeintrag inaktiv' : 'nicht installiert — Einstieg über Gruppenkanal'));
-                        if (status.PluginPagesError) lines.push(escapeHtml(status.PluginPagesError));
+                        lines.push('File Transformation: ' + (status.FileTransformationInstalled ? t("✔ installed") : t("✖ not found")));
+                        lines.push(t("Script integration: ") + (status.Registered ? t("✔ active") : t("✖ inactive")));
+                        lines.push('Plugin Pages (optional): ' + (status.PluginPagesRegistered ? t("✔ menu entry active") : status.PluginPagesInstalled ? t("installed, menu entry inactive") : t("not installed — use the groups channel")));
+                        if (status.PluginPagesError) lines.push(escapeHtml(t(status.PluginPagesError)));
                         if (status.Error) {
-                            lines.push('Hinweis: ' + escapeHtml(status.Error));
+                            lines.push(t("Note: ") + escapeHtml(t(status.Error)));
                         }
                         target.innerHTML = lines.join('<br>');
                     }).catch(function () {
-                        target.textContent = 'Status konnte nicht geladen werden.';
+                        target.textContent = t("Could not load status.");
                     });
                 }
 
-                page.addEventListener('pageshow', function () {
+                function loadLocalization() {
+                    if (window.LiveTvGroupsI18n) return Promise.resolve();
+                    return new Promise((resolve, reject) => { const script=document.createElement('script');script.src=ApiClient.getUrl('LiveTvGroups/localization.js');script.onload=resolve;script.onerror=()=>reject(new Error('Could not load translations.'));document.head.appendChild(script); });
+                }
+                page.addEventListener('pageshow', async function () {
+                    try { await loadLocalization();window.LiveTvGroupsI18n.translate(page); } catch(error) { Dashboard.alert(error.message); return; }
                     Dashboard.showLoadingMsg();
                     loadStatus();
                     administrationLoaded = false; page.querySelector('#GroupMode').disabled = true; updateImport();
                     Promise.all([ApiClient.getPluginConfiguration(pluginId), ApiClient.getJSON(ApiClient.getUrl('LiveTvGroups/Administration'))]).then(function (results) {
-                        var config = results[0]; administrationLoaded = true;
+                        var config = results[0]; page.querySelector('#DisplayName').value = config.DisplayName || '';page.querySelector('#DisplayName').placeholder=t('Live-TV Groups'); administrationLoaded = true;
                         page.querySelector('#GroupMode').value = results[1].Configuration.Mode;
                         page.querySelector('#GroupMode').disabled = false; updateImport();
                         page.querySelector('#AppGuideTimeZone').value = config.AppGuideTimeZone || 'Europe/Vienna';
                         page.querySelector('#EnableWebIntegration').checked = config.EnableWebIntegration;
                         page.querySelector('#EnableAppChannel').checked = config.EnableAppChannel;
                         page.querySelector('#EnablePlaylistSync').checked = config.EnablePlaylistSync;
-                    }).catch(function () { Dashboard.alert('Einstellungen konnten nicht geladen werden.'); }).finally(function () { Dashboard.hideLoadingMsg(); });
+                    }).catch(function () { Dashboard.alert(t("Could not load settings.")); }).finally(function () { Dashboard.hideLoadingMsg(); });
                 });
 
                 page.querySelector('#LiveTvGroupsConfigForm').addEventListener('submit', function (e) {
                     e.preventDefault();
-                    if (!administrationLoaded) { Dashboard.alert('Gruppenverwaltung konnte nicht geladen werden. Bitte die Seite erneut öffnen.'); return false; }
+                    if (!administrationLoaded) { Dashboard.alert(t("Could not load group administration. Please reopen this page.")); return false; }
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
                         var zone = page.querySelector('#AppGuideTimeZone').value.trim();
-                        try { new Intl.DateTimeFormat('de', { timeZone: zone }).format(new Date()); } catch (_) { throw new Error('Bitte eine gültige Zeitzone eingeben.'); }
+                        try { new Intl.DateTimeFormat(window.LiveTvGroupsI18n.locale(), { timeZone: zone }).format(new Date()); } catch (_) { throw new Error(t("Enter a valid timezone.")); }
+                        const displayName=page.querySelector('#DisplayName').value.trim();if(displayName.length>100 || /[\x00-\x1f\x7f]/.test(displayName))throw new Error(t('The display name must contain at most 100 characters.'));
+                        config.DisplayName=displayName || null;
                         config.AppGuideTimeZone = zone;
                         config.EnableWebIntegration = page.querySelector('#EnableWebIntegration').checked;
                         config.EnableAppChannel = page.querySelector('#EnableAppChannel').checked;
-                        if (page.querySelector('#EnablePlaylistSync').checked && !page.querySelector('#EnableAppChannel').checked) { throw new Error('Wiedergabelisten benötigen den App-Kanal.'); }
+                        if (page.querySelector('#EnablePlaylistSync').checked && !page.querySelector('#EnableAppChannel').checked) { throw new Error(t("Playlists require the app channel.")); }
                         config.EnablePlaylistSync = page.querySelector('#EnablePlaylistSync').checked;
                         return fetch(ApiClient.getUrl('LiveTvGroups/Administration'), {
                             method: 'PUT', headers: { Authorization: 'MediaBrowser Token="' + ApiClient.accessToken() + '"', 'Content-Type': 'application/json' },
                             body: JSON.stringify({ Mode: page.querySelector('#GroupMode').value, ImportPersonalGroups: page.querySelector('#ImportPersonalGroups').checked })
                         }).then(function (response) {
-                            if (!response.ok) throw new Error('Gruppenverwaltung konnte nicht gespeichert werden (HTTP ' + response.status + ').');
+                            if (!response.ok) throw new Error(t("Could not save group administration (HTTP ") + response.status + ').');
                             page.querySelector('#ImportPersonalGroups').checked = false;
                             return ApiClient.updatePluginConfiguration(pluginId, config);
                         }).then(function (result) {
                             Dashboard.processPluginConfigurationUpdateResult(result);
                         });
-                    }).catch(function (error) { Dashboard.alert(error.message || 'Einstellungen konnten nicht gespeichert werden.'); }).finally(function () { Dashboard.hideLoadingMsg(); });
+                    }).catch(function (error) { Dashboard.alert(error.message || t("Could not save settings.")); }).finally(function () { Dashboard.hideLoadingMsg(); });
                     return false;
                 });
             })();

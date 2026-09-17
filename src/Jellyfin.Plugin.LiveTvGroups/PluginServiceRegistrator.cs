@@ -32,6 +32,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddHostedService<WebInjectionService>();
         serviceCollection.AddHostedService<PluginPagesService>();
         serviceCollection.AddHostedService<PlaylistSyncTrigger>();
+        serviceCollection.AddHostedService<ChannelDisplayNameService>();
         serviceCollection.AddSingleton<PlayerService>();
         serviceCollection.AddSingleton<GroupGuideService>();
         serviceCollection.AddSingleton<LiveTvStreamBridge>();

@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using Jellyfin.Plugin.LiveTvGroups.Services;
+using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.Loader;
 using System.Text.Json;
 using System.Threading;
@@ -11,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.LiveTvGroups.Web;
 
 /// <summary>Optional user-menu entry. The channel route remains available without Plugin Pages.</summary>
-public class PluginPagesService(WebInjectionStatus status, ILogger<PluginPagesService> logger) : IHostedService
+public class PluginPagesService(IServiceProvider services, WebInjectionStatus status, ILogger<PluginPagesService> logger) : IHostedService
 {
     private const string PageId = "livetv-groups";
     private MethodInfo? _remove;
@@ -33,12 +35,12 @@ public class PluginPagesService(WebInjectionStatus status, ILogger<PluginPagesSe
             _remove = type?.GetMethod("RemovePage", [typeof(string)]);
             if (register is null || parse is null || _remove is null)
             {
-                status.PluginPagesError = "Nicht unterstützte Version von Plugin Pages.";
+                status.PluginPagesError = "Unsupported Plugin Pages version.";
                 return Task.CompletedTask;
             }
             var json = JsonSerializer.Serialize(new
             {
-                id = PageId, url = "/LiveTvGroups/page.html", displayText = "Live-TV Gruppen", icon = "live_tv",
+                id = PageId, url = "/LiveTvGroups/page.html", displayText = PluginLocalization.DisplayName(Plugin.Instance?.Configuration, PluginLocalization.ServerLanguage(services)), icon = "live_tv",
                 isEnabledAssembly = typeof(PluginPagesService).Assembly.FullName,
                 isEnabledClass = nameof(PluginPagesService), isEnabledMethod = nameof(IsEnabled)
             });
@@ -48,7 +50,7 @@ public class PluginPagesService(WebInjectionStatus status, ILogger<PluginPagesSe
         }
         catch (Exception ex)
         {
-            status.PluginPagesError = "Menüeintrag konnte nicht registriert werden.";
+            status.PluginPagesError = "Could not register the menu entry.";
             logger.LogWarning(ex, "Optional Plugin Pages registration failed; the groups channel remains available");
         }
         return Task.CompletedTask;
