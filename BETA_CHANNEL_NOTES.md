@@ -1,6 +1,6 @@
 # Installable beta channel
 
-Status: doing. Archon is unavailable; local workflow notes are used.
+Status: review. Archon is unavailable; local workflow notes are used.
 
 ## Publishing policy
 
@@ -17,3 +17,12 @@ The user requires all development versions intended for testing to be installabl
 ## Release procedure
 
 Set a new four-part Version with the -beta InformationalVersion marker, update changelog and client cache fallback, run checks, commit and push beta, the workflow automatically builds and creates the matching vA.B.C.D-beta pre-release/tag. Documentation-only pushes do not publish another package. Wait for Beta release success and verify actual catalog sourceUrl, checksum, GUID, ABI, metadata and stable preservation.
+
+## Verified first publication
+
+- Implementation commit: a64194d9e94426656d8d06792f35693d77d55465; published pre-release: v0.3.2.3-beta.
+- GitHub Build 35284201484 and Beta release 35284201420 succeeded. 94 .NET, 29 browser and 1 package tests passed (124 total).
+- Public beta and legacy development catalog URLs both offer numeric version 0.3.2.3, matching immutable package URL, checksum, GUID and ABI 12.0.0.0.
+- Actual downloaded ZIP includes the DLL plus meta.json, BETA metadata and automatic update support. DLL informational version is 0.3.2.3-beta+a64194d9e94426656d8d06792f35693d77d55465.
+- Stable manifest and latest stable v0.3.2.1 are unchanged. Main remains e12a0b6bc57ddeeb56db2ff6472164491cfb245c.
+- Real-device installation and Fire TV playback were not performed; no authenticated server/device connection was provided.
