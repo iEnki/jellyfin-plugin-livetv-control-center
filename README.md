@@ -1,6 +1,6 @@
 # Live-TV Groups for Jellyfin
 
-Organize Jellyfin Live TV into personal channel groups or a shared collection managed by administrators. Live-TV Groups provides an independent browser/mobile program guide, grouped folders for native apps, optional playlists, and remote playback on Jellyfin Android TV / Fire TV.
+Live-TV Groups goes beyond browsing provider-defined IPTV categories: users can manually create and order personal channel groups independently of the underlying M3U or Xtream categories. Administrators can optionally provide shared groups with per-group user access. The plugin combines this flexible organization with an independent program guide (EPG), remote playback on Jellyfin Android TV / Fire TV, grouped folders for native apps, and optional playlists.
 
 Use channel groups to keep a large TV lineup easy to browse: collect channels by topic, language or household preference and view their schedules together. With a supported web-based Jellyfin phone app or mobile browser, your phone also becomes a TV guide and remote for Jellyfin Android TV / Fire TV. Browse programs on the phone, start a channel on the TV and switch channels without closing the guide.
 
