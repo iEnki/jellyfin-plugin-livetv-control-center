@@ -2,6 +2,8 @@
 
 Organize Jellyfin Live TV into personal channel groups or a shared collection managed by administrators. Live-TV Groups provides an independent browser/mobile program guide, grouped folders for native apps, optional playlists, and remote playback on Jellyfin Android TV / Fire TV.
 
+Use channel groups to keep a large TV lineup easy to browse: collect channels by topic, language or household preference and view their schedules together. With a supported web-based Jellyfin phone app or mobile browser, your phone also becomes a TV guide and remote for Jellyfin Android TV / Fire TV. Browse programs on the phone, start a channel on the TV and switch channels without closing the guide.
+
 **Stable version: 0.3.2.1** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its groups page works independently of the original Jellyfin Live TV views.
@@ -14,6 +16,7 @@ The plugin uses Jellyfin's existing channels and EPG data. Its groups page works
 - [User permissions](#user-permissions)
 - [Language and display name](#language-and-display-name)
 - [Quick start](#quick-start)
+- [Phone as TV guide and remote](#phone-as-tv-guide-and-remote)
 - [Personal and central groups](#personal-and-central-groups)
 - [Creating and editing groups](#creating-and-editing-groups)
 - [Views and program guide](#views-and-program-guide)
@@ -139,7 +142,7 @@ A custom name is shared by all users and appears in the channel/library entry, w
 
 ### Personal groups
 
-1. Open **Live-TV Groups → Manage groups** (Manage groups).
+1. Open **Live-TV Groups → Manage groups**.
 2. Select **New group**, enter a name and save.
 3. Select **Choose channels**, select/search for channels, and save.
 4. Open **TV guide** to view the timeline.
@@ -155,13 +158,16 @@ A custom name is shared by all users and appears in the channel/library entry, w
 
 The groups-page **Administration** dialog also offers the mode/copy controls.
 
-### Phone as TV guide
+### Phone as TV guide and remote
+
+Use your phone as a remote to start and switch Live TV channels on your TV. The grouped program guide makes it easier to find what to watch when you have many channels, while the TV continues playing. This works in Jellyfin mobile apps that load the server's web interface and in a mobile browser; see [Requirements and client support](#requirements-and-client-support).
 
 1. Open Jellyfin on Fire TV with the internal player enabled.
 2. Use the same Jellyfin account on phone and TV for the simplest setup.
 3. On the phone, open **Live-TV Groups → TV guide**.
 4. Refresh devices and choose the TV under **Play on**.
-5. Tap a channel number/logo. The phone keeps the guide open while the TV plays.
+5. Tap a channel number/logo to start it on the TV. The phone keeps the guide open while the TV plays.
+6. To switch channels, browse your groups and tap another channel number/logo. Playback changes on the selected TV; the guide remains open on your phone.
 
 ## Personal and central groups
 
@@ -194,7 +200,7 @@ Users with editing permission can:
 - Create groups with a nonempty name of up to 100 characters.
 - Rename/delete groups.
 - Search/select channels that Jellyfin permits the editing user to access.
-- Filter the picker with **Selected channels only** (Only selected channels).
+- Filter the picker with **Selected channels only**.
 - Reorder groups by drag-and-drop or up/down buttons.
 - Reorder a specific group's channels through **Change order**.
 - Open a group directly from its management card.
@@ -237,6 +243,8 @@ The plugin reads Jellyfin's imported EPG. It does not obtain a new XMLTV feed or
 Empty rows can mean no programs exist for that channel/time period. The guide reports unresolved saved channels and discarded incomplete program records. A saved group's channel count can exceed the count currently accessible to a restricted user.
 
 ## Remote playback
+
+The phone guide acts as a Live TV remote: selecting a channel starts or changes playback on the selected TV, while you keep browsing the grouped schedule on your phone.
 
 ### Supported target
 
