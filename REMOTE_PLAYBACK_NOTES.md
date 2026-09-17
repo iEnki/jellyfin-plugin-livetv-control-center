@@ -8,7 +8,7 @@ Status: **review** (implementation complete; Robert's Fire TV hardware validatio
 - Repository/release architecture and Jellyfin 12.0 session implementation were researched before coding.
 - Local work progressed from analysis to **doing** on the isolated branch, then to **review** after implementation and validation.
 - Branch: dev-remote-live-tv, based on main at 06fd7777e1e3443f735f8e9e0977b7845fbe098b.
-- Existing main/dev branches, stable manifest.json, and stable release workflow were left untouched.
+- Existing main/dev branches, stable manifest.json, and stable release workflow were left untouched. The dev-release workflow in this feature branch now permits publication from this named branch.
 
 ## Design and authorization
 
@@ -36,11 +36,11 @@ Target preferences use the existing atomic per-user GroupStore, with a dedicated
 - Informational version: $(Version)-dev.remote-live-tv (+ SDK source revision when present).
 - Required ordering: **0.3.1.0 < 0.3.1.1 < 0.3.2.0**; the actual published DLL version was inspected.
 - A generated installation meta.json uses the existing plugin GUID/ABI, the project version, Active status and autoUpdate=true. This avoids stale metadata from replacing only the DLL, or Jellyfin disabling automatic updates for a folder-only installation. The instructions use a fresh versioned plugin directory and preserve per-user data.
-- No stable or development release tag was pushed and no shared plugin catalog was changed.
+- Follow-up: direct plugin installation was requested. Publish tag v0.3.1.1-dev as a pre-release and update only the shared manifest-dev.json release asset. No stable tag/catalog/branch changes.
 - Branch CI now runs on dev-* pushes and uploads live-tv-groups-dev (DLL and installation meta.json at ZIP root) after successful tests/build.
-- Test through that branch artifact or the locally supplied DLL ZIP. This is a manual test installation, not a new shared dev-catalog entry.
+- Test through the branch artifact, supplied DLL ZIP, or dev catalog after v0.3.1.1-dev publication.
 - Before releasing, change project Version to 0.3.2.0 and remove the dev InformationalVersion override. The higher stable version can then be offered normally by Jellyfin.
-- The existing dev-release tag workflow requires commits reachable from origin/dev; it deliberately remains unchanged.
+- The dev-release tag workflow accepts commits reachable from origin/dev or origin/dev-remote-live-tv and requires the tag version to equal the project version. Its ZIP includes DLL and installation metadata.
 
 ## Validation
 

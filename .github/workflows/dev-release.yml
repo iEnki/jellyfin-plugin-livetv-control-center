@@ -40,10 +40,18 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Verify development branch
         run: |
-          git fetch origin dev
-          git merge-base --is-ancestor HEAD origin/dev
+          git fetch origin dev dev-remote-live-tv
+          if git merge-base --is-ancestor HEAD origin/dev || git merge-base --is-ancestor HEAD origin/dev-remote-live-tv; then
+            exit 0
+          fi
+          echo "Dev tags must reference a commit on an authorized development branch." >&2
+          exit 1
 
       - name: Determine version
         id: version
@@ -54,16 +62,27 @@ jobs:
             echo "Dev tags need four version parts, e.g. v0.2.2.1-dev (got ${GITHUB_REF_NAME})" >&2
             exit 1
           fi
+          project_version="$(dotnet msbuild src/Jellyfin.Plugin.LiveTvGroups -getProperty:Version)"
+          if [ "$version" != "$project_version" ]; then
+            echo "Tag version $version must match project version $project_version." >&2
+            exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Test
         run: dotnet test --configuration Release
 
+      - name: Check client and package metadata
+        run: |
+          node --check src/Jellyfin.Plugin.LiveTvGroups/Web/client.js
+          npm run test:packaging
+
       - name: Build
         run: |
           dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release \
             -p:Version=${{ steps.version.outputs.version }} --output out
-          zip -j "live-tv-groups_${{ steps.version.outputs.version }}-dev.zip" out/Jellyfin.Plugin.LiveTvGroups.dll
+          node .github/scripts/write-dev-meta.cjs out
+          zip -j "live-tv-groups_${{ steps.version.outputs.version }}-dev.zip" out/Jellyfin.Plugin.LiveTvGroups.dll out/meta.json
 
       - name: Release notes
         run: |
