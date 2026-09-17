@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -20,6 +21,7 @@ public class PlayerService
     private readonly ISessionManager _sessions;
     private readonly IUserManager _users;
     private readonly GroupService _groups;
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _deviceLocks = new(StringComparer.Ordinal);
 
     public PlayerService(ISessionManager sessions, IUserManager users, GroupService groups)
     {
@@ -45,6 +47,15 @@ public class PlayerService
 
     public async Task Play(User user, SessionInfo caller, string deviceId, Guid channelId, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        var gate = _deviceLocks.GetOrAdd(deviceId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try { await PlayCore(user, caller, deviceId, channelId, cancellationToken).ConfigureAwait(false); }
+        finally { gate.Release(); }
+    }
+
+    private async Task PlayCore(User user, SessionInfo caller, string deviceId, Guid channelId, CancellationToken cancellationToken)
+    {
         RequirePlaybackAccess(user);
         // Never pass an empty controllingSessionId: that is Jellyfin's privileged/API-key path.
         if (caller.UserId != user.Id || string.IsNullOrEmpty(caller.Id))
@@ -61,18 +72,59 @@ public class PlayerService
         var targetUser = _users.GetUserById(target.UserId);
         if (targetUser is null) { throw new SecurityException("Kein angemeldeter Benutzer am Zielgerät."); }
         RequirePlaybackAccess(targetUser);
-        if (!_groups.GetAccessibleChannels(user).TryGetValue(channelId, out var channel)
-            || !_groups.GetAccessibleChannels(targetUser).TryGetValue(channelId, out var targetChannel)
-            || channel.GetPlayAccess(user) != PlayAccess.Full
-            || targetChannel.GetPlayAccess(targetUser) != PlayAccess.Full)
+        RequireChannelAccess(user, targetUser, channelId);
+
+        // Android TV replaces the player route on PlayNow. Wait for the old player to close
+        // before navigating to another one, otherwise its cleanup can pop the new route.
+        if (IsAndroidTv(target) && target.NowPlayingItem is not null)
         {
-            throw new SecurityException("Dieser Live-TV-Sender darf von einem der Benutzer nicht abgespielt werden.");
+            var sessionId = target.Id; var owner = target.UserId;
+            await _sessions.SendPlaystateCommand(caller.Id, sessionId,
+                new PlaystateRequest { Command = PlaystateCommand.Stop }, cancellationToken).ConfigureAwait(false);
+            for (var attempt = 0; ; attempt++)
+            {
+                target = EligibleSessions(user).FirstOrDefault(s => s.DeviceId == deviceId && s.Id == sessionId && s.UserId == owner)
+                    ?? throw new PlayerUnavailableException("Die TV-Sitzung hat sich während des Senderwechsels geändert. Geräte aktualisieren.");
+                if (target.NowPlayingItem is null) { break; }
+                if (attempt >= 50) { throw new PlayerUnavailableException("Der TV hat das Beenden der Wiedergabe nicht bestätigt. Bitte erneut versuchen."); }
+                await WaitForPlayer(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
+            }
+
+            // PlaybackStopped is sent before Android finishes disposing the player route.
+            await WaitForPlayer(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+            target = EligibleSessions(user).FirstOrDefault(s => s.DeviceId == deviceId && s.Id == sessionId && s.UserId == owner)
+                ?? throw new PlayerUnavailableException("Die TV-Sitzung ist nicht mehr verfügbar.");
+            if (target.NowPlayingItem is not null) { throw new PlayerUnavailableException("Am TV wurde bereits eine andere Wiedergabe gestartet."); }
+            user = _users.GetUserById(user.Id) ?? throw new SecurityException("Der aufrufende Benutzer ist nicht mehr verfügbar.");
+            var currentTargetUser = _users.GetUserById(owner) ?? throw new SecurityException("Kein angemeldeter Benutzer am Zielgerät.");
+            RequirePlaybackAccess(user); RequirePlaybackAccess(currentTargetUser);
+            if (owner != user.Id && !user.HasPermission(PermissionKind.EnableRemoteControlOfOtherUsers))
+            { throw new SecurityException("Die Fernsteuerungsberechtigung wurde während des Wechsels geändert."); }
+            RequireChannelAccess(user, currentTargetUser, channelId);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
         await _sessions.SendPlayCommand(caller.Id, target.Id,
-            new PlayRequest { PlayCommand = PlayCommand.PlayNow, ItemIds = [channelId], ControllingUserId = user.Id },
+            new PlayRequest { PlayCommand = PlayCommand.PlayNow, ItemIds = [channelId], StartPositionTicks = 0, ControllingUserId = user.Id },
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Waits for TV playback reporting and player disposal. Virtual for deterministic transport tests.</summary>
+    protected virtual Task WaitForPlayer(TimeSpan delay, CancellationToken cancellationToken) => Task.Delay(delay, cancellationToken);
+
+    private void RequireChannelAccess(User user, User targetUser, Guid channelId)
+    {
+        if (!_groups.GetAccessibleChannels(user).TryGetValue(channelId, out var channel)
+            || !_groups.GetAccessibleChannels(targetUser).TryGetValue(channelId, out var targetChannel)
+            || channel.GetPlayAccess(user) != PlayAccess.Full || targetChannel.GetPlayAccess(targetUser) != PlayAccess.Full
+            || (_groups.Shared && (!HasGroupChannel(user, channelId) || !HasGroupChannel(targetUser, channelId))))
+        { throw new SecurityException("Dieser Sender darf von einem der Benutzer nicht abgespielt werden oder gehört zu keiner freigegebenen Gruppe."); }
+    }
+
+    private bool HasGroupChannel(User user, Guid channelId)
+    {
+        var accessible = _groups.GetAccessibleChannels(user);
+        return _groups.GetGroups(user).Any(g => _groups.ResolveChannels(user, g, accessible).Any(c => c.Id == channelId));
     }
 
     private IEnumerable<SessionInfo> EligibleSessions(User user)

@@ -32,20 +32,20 @@ Target preferences use the existing atomic per-user GroupStore, with a dedicated
 
 ## Version and delivery
 
-- Dev assembly/file/package version: **0.3.1.1**.
+- Dev assembly/file/package version: **0.3.1.2**.
 - Informational version: $(Version)-dev.remote-live-tv (+ SDK source revision when present).
-- Required ordering: **0.3.1.0 < 0.3.1.1 < 0.3.2.0**; the actual published DLL version was inspected.
+- Required ordering: **0.3.1.0 < 0.3.1.2 < 0.3.2.0**; the actual published DLL version was inspected.
 - A generated installation meta.json uses the existing plugin GUID/ABI, the project version, Active status and autoUpdate=true. This avoids stale metadata from replacing only the DLL, or Jellyfin disabling automatic updates for a folder-only installation. The instructions use a fresh versioned plugin directory and preserve per-user data.
-- Follow-up: direct plugin installation was requested. Publish tag v0.3.1.1-dev as a pre-release and update only the shared manifest-dev.json release asset. No stable tag/catalog/branch changes.
+- Follow-up: direct plugin installation was requested. Publish tag v0.3.1.2-dev as a pre-release and update only the shared manifest-dev.json release asset. No stable tag/catalog/branch changes.
 - Branch CI now runs on dev-* pushes and uploads live-tv-groups-dev (DLL and installation meta.json at ZIP root) after successful tests/build.
-- Test through the branch artifact, supplied DLL ZIP, or dev catalog after v0.3.1.1-dev publication.
+- Test through the branch artifact, supplied DLL ZIP, or dev catalog after v0.3.1.2-dev publication.
 - Before releasing, change project Version to 0.3.2.0 and remove the dev InformationalVersion override. The higher stable version can then be offered normally by Jellyfin.
 - The dev-release tag workflow accepts commits reachable from origin/dev or origin/dev-remote-live-tv and requires the tag version to equal the project version. Its ZIP includes DLL and installation metadata.
 
 ## Validation
 
-- .NET Release tests: **59 passed**, none skipped.
-- Browser fixture regression tests: **12 passed** on desktop 1440x1000 and mobile 390x844.
+- .NET Release tests: **74 passed**, none skipped.
+- Browser fixture regression tests: **17 passed** on desktop 1440x1000 and mobile 390x844.
 - Browser plugin not available; the repository's regular Playwright workflow was used with bundled Chromium and a local HTTP Jellyfin shell/API fixture.
 - UI flow: independent groups EPG -> choose/remember Fire TV -> channel click -> remote device command and EPG remains open. Reload, offline retained target, failed command, failed preference save, explicit local selection and narrow mobile layout were exercised.
 - Page identity/nonempty content, interaction outcomes, no runtime page errors, and mobile viewport overflow were checked. Local screenshots were saved outside the repository; the mobile selected-target screenshot was visually inspected.
@@ -73,3 +73,15 @@ Target preferences use the existing atomic per-user GroupStore, with a dedicated
 - SessionController: https://github.com/jellyfin/jellyfin/blob/v12.0/Jellyfin.Api/Controllers/SessionController.cs.
 - External-player upstream limitation: https://github.com/jellyfin/jellyfin-androidtv/issues/5731.
 - Current Android TV playback launcher: https://github.com/jellyfin/jellyfin-androidtv/blob/master/app/src/main/java/org/jellyfin/androidtv/ui/playback/PlaybackLauncher.kt.
+
+## Follow-up workflow: group administration and switching
+
+- Local workflow: doing -> implementation/research -> notes -> review. Archon tools were unavailable in this session.
+- User confirmed the missing My Media entry was fixed by enabling the Live-TV Gruppen channel under Jellyfin Access settings. The EPG appeared when selecting Fernsehprogramm; the screenshot showed Sender view. A direct guide button now avoids this confusion.
+- Shared settings are stored atomically in users/administration.json; existing per-user groups and playlist IDs remain separate. Personal is the default. Mode changes and collection writes share one lock; switching to shared after a precheck cannot allow a normal user to edit it.
+- Central ACL deny wins over allow; admins retain management access. Unknown user IDs are rejected. Normal responses never contain other users policies. Revocations invalidate native caches and are rechecked when resolving old media items/open tokens. Playlist resync covers all Jellyfin users, including users without personal files.
+- Restricted users do not repair central channel references from their limited channel subset. Personal repair remains supported.
+- Remote switching uses the authenticated controlling session for both Stop and PlayNow. Only an active Android TV player gets the Stop/acknowledgement path. Device commands are serialized. A failed acknowledgement, changed session/owner, intervening playback, cancellation or revoked permission prevents PlayNow; no duplicate command is sent.
+- Tests cover mode/import persistence and rollback, allow/deny/admin visibility, blocked mutations/direct group APIs, normal-user EPG query identity, native EPG/stream revocation, ACL for both remote users, stop acknowledgement/timeouts/reconnects/revocation/cancellation, and mobile admin/guide/dashboard interactions.
+- Fire TV foreground/internal-player testing is pending; source inspection suggests a route replacement and old-player cleanup race but does not prove the cause on Robert’s installed client. No upstream Android TV modification was made.
+- Upstream references inspected: https://github.com/jellyfin/jellyfin-androidtv/blob/master/app/src/main/java/org/jellyfin/androidtv/data/eventhandling/SocketHandler.kt ; https://github.com/jellyfin/jellyfin-androidtv/blob/master/app/src/main/java/org/jellyfin/androidtv/util/sdk/SdkPlaybackHelper.kt ; https://github.com/jellyfin/jellyfin-androidtv/blob/master/app/src/main/java/org/jellyfin/androidtv/ui/playback/PlaybackLauncher.kt ; https://github.com/jellyfin/jellyfin/blob/master/src/Jellyfin.LiveTv/LiveTvManager.cs .

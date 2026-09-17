@@ -107,6 +107,8 @@ public class GroupsChannel : IChannel, IHasCacheKey
 
         var revision = _groups.Store.Get(id).Revision;
         return id.ToString("N", CultureInfo.InvariantCulture) + "-" + revision.ToString(CultureInfo.InvariantCulture) + "-"
+            + _groups.Store.GetAdministration().Revision.ToString(CultureInfo.InvariantCulture) + "-"
+            + string.Join(",", UserManager.GetUserById(id) is { } user ? _groups.GetGroups(user).Select(g => g.Id) : []) + "-"
             + (DateTime.UtcNow.Ticks / TimeSpan.FromMinutes(5).Ticks).ToString(CultureInfo.InvariantCulture);
     }
 
@@ -119,12 +121,12 @@ public class GroupsChannel : IChannel, IHasCacheKey
             return new ChannelItemResult();
         }
 
-        var doc = _groups.Store.Get(user.Id);
+        var groups = _groups.GetGroups(user);
         List<ChannelItemInfo> items;
 
         if (string.IsNullOrEmpty(query.FolderId))
         {
-            items = doc.Groups.Select(g => Folder(GetFolderExternalId(g.Id), g.Name)).ToList();
+            items = groups.Select(g => Folder(GetFolderExternalId(g.Id), g.Name)).ToList();
         }
         else if (AppGuideService.Handles(query.FolderId))
         {
@@ -134,7 +136,7 @@ public class GroupsChannel : IChannel, IHasCacheKey
         {
             var group = query.FolderId.StartsWith(GroupPrefix, StringComparison.Ordinal)
                 && Guid.TryParse(query.FolderId[GroupPrefix.Length..], out var groupId)
-                    ? doc.Groups.FirstOrDefault(g => g.Id == groupId)
+                    ? groups.FirstOrDefault(g => g.Id == groupId)
                     : null;
 
             if (group is null)

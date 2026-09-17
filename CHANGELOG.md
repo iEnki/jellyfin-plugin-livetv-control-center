@@ -2,10 +2,16 @@
 
 ## Unreleased
 
+- New: admin-selectable personal or central groups, optional import preserving personal groups, and allow/deny user policies per central group. Native folders, EPG, plugin stream opening and both remote users respect the current policy.
+- New: group-mode selection in the plugin dashboard and groups-page administration, with read-only controls for ordinary users in central mode.
+- Improved: direct Fernsehprogramm button for all users; documented the Jellyfin channel permission required for the My Media entry.
+- Fix: remote Android TV channel changes stop the active player, wait for its stopped report and route cleanup, recheck permissions/session and then send one native PlayNow. Timeout, cancellation and overlapping device commands are handled.
+- Dev build: 0.3.1.2, strictly below the planned stable 0.3.2.0. Hardware verification of the switch fix remains necessary.
+
 - Add server-side player discovery and an **Abspielen auf** selector to the independent web/mobile groups EPG. Active official Jellyfin Android TV / Fire TV sessions are eligible even when SupportsRemoteControl is false, provided a session controller is connected.
 - Store preferred target DeviceId and server-owned name per user; resolve the current session on each PlayNow request. Validate both users’ Live TV/channel/playback rights and cross-user remote-control permission.
 - Keep remote failures in the EPG without falling back to local playback; retain offline remembered targets and provide manual/periodic discovery refresh.
-- Use the installed assembly version for the injected web-script cache key. Dev build is 0.3.1.1, below the next release 0.3.2.0.
+- Use the installed assembly version for the injected web-script cache key. Dev build is 0.3.1.2, below the next release 0.3.2.0.
 - V1 requires Jellyfin at the TV in the foreground with the internal player; no wake-up or external-player support.
 
 ## 0.3.1

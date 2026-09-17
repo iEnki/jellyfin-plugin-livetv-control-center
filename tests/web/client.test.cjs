@@ -7,7 +7,7 @@ const {chromium}=require('playwright');
 let browser,server,url;
 const root='11111111111111111111111111111111',crime='22222222222222222222222222222222',sport='33333333333333333333333333333333';
 const a='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',b='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',c='cccccccccccccccccccccccccccccccc';
-function fixture(){return {groups:[{Id:crime,Name:'Crime',ChannelCount:2},{Id:sport,Name:'Sport',ChannelCount:2}],refs:{[crime]:[a,b],[sport]:[a,c]},prefs:{HiddenGroupIds:[],DefaultGroupId:crime,DefaultView:'guide',Zoom:5,RememberLastView:false,LastGroupId:null,LastView:'guide'},players:[{DeviceId:'living-tv',Name:'Wohnzimmer Fire TV',Client:'Jellyfin Android TV',UsesAndroidTvDiscoveryFallback:true}],remotePlays:[],remoteFailure:false,preferenceFailure:false,requests:[],fail:false,delay:false};}
+function fixture(){return {access:{Mode:'personal',CanManage:true,IsAdministrator:false},adminUsers:[{Id:'user',Name:'Robert',IsAdministrator:true,HasLiveTvAccess:true},{Id:'other',Name:'Normaler Benutzer',IsAdministrator:false,HasLiveTvAccess:true}],policies:{},groups:[{Id:crime,Name:'Crime',ChannelCount:2},{Id:sport,Name:'Sport',ChannelCount:2}],refs:{[crime]:[a,b],[sport]:[a,c]},prefs:{HiddenGroupIds:[],DefaultGroupId:crime,DefaultView:'guide',Zoom:5,RememberLastView:false,LastGroupId:null,LastView:'guide'},players:[{DeviceId:'living-tv',Name:'Wohnzimmer Fire TV',Client:'Jellyfin Android TV',UsesAndroidTvDiscoveryFallback:true}],remotePlays:[],remoteFailure:false,preferenceFailure:false,requests:[],fail:false,delay:false};}
 const channels=[{Id:a,Name:'RTL Crime',ChannelNumber:'127'},{Id:b,Name:'Investigation',ChannelNumber:'7'},{Id:c,Name:'Sport',ChannelNumber:'58'}];
 let fixtures=new Map();
 const shell=`<!doctype html><html><head><meta charset="utf-8"><title>Jellyfin groups regression</title><link rel="stylesheet" href="/LiveTvGroups/client.css"><style>body{background:#101010;color:#eee;font:16px Arial;margin:0}header{padding:20px}.page{padding:20px}.hide{display:none}</style></head><body><header><a href="#/list?parentId=${root}&serverId=server">Live-TV Gruppen</a> <a href="#/livetv">Live TV</a> <a href="#/userpluginsettings.html?pageUrl=/LiveTvGroups/page.html">Plugin Pages</a></header><div class="page libraryPage"><div class="native-content">Original content</div></div><script>
@@ -17,9 +17,21 @@ before(async()=>{
  server=http.createServer(async(req,res)=>{const key=(req.headers.authorization||'').match(/Token="([^"]+)"/)?.[1];const fixtureId=new URL(req.url,'http://local').searchParams.get('fixture');const f=fixtures.get(key||fixtureId);const u=new URL(req.url,'http://local');const send=(value,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(status===204?'':JSON.stringify(value));};
  if(u.pathname.endsWith('client.js')||u.pathname.endsWith('client.css')){res.setHeader('Content-Type',u.pathname.endsWith('.js')?'application/javascript':'text/css');res.end(fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web',path.basename(u.pathname))));return;}
  if(u.pathname.endsWith('/page.html')){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web/page.html')));return;}
+ if(u.pathname==='/dashboard'){
+  const bootstrap='<script>window.ApiClient={accessToken:()=>new URLSearchParams(location.search).get("fixture"),getUrl:p=>"/"+p,getJSON:async p=>{const r=await fetch(p,{headers:{Authorization:\'MediaBrowser Token="\'+ApiClient.accessToken()+\'"\'}});if(!r.ok)throw Error("Unavailable");return r.json();},getPluginConfiguration:async()=>({AppGuideTimeZone:"Europe/Vienna",EnableWebIntegration:true,EnableAppChannel:true,EnablePlaylistSync:false}),updatePluginConfiguration:async()=>({})};window.Dashboard={showLoadingMsg:()=>{},hideLoadingMsg:()=>{},alert:message=>{window.dashboardError=message;},processPluginConfigurationUpdateResult:()=>{window.dashboardSaved=true;}};window.addEventListener("load",()=>document.querySelector("#LiveTvGroupsConfigPage").dispatchEvent(new Event("pageshow")));</script>';
+  res.setHeader('Content-Type','text/html');res.end(fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Configuration/configPage.html'),'utf8').replace('</head>',bootstrap+'</head>'));return;
+ }
  if(u.pathname==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(shell);return;}
  if(u.pathname==='/LiveTv/Channels'){send({Items:Array.from({length:432},(_,i)=>({Id:i}))});return;}
  if(!f){send({},401);return;}f.requests.push(req.method+' '+u.pathname);let data='';for await(const chunk of req)data+=chunk;const body=data?JSON.parse(data):null;
+ if(u.pathname==='/LiveTvGroups/Access'){send(f.access);return;}
+ if(u.pathname==='/LiveTvGroups/Administration'){
+  if(!f.access.IsAdministrator){send({},403);return;}
+  if(req.method==='PUT'){f.access.Mode=body.Mode;f.access.CanManage=true;f.imported=body.ImportPersonalGroups;send(null,204);}
+  else send({Configuration:{Mode:f.access.Mode,Groups:f.groups.map(g=>({...g,VisibleToAllUsers:true,AllowedUserIds:[],DeniedUserIds:[],...f.policies[g.Id]}))},Users:f.adminUsers});return;
+ }
+ const policy=u.pathname.match(/^\/LiveTvGroups\/Administration\/Groups\/([^/]+)\/Access$/);
+ if(policy){if(!f.access.IsAdministrator){send({},403);return;}f.policies[policy[1]]=body;send(null,204);return;}
  if(u.pathname.endsWith('/Entry')){send({ChannelId:root,Version:'0.3.1.0'});return;}
  if(u.pathname==='/LiveTvGroups/Players'){send(f.players);return;}
  if(u.pathname==='/LiveTvGroups/Players/Preference'){
@@ -124,4 +136,67 @@ test('mobile TV selector remains usable and fits the viewport',async t=>{
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  assert.equal(await page.title(),'Jellyfin groups regression');
  if(process.env.LTVG_QA_DIR)await page.screenshot({path:path.join(process.env.LTVG_QA_DIR,'remote-mobile.png')});
+});
+
+test('ordinary shared-mode user has a working guide and TV controls without editing tools',async t=>{
+ const {page,f}=await open(t);f.access={Mode:'shared',CanManage:false,IsAdministrator:false};
+ await page.reload();await page.locator('.ltvg-guide-prog').first().waitFor();
+ assert.equal(await page.getByRole('button',{name:'Gruppen verwalten',exact:true}).count(),0);
+ assert.equal(await page.getByLabel('Ansicht',{exact:true}).locator('option[value="manage"]').count(),0);
+ await page.getByLabel('Ansicht',{exact:true}).selectOption('channels');await page.locator('.ltvg-channel-card').first().waitFor();
+ assert.equal(await page.getByRole('button',{name:'Sender auswählen',exact:true}).count(),0);
+ await page.getByRole('button',{name:'Fernsehprogramm',exact:true}).click();await page.locator('.ltvg-guide-prog').first().waitFor();
+ assert.equal(await page.getByLabel('Ansicht',{exact:true}).inputValue(),'guide');
+ await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');
+ await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ await page.locator('[data-action="play"]').first().click();
+ await page.getByRole('status').filter({hasText:'Wiedergabebefehl an Wohnzimmer Fire TV gesendet.'}).waitFor();
+ assert.equal(f.remotePlays.length,1);
+ if(process.env.LTVG_QA_DIR)await page.screenshot({path:path.join(process.env.LTVG_QA_DIR,'shared-user-guide.png')});
+});
+test('admin changes mode and saves per-group user exclusions or selected-user access',async t=>{
+ const {page,f}=await open(t,{width:390,height:844});f.access.IsAdministrator=true;await page.reload();await page.locator('.ltvg-guide-prog').first().waitFor();
+ await page.getByRole('button',{name:'Verwaltung',exact:true}).click();
+ await page.getByLabel('Betriebsart',{exact:true}).selectOption('shared');
+ await page.getByLabel('Meine persönlichen Gruppen in zentrale Gruppen kopieren').check();
+ await page.getByRole('button',{name:'Speichern',exact:true}).click();await page.locator('#ltvg-modal').waitFor({state:'detached'});assert.equal(f.access.Mode,'shared');assert.equal(f.imported,true);
+ await page.getByRole('button',{name:'Gruppen verwalten',exact:true}).click();
+ await page.locator('.ltvg-group-card').filter({hasText:'Crime'}).getByRole('button',{name:'Benutzerfreigabe'}).click();
+ await page.locator('[data-user="other"]').check();
+ if(process.env.LTVG_QA_DIR)await page.screenshot({path:path.join(process.env.LTVG_QA_DIR,'admin-group-access-mobile.png')});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await page.getByRole('button',{name:'Speichern',exact:true}).click();await page.locator('#ltvg-modal').waitFor({state:'detached'});
+ assert.deepEqual(f.policies[crime],{VisibleToAllUsers:true,AllowedUserIds:[],DeniedUserIds:['other']});
+ await page.locator('.ltvg-group-card').filter({hasText:'Crime'}).getByRole('button',{name:'Benutzerfreigabe'}).click();
+ await page.getByLabel('Sichtbarkeit',{exact:true}).selectOption('selected');await page.locator('[data-user="other"]').check();
+ await page.getByRole('button',{name:'Speichern',exact:true}).click();await page.locator('#ltvg-modal').waitFor({state:'detached'});
+ assert.deepEqual(f.policies[crime],{VisibleToAllUsers:false,AllowedUserIds:['other'],DeniedUserIds:[]});
+});
+test('shared-mode empty group list does not offer a create action to normal users',async t=>{
+ const {page,f}=await open(t);f.access={Mode:'shared',CanManage:false,IsAdministrator:false};f.groups=[];
+ await page.reload();await page.getByText('Keine sichtbaren Gruppen.',{exact:false}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Neue Gruppe',exact:true}).count(),0);
+});
+
+test('dashboard mode selection loads and saves central mode without erasing personal groups',async t=>{
+ const {page,f}=await open(t);f.access.IsAdministrator=true;
+ await page.goto(page.url().replace('/?','/dashboard?').split('#')[0]);
+ await page.waitForFunction(()=>!document.querySelector('#GroupMode').disabled);
+ assert.equal(await page.getByLabel('Gruppenverwaltung',{exact:true}).inputValue(),'personal');
+ await page.getByLabel('Gruppenverwaltung',{exact:true}).selectOption('shared');
+ await page.getByLabel('Meine persönlichen Gruppen in zentrale Gruppen kopieren').check();
+ await page.getByRole('button',{name:'Speichern',exact:true}).click();
+ await page.waitForFunction(()=>window.dashboardSaved);
+ assert.equal(f.access.Mode,'shared');assert.equal(f.imported,true);
+ assert.equal(f.groups.length,2);assert.equal(await page.evaluate(()=>window.dashboardError),undefined);
+});
+
+test('refresh reloads mode and visible group permissions on an already open page',async t=>{
+ const {page,f}=await open(t);
+ f.access={Mode:'shared',CanManage:false,IsAdministrator:false};f.groups=f.groups.filter(g=>g.Id===sport);
+ await page.getByRole('button',{name:'Aktualisieren',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('[data-control="group"] option[value="22222222222222222222222222222222"]')===null);
+ assert.equal(await page.getByRole('button',{name:'Gruppen verwalten',exact:true}).count(),0);
+ assert.equal(await page.getByLabel('Gruppe',{exact:true}).inputValue(),'all');
+ assert.equal(await page.getByLabel('Gruppe',{exact:true}).locator('option').count(),2);
 });

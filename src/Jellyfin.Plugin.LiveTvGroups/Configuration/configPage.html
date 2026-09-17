@@ -9,7 +9,7 @@
         <div data-role="content">
             <div class="content-primary">
                 <h2>Live-TV Groups</h2>
-                <p>Benutzer legen ihre Sendergruppen selbst in <b>Live-TV Gruppen</b> an. Jeder Benutzer hat eigene Gruppen.</p>
+                <p>Wähle persönliche Gruppen je Benutzer oder zentrale Gruppen vom Admin. Zentrale Benutzerfreigaben bearbeitest du in <b>Live-TV Gruppen → Gruppen verwalten → Benutzerfreigabe</b>.</p><p>Benutzer benötigen Live-TV-Zugriff und die Freigabe des Kanals „Live-TV Gruppen“ unter Dashboard → Benutzer → Zugriff → Kanäle. Danach neu anmelden.</p>
 
                 <div class="verticalSection">
                     <h3>Status Web-Integration</h3>
@@ -17,6 +17,12 @@
                 </div>
 
                 <form id="LiveTvGroupsConfigForm">
+                    <div class="inputContainer">
+                        <label class="inputLabel" for="GroupMode">Gruppenverwaltung</label>
+                        <select id="GroupMode" disabled><option value="personal">Persönliche Gruppen je Benutzer</option><option value="shared">Zentrale Gruppen vom Admin</option></select>
+                        <div class="fieldDescription">Beim Umschalten bleiben beide Gruppensammlungen erhalten. Im zentralen Modus dürfen nur Administratoren Gruppen bearbeiten.</div>
+                    </div>
+                    <label><input id="ImportPersonalGroups" type="checkbox" disabled /> Meine persönlichen Gruppen in zentrale Gruppen kopieren</label>
                     <div class="inputContainer">
                         <label class="inputLabel" for="AppGuideTimeZone">Zeitzone für das Fernsehprogramm in TV-Apps</label>
                         <input id="AppGuideTimeZone" type="text" is="emby-input" required placeholder="Europe/Vienna" />
@@ -62,6 +68,14 @@
                     });
                 }
 
+                var administrationLoaded = false;
+                function updateImport() {
+                    var input = page.querySelector('#ImportPersonalGroups');
+                    input.disabled = !administrationLoaded || page.querySelector('#GroupMode').value !== 'shared';
+                    if (input.disabled) input.checked = false;
+                }
+                page.querySelector('#GroupMode').addEventListener('change', updateImport);
+
                 function loadStatus() {
                     var target = page.querySelector('#ltvgStatus');
                     ApiClient.getJSON(ApiClient.getUrl('LiveTvGroups/Status')).then(function (status) {
@@ -82,7 +96,11 @@
                 page.addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();
                     loadStatus();
-                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    administrationLoaded = false; page.querySelector('#GroupMode').disabled = true; updateImport();
+                    Promise.all([ApiClient.getPluginConfiguration(pluginId), ApiClient.getJSON(ApiClient.getUrl('LiveTvGroups/Administration'))]).then(function (results) {
+                        var config = results[0]; administrationLoaded = true;
+                        page.querySelector('#GroupMode').value = results[1].Configuration.Mode;
+                        page.querySelector('#GroupMode').disabled = false; updateImport();
                         page.querySelector('#AppGuideTimeZone').value = config.AppGuideTimeZone || 'Europe/Vienna';
                         page.querySelector('#EnableWebIntegration').checked = config.EnableWebIntegration;
                         page.querySelector('#EnableAppChannel').checked = config.EnableAppChannel;
@@ -92,6 +110,7 @@
 
                 page.querySelector('#LiveTvGroupsConfigForm').addEventListener('submit', function (e) {
                     e.preventDefault();
+                    if (!administrationLoaded) { Dashboard.alert('Gruppenverwaltung konnte nicht geladen werden. Bitte die Seite erneut öffnen.'); return false; }
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
                         var zone = page.querySelector('#AppGuideTimeZone').value.trim();
@@ -101,7 +120,14 @@
                         config.EnableAppChannel = page.querySelector('#EnableAppChannel').checked;
                         if (page.querySelector('#EnablePlaylistSync').checked && !page.querySelector('#EnableAppChannel').checked) { throw new Error('Wiedergabelisten benötigen den App-Kanal.'); }
                         config.EnablePlaylistSync = page.querySelector('#EnablePlaylistSync').checked;
-                        return ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                        return fetch(ApiClient.getUrl('LiveTvGroups/Administration'), {
+                            method: 'PUT', headers: { Authorization: 'MediaBrowser Token="' + ApiClient.accessToken() + '"', 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ Mode: page.querySelector('#GroupMode').value, ImportPersonalGroups: page.querySelector('#ImportPersonalGroups').checked })
+                        }).then(function (response) {
+                            if (!response.ok) throw new Error('Gruppenverwaltung konnte nicht gespeichert werden (HTTP ' + response.status + ').');
+                            page.querySelector('#ImportPersonalGroups').checked = false;
+                            return ApiClient.updatePluginConfiguration(pluginId, config);
+                        }).then(function (result) {
                             Dashboard.processPluginConfigurationUpdateResult(result);
                         });
                     }).catch(function (error) { Dashboard.alert(error.message || 'Einstellungen konnten nicht gespeichert werden.'); }).finally(function () { Dashboard.hideLoadingMsg(); });

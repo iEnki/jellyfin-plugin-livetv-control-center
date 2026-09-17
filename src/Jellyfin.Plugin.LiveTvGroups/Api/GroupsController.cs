@@ -2,21 +2,25 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
+using Jellyfin.Data;
 using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.LiveTvGroups.Model;
 using Jellyfin.Plugin.LiveTvGroups.Services;
 using Jellyfin.Plugin.LiveTvGroups.Web;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Dto;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
-using MediaBrowser.Controller.Entities;
 
 namespace Jellyfin.Plugin.LiveTvGroups.Api;
 
@@ -25,7 +29,7 @@ namespace Jellyfin.Plugin.LiveTvGroups.Api;
 /// </summary>
 [ApiController]
 [Route("LiveTvGroups")]
-public class GroupsController : ControllerBase
+public class GroupsController : Controller
 {
     private const string UserIdClaim = "Jellyfin-UserId";
 
@@ -71,7 +75,7 @@ public class GroupsController : ControllerBase
             return Unauthorized();
         }
 
-        return Ok(_groups.Store.Get(user.Id).Groups.Select(ToDto));
+        return Ok(_groups.GetGroups(user).Select(ToDto));
     }
 
     /// <summary>
@@ -89,20 +93,22 @@ public class GroupsController : ControllerBase
             return Unauthorized();
         }
 
+        if (!_groups.CanManage(user)) { return Forbid(); }
+
         var name = request.Name?.Trim();
         if (string.IsNullOrEmpty(name) || name.Length > 100)
         {
             return BadRequest("Name fehlt.");
         }
 
-        var group = _groups.Store.Update(user.Id, doc =>
+        var group = _groups.Update(user, doc =>
         {
             var created = new ChannelGroup { Id = Guid.NewGuid(), Name = name };
             doc.Groups.Add(created);
             return created;
         });
 
-        _playlistSync.QueueSync(user.Id);
+        QueueGroupSync(user.Id);
         return Ok(ToDto(group));
     }
 
@@ -122,13 +128,15 @@ public class GroupsController : ControllerBase
             return Unauthorized();
         }
 
+        if (!_groups.CanManage(user)) { return Forbid(); }
+
         var name = request.Name?.Trim();
         if (string.IsNullOrEmpty(name) || name.Length > 100)
         {
             return BadRequest("Name fehlt.");
         }
 
-        var found = _groups.Store.Update(user.Id, doc =>
+        var found = _groups.Update(user, doc =>
         {
             var group = doc.Groups.FirstOrDefault(g => g.Id == groupId);
             if (group is not null)
@@ -139,7 +147,7 @@ public class GroupsController : ControllerBase
             return group is not null;
         });
 
-        _playlistSync.QueueSync(user.Id);
+        QueueGroupSync(user.Id);
         return found ? NoContent() : NotFound();
     }
 
@@ -158,14 +166,16 @@ public class GroupsController : ControllerBase
             return Unauthorized();
         }
 
-        var removed = _groups.Store.Update(user.Id, doc =>
+        if (!_groups.CanManage(user)) { return Forbid(); }
+
+        var removed = _groups.Update(user, doc =>
         {
             doc.Preferences.HiddenGroupIds.Remove(groupId);
             if (doc.Preferences.DefaultGroupId == groupId) { doc.Preferences.DefaultGroupId = null; }
             if (doc.Preferences.LastGroupId == groupId) { doc.Preferences.LastGroupId = null; }
             return doc.Groups.RemoveAll(g => g.Id == groupId) > 0;
         });
-        _playlistSync.QueueSync(user.Id);
+        QueueGroupSync(user.Id);
         return removed ? NoContent() : NotFound();
     }
 
@@ -184,9 +194,11 @@ public class GroupsController : ControllerBase
             return Unauthorized();
         }
 
+        if (!_groups.CanManage(user)) { return Forbid(); }
+
         if (groupIds.Distinct().Count() != groupIds.Length) { return BadRequest("Doppelte Gruppen-ID."); }
 
-        _groups.Store.Update(user.Id, doc =>
+        _groups.Update(user, doc =>
         {
             var position = groupIds.Select((id, index) => (id, index)).ToDictionary(x => x.id, x => x.index);
             doc.Groups = doc.Groups
@@ -195,7 +207,7 @@ public class GroupsController : ControllerBase
             return true;
         });
 
-        _playlistSync.QueueSync(user.Id);
+        QueueGroupSync(user.Id);
         return NoContent();
     }
 
@@ -214,7 +226,7 @@ public class GroupsController : ControllerBase
             return Unauthorized();
         }
 
-        var group = _groups.Store.Get(user.Id).Groups.FirstOrDefault(g => g.Id == groupId);
+        var group = _groups.GetGroups(user).FirstOrDefault(g => g.Id == groupId);
         if (group is null)
         {
             return NotFound();
@@ -250,6 +262,8 @@ public class GroupsController : ControllerBase
             return Unauthorized();
         }
 
+        if (!_groups.CanManage(user)) { return Forbid(); }
+
         var accessible = _groups.GetAccessibleChannels(user);
         if (channelIds.Any(id => !accessible.ContainsKey(id)))
         {
@@ -257,7 +271,7 @@ public class GroupsController : ControllerBase
         }
 
         var refs = channelIds.Distinct().Select(id => GroupService.ToRef(accessible[id])).ToList();
-        var found = _groups.Store.Update(user.Id, doc =>
+        var found = _groups.Update(user, doc =>
         {
             var group = doc.Groups.FirstOrDefault(g => g.Id == groupId);
             if (group is not null)
@@ -268,7 +282,7 @@ public class GroupsController : ControllerBase
             return group is not null;
         });
 
-        _playlistSync.QueueSync(user.Id);
+        QueueGroupSync(user.Id);
         return found ? NoContent() : NotFound();
     }
 
@@ -289,7 +303,7 @@ public class GroupsController : ControllerBase
             return Unauthorized();
         }
 
-        var group = _groups.Store.Get(user.Id).Groups.FirstOrDefault(g => g.Id == groupId);
+        var group = _groups.GetGroups(user).FirstOrDefault(g => g.Id == groupId);
         if (group is null)
         {
             return NotFound();
@@ -305,7 +319,13 @@ public class GroupsController : ControllerBase
     public ActionResult<GroupPreferences> GetPreferences()
     {
         var user = GetUser();
-        return user is null ? Unauthorized() : Ok(_groups.Store.Get(user.Id).Preferences);
+        if (user is null) { return Unauthorized(); }
+        var preferences = JsonSerializer.Deserialize<GroupPreferences>(JsonSerializer.SerializeToUtf8Bytes(_groups.Store.Get(user.Id).Preferences))!;
+        var ids = _groups.GetGroups(user).Select(g => g.Id).ToHashSet();
+        preferences.HiddenGroupIds.RemoveAll(id => !ids.Contains(id));
+        if (preferences.DefaultGroupId is { } defaultId && !ids.Contains(defaultId)) { preferences.DefaultGroupId = null; }
+        if (preferences.LastGroupId is { } lastId && !ids.Contains(lastId)) { preferences.LastGroupId = null; }
+        return Ok(preferences);
     }
 
     /// <summary>Saves personal preferences without changing original Live TV.</summary>
@@ -315,7 +335,7 @@ public class GroupsController : ControllerBase
     {
         var user = GetUser();
         if (user is null) { return Unauthorized(); }
-        var ids = _groups.Store.Get(user.Id).Groups.Select(g => g.Id).ToHashSet();
+        var ids = _groups.GetGroups(user).Select(g => g.Id).ToHashSet();
         if (preferences.HiddenGroupIds is null || preferences.HiddenGroupIds.Any(id => !ids.Contains(id))
             || (preferences.DefaultGroupId is { } selected && !ids.Contains(selected))
             || (preferences.LastGroupId is { } last && !ids.Contains(last))
@@ -395,7 +415,7 @@ public class GroupsController : ControllerBase
     private List<ChannelGroup>? GetScope(User user, Guid[] ids)
     {
         var selected = ids.ToHashSet();
-        var groups = _groups.Store.Get(user.Id).Groups;
+        var groups = _groups.GetGroups(user);
         return selected.Any(id => !groups.Any(g => g.Id == id)) ? null : groups.Where(g => selected.Contains(g.Id)).ToList();
     }
 
@@ -427,6 +447,120 @@ public class GroupsController : ControllerBase
     [HttpGet("page.html")]
     [Authorize(Policy = Policies.LiveTvAccess)]
     public ActionResult GetUserPage() => ServeResource("page.html", "text/html");
+
+    /// <inheritdoc />
+    public override void OnActionExecuted(ActionExecutedContext context)
+    {
+        if (context.Exception is UnauthorizedAccessException)
+        {
+            context.ExceptionHandled = true;
+            context.Result = Forbid();
+        }
+        base.OnActionExecuted(context);
+    }
+
+    /// <summary>Gets editing mode without exposing other users permissions.</summary>
+    [HttpGet("Access")]
+    [Authorize(Policy = Policies.LiveTvAccess)]
+    public ActionResult GetAccess()
+    {
+        var user = GetUser();
+        return user is null ? Unauthorized() : Ok(new
+        {
+            Mode = _groups.Shared ? "shared" : "personal",
+            CanManage = _groups.CanManage(user),
+            IsAdministrator = user.HasPermission(PermissionKind.IsAdministrator)
+        });
+    }
+
+    /// <summary>Gets central administration data and users.</summary>
+    [HttpGet("Administration")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    public ActionResult GetAdministration()
+    {
+        var user = GetUser();
+        if (user is null) { return Unauthorized(); }
+        if (!user.HasPermission(PermissionKind.IsAdministrator)) { return Forbid(); }
+        return Ok(new
+        {
+            Configuration = _groups.Store.GetAdministration(),
+            Users = _userManager.GetUsers().Select(u => new
+            {
+                Id = u.Id,
+                Name = u.Username,
+                IsAdministrator = u.HasPermission(PermissionKind.IsAdministrator),
+                HasLiveTvAccess = !u.HasPermission(PermissionKind.IsDisabled) && u.HasPermission(PermissionKind.EnableLiveTvAccess)
+            })
+        });
+    }
+
+    /// <summary>Changes mode, optionally copying admin personal groups without deleting them.</summary>
+    [HttpPut("Administration")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    public ActionResult SetAdministration([FromBody, Required] AdministrationRequest request)
+    {
+        var user = GetUser();
+        if (user is null) { return Unauthorized(); }
+        if (!user.HasPermission(PermissionKind.IsAdministrator)) { return Forbid(); }
+        if (request.Mode is not ("personal" or "shared")) { return BadRequest("Ungültiger Gruppenmodus."); }
+        if (request.ImportPersonalGroups && request.Mode != "shared") { return BadRequest("Übernahme nur für zentrale Gruppen."); }
+        _groups.Store.UpdateAdministration(config =>
+        {
+            config.Mode = request.Mode;
+            if (request.ImportPersonalGroups)
+            {
+                foreach (var group in _groups.Store.Get(user.Id).Groups.Where(g => !config.Groups.Any(shared => shared.Id == g.Id)))
+                {
+                    var copy = JsonSerializer.Deserialize<ChannelGroup>(JsonSerializer.SerializeToUtf8Bytes(group))!;
+                    copy.VisibleToAllUsers = true;
+                    copy.AllowedUserIds.Clear();
+                    copy.DeniedUserIds.Clear();
+                    config.Groups.Add(copy);
+                }
+            }
+            return true;
+        });
+        QueueAllSync();
+        return NoContent();
+    }
+
+    /// <summary>Sets the user access policy of a central group.</summary>
+    [HttpPut("Administration/Groups/{groupId}/Access")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    public ActionResult SetGroupAccess(Guid groupId, [FromBody, Required] GroupAccessRequest request)
+    {
+        var user = GetUser();
+        if (user is null) { return Unauthorized(); }
+        if (!user.HasPermission(PermissionKind.IsAdministrator)) { return Forbid(); }
+        var users = _userManager.GetUsers().Select(u => u.Id).ToHashSet();
+        if (request.AllowedUserIds is null || request.DeniedUserIds is null
+            || request.AllowedUserIds.Concat(request.DeniedUserIds).Any(id => !users.Contains(id)))
+        { return BadRequest("Unbekannter Benutzer."); }
+        var found = _groups.Store.UpdateAdministration(config =>
+        {
+            var group = config.Mode == "shared" ? config.Groups.FirstOrDefault(g => g.Id == groupId) : null;
+            if (group is null) { return false; }
+            group.VisibleToAllUsers = request.VisibleToAllUsers;
+            group.AllowedUserIds = request.AllowedUserIds.Distinct().ToList();
+            group.DeniedUserIds = request.DeniedUserIds.Distinct().ToList();
+            return true;
+        });
+        if (!found) { return NotFound(); }
+        QueueAllSync();
+        return NoContent();
+    }
+
+    private void QueueAllSync()
+    {
+        foreach (var id in _userManager.GetUsers().Select(u => u.Id).Concat(_groups.Store.GetUserIds()).Distinct())
+        { _playlistSync.QueueSync(id); }
+    }
+
+    private void QueueGroupSync(Guid userId)
+    {
+        if (_groups.Shared) { QueueAllSync(); }
+        else { _playlistSync.QueueSync(userId); }
+    }
 
     private static GroupDto ToDto(ChannelGroup group) => new(group.Id, group.Name, group.Channels.Count);
 
@@ -477,4 +611,24 @@ public class GroupNameRequest
     /// Gets or sets the name.
     /// </summary>
     public string? Name { get; set; }
+}
+
+/// <summary>Admin-controlled operating mode.</summary>
+public class AdministrationRequest
+{
+    /// <summary>Gets or sets personal or shared.</summary>
+    public string Mode { get; set; } = "personal";
+    /// <summary>Gets or sets whether to copy existing admin groups.</summary>
+    public bool ImportPersonalGroups { get; set; }
+}
+
+/// <summary>User access policy for a central group.</summary>
+public class GroupAccessRequest
+{
+    /// <summary>Gets or sets whether everyone is allowed unless denied.</summary>
+    public bool VisibleToAllUsers { get; set; } = true;
+    /// <summary>Gets or sets allowed users.</summary>
+    public List<Guid> AllowedUserIds { get; set; } = [];
+    /// <summary>Gets or sets denied users, taking precedence.</summary>
+    public List<Guid> DeniedUserIds { get; set; } = [];
 }

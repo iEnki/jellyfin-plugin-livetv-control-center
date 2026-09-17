@@ -6,6 +6,7 @@
     const PAGE = 'ltvg-page', MODAL = 'ltvg-modal';
     const views = { programs: 'Programme', guide: 'Fernsehprogramm', channels: 'Sender', manage: 'Gruppen verwalten' };
     let entry = null, userKey = '', entryPending = false, scheduled = false, host = null, timer = null;
+    let access = { Mode:'personal', CanManage:false, IsAdministrator:false };
     let groups = [], prefs = null, active = false, request = 0, abort = null, lastRoute = '';
     let state = { group: 'all', view: 'guide', start: null, reorder: false };
     let loadedChannels = [], guideData = null, tick = 0, restoreFocus = null;
@@ -52,7 +53,7 @@
     function styles() {
         if (document.getElementById('ltvg-styles')) return;
         const link = document.createElement('link'); link.id = 'ltvg-styles'; link.rel = 'stylesheet';
-        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.1.1'));
+        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.1.2'));
         document.head.appendChild(link);
     }
     function ownRoute() {
@@ -65,7 +66,7 @@
         const remembered = prefs.RememberLastView;
         state.group = params.get('group') || (remembered ? prefs.LastGroupId : prefs.DefaultGroupId) || 'all';
         const chosen = params.get('view') || (remembered ? prefs.LastView : prefs.DefaultView);
-        state.view = views[chosen] ? chosen : 'guide';
+        state.view = views[chosen] && (chosen !== 'manage' || access.CanManage) ? chosen : 'guide';
         const start = params.get('start'); state.start = start && Number.isFinite(Date.parse(start)) ? Date.parse(start) : null;
         state.reorder = false;
         if (state.group !== 'all' && !visible().some(g => id(g.Id) === id(state.group))) state.group = 'all';
@@ -161,12 +162,12 @@
     function chrome() {
         const root = page(); if (!root || !prefs) return;
         root.innerHTML = '<div class="ltvg-header"><h1>Live-TV Gruppen</h1><div class="ltvg-actions">'
-            +button('settings','<span class="material-icons" aria-hidden="true">settings</span><span>Einstellungen</span>')+'</div></div>'
+            +(access.IsAdministrator ? button('administration','Verwaltung') : '')+button('guide','Fernsehprogramm')+button('settings','<span class="material-icons" aria-hidden="true">settings</span><span>Einstellungen</span>')+'</div></div>'
             +'<div class="ltvg-toolbar"><label class="ltvg-view-label"><span class="ltvg-sr">Ansicht</span><select data-control="view" aria-label="Ansicht" class="ltvg-view">'
-            +Object.keys(views).map(v => '<option value="'+v+'"'+(v===state.view?' selected':'')+'>'+views[v]+'</option>').join('')+'</select></label>'
+            +Object.keys(views).filter(v => v !== 'manage' || access.CanManage).map(v => '<option value="'+v+'"'+(v===state.view?' selected':'')+'>'+views[v]+'</option>').join('')+'</select></label>'
             +'<label><span class="ltvg-sr">Gruppe</span><select class="ltvg-input" data-control="group" aria-label="Gruppe"><option value="all">Alle sichtbaren Gruppen</option>'
             +visible().map(g=>'<option value="'+esc(g.Id)+'"'+(id(g.Id)===id(state.group)?' selected':'')+'>'+esc(g.Name)+'</option>').join('')+'</select></label>'
-            +'<div class="ltvg-actions ltvg-end">'+button('refresh','Aktualisieren')+button('manage','Gruppen verwalten')+'</div></div>'
+            +'<div class="ltvg-actions ltvg-end">'+button('refresh','Aktualisieren')+(access.CanManage ? button('manage','Gruppen verwalten') : '')+'</div></div>'
             +'<div class="ltvg-player-toolbar"><label>Abspielen auf <select class="ltvg-input" data-control="player" aria-label="Abspielen auf">'+playerOptions()+'</select></label>'
             +button('players-refresh','Geräte aktualisieren')
             +'<span class="ltvg-player-status" role="status" aria-live="polite">'+esc(playerMessage)+'</span></div>'
@@ -185,17 +186,18 @@
     async function boot() {
         const seq = ++request; abort?.abort(); abort = new AbortController();
         try {
-            const results = await Promise.all([api('GET','Groups',undefined,abort.signal), api('GET','Preferences',undefined,abort.signal)]);
+            const results = await Promise.all([api('GET','Groups',undefined,abort.signal), api('GET','Preferences',undefined,abort.signal), api('GET','Access',undefined,abort.signal)]);
             if (!active || seq !== request) return;
-            groups = results[0]; prefs = results[1]; readRoute(); chrome(); writeRoute(); refreshPlayers(); await render();
+            groups = results[0]; prefs = results[1]; access = results[2]; readRoute(); chrome(); writeRoute(); refreshPlayers(); await render();
         } catch(e) { if (seq===request) { if (!prefs) { page().innerHTML='<h1>Live-TV Gruppen</h1><div class="ltvg-error" role="alert"><span></span>'+button('refresh','Erneut versuchen')+'</div>'; } error(e); } }
     }
     async function render(keep = false) {
         if (!active || !prefs) return;
         if (keep) capture(); else { clearInterval(timer); timer = null; chrome(); }
         const seq = ++request; abort?.abort(); abort = new AbortController(); const signal = abort.signal;
+        if (state.view === 'manage' && !access.CanManage) state.view = 'guide';
         if (state.view === 'manage') { renderGroups(); return; }
-        if (!selected().length) { content('<p class="ltvg-empty">Keine sichtbaren Gruppen. Wähle Gruppen in den Einstellungen oder lege eine neue Gruppe an.</p>'+button('create','Neue Gruppe')); return; }
+        if (!selected().length) { content('<p class="ltvg-empty">Keine sichtbaren Gruppen. Prüfe deine Gruppeneinstellungen oder wende dich an den Administrator.</p>'+(access.CanManage ? button('create','Neue Gruppe') : '')); return; }
         if (!keep) content('<p class="ltvg-empty" role="status">Lädt…</p>');
         try {
             if (state.view === 'channels') {
@@ -219,6 +221,7 @@
             +'<div class="ltvg-grid" data-list="groups">'+groups.map(g=>'<article class="ltvg-card ltvg-group-card" draggable="true" data-id="'+esc(g.Id)+'">'
                 +button('open','<strong>'+esc(g.Name)+'</strong><span>'+g.ChannelCount+' Sender'+(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?' · Ausgeblendet':'')+'</span>','data-id="'+esc(g.Id)+'"','ltvg-card-main')
                 +'<div class="ltvg-card-tools">'+button('rename','Umbenennen','data-id="'+esc(g.Id)+'"')+button('delete','Löschen','data-id="'+esc(g.Id)+'"')
+                +(access.Mode === 'shared' && access.IsAdministrator ? button('group-access','Benutzerfreigabe','data-id="'+esc(g.Id)+'"') : '')
                 +button('group-up','↑','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+' nach oben"')+button('group-down','↓','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+' nach unten"')+'</div></article>').join('')+'</div>'
             +(!groups.length?'<p class="ltvg-empty">Noch keine Gruppen.</p>':''));
         dragSort(page().querySelector('[data-list="groups"]'), async ids=>{ await api('PUT','Groups/Order',ids); await reloadGroups(); });
@@ -230,7 +233,7 @@
             +(state.reorder?'<div class="ltvg-card-tools">'+button('channel-up','↑','data-id="'+esc(channel.Id)+'" aria-label="Sender nach oben"')+button('channel-down','↓','data-id="'+esc(channel.Id)+'" aria-label="Sender nach unten"')+'</div>':'')+'</article>';
     }
     function renderChannels() {
-        const editable = state.group !== 'all';
+        const editable = access.CanManage && state.group !== 'all';
         content('<div class="ltvg-section-heading"><span>'+loadedChannels.length+' Sender</span><div class="ltvg-actions">'
             +(editable?button('edit-channels','Sender auswählen','','ltvg-primary')+button('reorder',state.reorder?'Fertig':'Reihenfolge ändern'):'')+'</div></div>'
             +'<div class="ltvg-grid ltvg-channel-grid" data-list="channels">'+loadedChannels.map(channelCard).join('')+'</div>'
@@ -338,6 +341,41 @@
             try{if(updated.DefaultGroupId&&updated.HiddenGroupIds.includes(updated.DefaultGroupId))throw new Error('Die Standardgruppe muss sichtbar sein.');await savePreferences(updated);prefs=updated;closeModal();if(!visible().some(g=>id(g.Id)===id(state.group)))state.group='all';writeRoute();await render();}catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
         };
     }
+    async function administration() {
+        const data = await api('GET','Administration');
+        const wrapper = modal('<h2 id="ltvg-dialog-title">Gruppenverwaltung</h2><form>'
+            +'<label>Betriebsart<select class="ltvg-input" name="mode" aria-label="Betriebsart"><option value="personal">Persönliche Gruppen je Benutzer</option><option value="shared">Zentrale Gruppen vom Admin</option></select></label>'
+            +'<p>Persönlich: Jeder Benutzer erstellt seine eigenen Gruppen. Zentral: Administratoren erstellen Gruppen und bestimmen deren Benutzerfreigabe.</p>'
+            +'<label class="ltvg-picker-row"><input type="checkbox" name="import">Meine persönlichen Gruppen in zentrale Gruppen kopieren</label>'
+            +'<p>Beide Gruppensammlungen bleiben beim Umschalten erhalten. Administratoren können alle zentralen Gruppen verwalten. Die Jellyfin-Kanalberechtigung bleibt Voraussetzung.</p>'
+            +'<div class="ltvg-modal-actions">'+button('cancel','Abbrechen')+'<button type="submit" class="ltvg-btn ltvg-primary">Speichern</button></div></form>');
+        const form = wrapper.querySelector('form');form.elements.mode.value=data.Configuration.Mode;
+        const update=()=>{form.elements.import.disabled=form.elements.mode.value!=='shared';if(form.elements.import.disabled)form.elements.import.checked=false;};
+        form.elements.mode.onchange=update;update();wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;
+        form.onsubmit=async e=>{e.preventDefault();const save=form.querySelector('[type="submit"]');save.disabled=true;
+            try{await api('PUT','Administration',{Mode:form.elements.mode.value,ImportPersonalGroups:form.elements.import.checked});closeModal();state.view='guide';state.group='all';await reloadGroups();}
+            catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
+        };
+    }
+    async function groupAccess(groupId) {
+        const data=await api('GET','Administration'),group=data.Configuration.Groups.find(g=>id(g.Id)===id(groupId));if(!group)return;
+        const checks = { all:new Set((group.DeniedUserIds||[]).map(id)), selected:new Set((group.AllowedUserIds||[]).filter(u=>!(group.DeniedUserIds||[]).some(d=>id(d)===id(u))).map(id)) };
+        let mode=group.VisibleToAllUsers?'all':'selected';
+        const wrapper=modal('<h2 id="ltvg-dialog-title">Benutzerfreigabe: '+esc(group.Name)+'</h2><form>'
+            +'<label>Sichtbarkeit<select class="ltvg-input" name="visibility" aria-label="Sichtbarkeit"><option value="all">Alle Benutzer außer ausgewählten</option><option value="selected">Nur ausgewählte Benutzer</option></select></label>'
+            +'<p data-access-hint></p><div class="ltvg-picker">'+data.Users.map(u=>'<label class="ltvg-picker-row"><input type="checkbox" data-user="'+esc(u.Id)+'"'+(u.IsAdministrator?' disabled':'')+'>'+esc(u.Name)+(u.IsAdministrator?' · Admin (immer Zugriff)':!u.HasLiveTvAccess?' · ohne Live-TV-Zugriff':'')+'</label>').join('')+'</div>'
+            +'<div class="ltvg-modal-actions">'+button('cancel','Abbrechen')+'<button type="submit" class="ltvg-btn ltvg-primary">Speichern</button></div></form>');
+        const form=wrapper.querySelector('form');form.elements.visibility.value=mode;
+        const draw=()=>{wrapper.querySelector('[data-access-hint]').textContent=mode==='all'?'Markierte Benutzer sehen diese Gruppe nicht.':'Nur markierte Benutzer sehen diese Gruppe.';
+            wrapper.querySelectorAll('[data-user]').forEach(el=>el.checked=el.disabled?mode==='selected':checks[mode].has(id(el.dataset.user)));};
+        form.elements.visibility.onchange=()=>{wrapper.querySelectorAll('[data-user]:not(:disabled)').forEach(el=>el.checked?checks[mode].add(id(el.dataset.user)):checks[mode].delete(id(el.dataset.user)));mode=form.elements.visibility.value;draw();};draw();
+        wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;
+        form.onsubmit=async e=>{e.preventDefault();const save=form.querySelector('[type="submit"]');save.disabled=true;
+            const ids=Array.from(wrapper.querySelectorAll('[data-user]:checked:not(:disabled)')).map(el=>el.dataset.user);
+            try{await api('PUT','Administration/Groups/'+encodeURIComponent(groupId)+'/Access',{VisibleToAllUsers:mode==='all',AllowedUserIds:mode==='selected'?ids:[],DeniedUserIds:mode==='all'?ids:[]});closeModal();await reloadGroups();}
+            catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
+        };
+    }
     async function editChannels() {
         const group=groups.find(g=>id(g.Id)===id(state.group));if(!group)return;
         const current=loadedChannels.map(c=>c.Id),chosen=new Set(current);
@@ -350,7 +388,13 @@
             const save=wrapper.querySelector('[data-action="save"]');save.disabled=false;save.onclick=async()=>{save.disabled=true;const ids=current.filter(value=>chosen.has(value));channels.forEach(c=>{if(chosen.has(c.Id)&&!ids.includes(c.Id))ids.push(c.Id);});try{await api('PUT','Groups/'+group.Id+'/Channels',ids);closeModal();await reloadGroups();}catch(e){modalError(wrapper,e);save.disabled=false;}};
         }catch(e){modalError(wrapper,e);}
     }
-    async function reloadGroups() { groups=await api('GET','Groups');prefs=await api('GET','Preferences');if(state.group!=='all'&&!groups.some(g=>id(g.Id)===id(state.group)))state.group='all';writeRoute();await render(); }
+    async function reloadGroups() {
+        const results=await Promise.all([api('GET','Access'),api('GET','Groups'),api('GET','Preferences')]);
+        access=results[0];groups=results[1];prefs=results[2];
+        if(state.group!=='all'&&!visible().some(g=>id(g.Id)===id(state.group)))state.group='all';
+        if(state.view==='manage'&&!access.CanManage)state.view='guide';
+        capture();writeRoute();await render();
+    }
     function dragSort(list,save) {
         let dragged=null;list.addEventListener('dragstart',e=>{dragged=e.target.closest('[draggable]');if(dragged){e.dataTransfer.setData('text/plain',dragged.dataset.id);dragged.classList.add('ltvg-dragging');}});
         list.addEventListener('dragover',e=>{if(!dragged)return;e.preventDefault();const target=e.target.closest('[draggable]');if(!target||target===dragged)return;const rect=target.getBoundingClientRect();list.insertBefore(dragged,e.clientY>rect.top+rect.height/2?target.nextSibling:target);});
@@ -363,9 +407,13 @@
     }
     async function action(target) {
         const action=target.dataset.action,value=target.dataset.id;
-        if(action==='refresh'){page()?.querySelector('.ltvg-error')?.setAttribute('hidden','');prefs?await Promise.all([render(true),refreshPlayers()]):await boot();return;}
+        if(action==='refresh'){page()?.querySelector('.ltvg-error')?.setAttribute('hidden','');prefs?await Promise.all([reloadGroups(),refreshPlayers()]):await boot();return;}
         if(action==='players-refresh'){await refreshPlayers();return;}
         if(action==='settings'){await settings();return;}
+        if(action==='guide'){state.view='guide';state.reorder=false;writeRoute();remember();await render();return;}
+        if(action==='administration'){if(access.IsAdministrator)await administration();return;}
+        if(action==='group-access'){if(access.IsAdministrator&&access.Mode==='shared')await groupAccess(value);return;}
+        if(!access.CanManage && (['create','rename','delete','edit-channels','manage','reorder'].includes(action)||action.startsWith('group-')||action.startsWith('channel-')))return;
         if(action==='create'){const name=await askName('Neue Gruppe');if(name){const created=await api('POST','Groups',{Name:name});state.group=created.Id;state.view='channels';writeRoute();await reloadGroups();}return;}
         if(action==='rename'){const group=groups.find(g=>id(g.Id)===id(value)),name=await askName('Gruppe umbenennen',group.Name);if(name){await api('PUT','Groups/'+value,{Name:name});await reloadGroups();}return;}
         if(action==='delete'){const group=groups.find(g=>id(g.Id)===id(value));if(await confirmDelete(group.Name)){await api('DELETE','Groups/'+value);await reloadGroups();}return;}

@@ -210,6 +210,31 @@ public class NativeAppTests
         Assert.Equal(DateTimeKind.Utc, start.Kind);
     }
 
+    [Fact]
+    public async Task SharedGroupsProvideEpgForNormalUserAndRevocationBlocksNativeGuideAndOpenToken()
+    {
+        using var f = new Fixture();
+        Assert.False(f.User.HasPermission(PermissionKind.IsAdministrator));
+        f.Store.UpdateAdministration(config => { config.Mode = "shared"; config.Groups = f.Store.Get(f.User.Id).Groups; return true; });
+        var group = Assert.Single(f.Groups.GetGroups(f.User));
+        var guide = await f.Services.GetRequiredService<GroupGuideService>().GetGuide(f.User, [group], null, null, CancellationToken.None);
+        Assert.Equal(f.Channel.Id, Assert.Single(guide.Channels).Id);
+        Assert.Equal("Allowed program", Assert.Single(guide.Programs).Name);
+        var provider = new GroupsChannel(f.Groups, f.Services, NullLogger<GroupsChannel>.Instance);
+        var before = provider.GetCacheKey(f.User.Id.ToString());
+        Assert.Single((await provider.GetChannelItems(new() { UserId = f.User.Id }, CancellationToken.None)).Items);
+        var source = Assert.Single(await f.Provider.GetMediaSources(f.Video(), CancellationToken.None));
+        f.Store.UpdateAdministration(config => { config.Groups[0].DeniedUserIds = [f.User.Id]; return true; });
+        Assert.NotEqual(before, provider.GetCacheKey(f.User.Id.ToString()));
+        Assert.Empty((await provider.GetChannelItems(new() { UserId = f.User.Id }, CancellationToken.None)).Items);
+        Assert.Empty((await provider.GetChannelItems(new() { UserId = f.User.Id, FolderId = GroupsChannel.GetFolderExternalId(f.Group) }, CancellationToken.None)).Items);
+        Assert.Empty((await f.Services.GetRequiredService<AppGuideService>().GetItems(f.User, AppGuideService.GetRootId(f.Group), CancellationToken.None)).Items);
+        Assert.Empty(await f.Provider.GetMediaSources(f.Video(), CancellationToken.None));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => f.Provider.OpenMediaSource(source.OpenToken, [], CancellationToken.None));
+        Assert.Empty(f.Groups.ResolveChannels(f.User, group, f.Groups.GetAccessibleChannels(f.User)));
+        Assert.Null(f.Bridge.Token);
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly string _directory = Path.Combine(Path.GetTempPath(), "ltvg-native-" + Guid.NewGuid().ToString("N"));
@@ -241,11 +266,17 @@ public class NativeAppTests
             services.AddSingleton(InterfaceStub.Create<ILiveTvManager>((method, args) => method.Name switch
             {
                 "GetInternalChannels" => new QueryResult<BaseItem>(0, Accessible.Count, Accessible),
-                "GetPrograms" => Task.FromResult(new QueryResult<BaseItemDto>(0, 2,
-                    [new BaseItemDto { Id = ProgramId, ChannelId = Channel.Id, Name = ProgramName, Overview = "Description", StartDate = DateTime.UtcNow.Date, EndDate = DateTime.UtcNow.Date.AddDays(1) },
-                     new BaseItemDto { Id = Guid.NewGuid(), ChannelId = Forbidden.Id, Name = "Forbidden program", StartDate = DateTime.UtcNow.Date, EndDate = DateTime.UtcNow.Date.AddDays(1) }])),
+                "GetPrograms" => ReadPrograms((InternalItemsQuery)args![0]!),
                 _ => throw new NotSupportedException(method.Name)
             }));
+            Task<QueryResult<BaseItemDto>> ReadPrograms(InternalItemsQuery query)
+            {
+                Assert.Same(User, query.User);
+                Assert.Equal([Channel.Id], query.ChannelIds);
+                return Task.FromResult(new QueryResult<BaseItemDto>(0, 2,
+                    [new BaseItemDto { Id = ProgramId, ChannelId = Channel.Id, Name = ProgramName, Overview = "Description", StartDate = DateTime.UtcNow.Date, EndDate = DateTime.UtcNow.Date.AddDays(1) },
+                     new BaseItemDto { Id = Guid.NewGuid(), ChannelId = Forbidden.Id, Name = "Forbidden program", StartDate = DateTime.UtcNow.Date, EndDate = DateTime.UtcNow.Date.AddDays(1) }]));
+            }
             Services = services.BuildServiceProvider();
             Groups = Services.GetRequiredService<GroupService>(); Provider = new GroupsMediaSourceProvider(Groups, Services);
         }

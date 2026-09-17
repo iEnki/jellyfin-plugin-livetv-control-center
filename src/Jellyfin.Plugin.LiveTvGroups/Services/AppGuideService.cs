@@ -30,7 +30,7 @@ public class AppGuideService(GroupService groups, IServiceProvider services)
     public async Task<ChannelItemResult> GetItems(User user, string folderId, CancellationToken cancellationToken)
     {
         if (!TryParse(folderId, out var route)) return Empty();
-        var group = groups.Store.Get(user.Id).Groups.FirstOrDefault(g => g.Id == route.Group);
+        var group = groups.GetGroups(user).FirstOrDefault(g => g.Id == route.Group);
         if (group is null) return Empty();
         var zone = GetTimeZone(Plugin.Instance?.Configuration.AppGuideTimeZone);
         var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone).Date;

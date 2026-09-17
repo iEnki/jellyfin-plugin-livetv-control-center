@@ -34,7 +34,7 @@ public class GroupsMediaSourceProvider(GroupService groups, IServiceProvider ser
         if (userId == Guid.Empty || !GroupItemId.TryParse(externalId, out var groupId, out var channelId)) return null;
         var user = services.GetRequiredService<IUserManager>().GetUserById(userId);
         if (user is null || !user.HasPermission(PermissionKind.EnableLiveTvAccess)) return null;
-        var scope = groups.Store.Get(userId).Groups.Where(g => groupId is null || g.Id == groupId).ToList();
+        var scope = groups.GetGroups(user).Where(g => groupId is null || g.Id == groupId).ToList();
         var available = groups.GetAccessibleChannels(user);
         return scope.SelectMany(g => groups.ResolveChannels(user, g, available)).FirstOrDefault(c => c.Id == channelId);
     }

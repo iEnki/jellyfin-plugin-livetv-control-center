@@ -19,6 +19,7 @@ public class GroupStore
     private readonly string _directory;
     private readonly ConcurrentDictionary<Guid, UserGroups> _cache = new();
     private readonly Lock _writeLock = new();
+    private GroupAdministration? _administration;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GroupStore"/> class.
@@ -88,6 +89,55 @@ public class GroupStore
             {
                 File.Delete(path);
             }
+        }
+    }
+
+    /// <summary>Gets a read-only snapshot of the central configuration.</summary>
+    public GroupAdministration GetAdministration()
+    {
+        lock (_writeLock)
+        {
+            if (_administration is null)
+            {
+                var file = Path.Combine(_directory, "administration.json");
+                _administration = File.Exists(file)
+                    ? JsonSerializer.Deserialize<GroupAdministration>(File.ReadAllBytes(file)) ?? new() : new();
+            }
+            return _administration;
+        }
+    }
+
+    /// <summary>Atomically updates central configuration.</summary>
+    public T UpdateAdministration<T>(Func<GroupAdministration, T> change)
+    {
+        lock (_writeLock)
+        {
+            var copy = JsonSerializer.Deserialize<GroupAdministration>(JsonSerializer.SerializeToUtf8Bytes(GetAdministration()))!;
+            var result = change(copy);
+            copy.Revision++;
+            Directory.CreateDirectory(_directory);
+            var file = Path.Combine(_directory, "administration.json");
+            File.WriteAllBytes(file + ".tmp", JsonSerializer.SerializeToUtf8Bytes(copy, JsonOptions));
+            File.Move(file + ".tmp", file, overwrite: true);
+            _administration = copy;
+            return result;
+        }
+    }
+
+    /// <summary>Updates the active collection under the same lock as mode changes.</summary>
+    public T UpdateGroups<T>(Guid userId, bool administrator, Func<UserGroups, T> change)
+    {
+        lock (_writeLock)
+        {
+            if (GetAdministration().Mode != "shared") { return Update(userId, change); }
+            if (!administrator) { throw new UnauthorizedAccessException("Zentrale Gruppen dürfen nur Administratoren bearbeiten."); }
+            return UpdateAdministration(config =>
+            {
+                var doc = new UserGroups { Groups = config.Groups };
+                var result = change(doc);
+                config.Groups = doc.Groups;
+                return result;
+            });
         }
     }
 

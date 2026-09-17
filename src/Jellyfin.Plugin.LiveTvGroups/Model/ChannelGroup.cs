@@ -34,6 +34,13 @@ public class UserGroups
 /// </summary>
 public class ChannelGroup
 {
+    /// <summary>Gets or sets whether every Live TV user may see this shared group.</summary>
+    public bool VisibleToAllUsers { get; set; } = true;
+    /// <summary>Gets or sets users allowed when universal access is disabled.</summary>
+    public List<Guid> AllowedUserIds { get; set; } = [];
+    /// <summary>Gets or sets users excluded from a shared group. Denials take precedence.</summary>
+    public List<Guid> DeniedUserIds { get; set; } = [];
+
     /// <summary>
     /// Gets or sets the group id.
     /// </summary>

@@ -83,7 +83,8 @@ public class PlaylistSyncService
     /// <returns>A task.</returns>
     public async Task SyncAllAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var userIds = _groups.Store.GetUserIds();
+        var userIds = _serviceProvider.GetRequiredService<IUserManager>().GetUsers().Select(u => u.Id)
+            .Concat(_groups.Store.GetUserIds()).Distinct().ToList();
         for (var i = 0; i < userIds.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -119,7 +120,7 @@ public class PlaylistSyncService
             }
 
             var doc = _groups.Store.Get(userId);
-            var wanted = Enabled ? doc.Groups.Select(g => g.Id).ToHashSet() : [];
+            var wanted = Enabled ? _groups.GetGroups(user).Select(g => g.Id).ToHashSet() : [];
 
             // Remove playlists of deleted groups (or all, when disabled).
             var obsolete = doc.PlaylistIds.Where(p => !wanted.Contains(p.Key)).ToList();
@@ -154,7 +155,7 @@ public class PlaylistSyncService
             }
 
             var playlistManager = _serviceProvider.GetRequiredService<IPlaylistManager>();
-            foreach (var group in _groups.Store.Get(userId).Groups)
+            foreach (var group in _groups.GetGroups(user))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var itemIds = channelItems.TryGetValue(group.Id, out var items) ? items : [];
@@ -232,7 +233,7 @@ public class PlaylistSyncService
         var result = new Dictionary<Guid, IReadOnlyList<Guid>>();
         var accessible = _groups.GetAccessibleChannels(user);
 
-        foreach (var group in _groups.Store.Get(user.Id).Groups)
+        foreach (var group in _groups.GetGroups(user))
         {
             var folderExternalId = GroupsChannel.GetFolderExternalId(group.Id);
             var folder = folders.Items.FirstOrDefault(f => string.Equals(f.ExternalId, folderExternalId, StringComparison.Ordinal));

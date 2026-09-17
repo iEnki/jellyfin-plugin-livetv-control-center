@@ -18,6 +18,7 @@ using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Querying;
+using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Session;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -208,6 +209,119 @@ public class PlayerTests
         Assert.True(version < new Version(0, 3, 2, 0));
     }
 
+    [Fact]
+    public async Task SharedGroupPermissionsAreCheckedForBothRemoteUsers()
+    {
+        using var f = new Fixture();
+        var target = f.Target(f.Other);
+        f.User.SetPermission(PermissionKind.EnableRemoteControlOfOtherUsers, true);
+        f.Store.UpdateAdministration(config =>
+        { config.Mode = "shared"; config.Groups = [new() { Id = Guid.NewGuid(), Name = "Shared", Channels = [GroupService.ToRef(f.Channel)], DeniedUserIds = [f.Other.Id] }]; return true; });
+        await Assert.ThrowsAsync<SecurityException>(() => f.Play(target));
+        Assert.Null(f.Command);
+        f.Store.UpdateAdministration(config => { config.Groups[0].DeniedUserIds = []; return true; });
+        await f.Play(target);
+        Assert.NotNull(f.Command); f.Command = null;
+        f.Store.UpdateAdministration(config => { config.Groups[0].DeniedUserIds = [f.User.Id]; return true; });
+        await Assert.ThrowsAsync<SecurityException>(() => f.Play(target));
+        Assert.Null(f.Command);
+    }
+
+    [Fact]
+    public async Task RunningAndroidTvStopsWaitsForReportAndStartsNewChannelInOneRequest()
+    {
+        using var f = new Fixture(); var target = f.Target();
+        target.NowPlayingItem = new BaseItemDto { Id = Guid.NewGuid() };
+        f.Players.DuringWait = () => target.NowPlayingItem = null;
+        await f.Play(target);
+        Assert.Equal(["Stop", "Play"], f.Commands);
+        Assert.Equal([TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(500)], f.Players.Waits);
+        Assert.Equal(f.Channel.Id, Assert.Single(f.Command!.ItemIds));
+        Assert.Equal(0, f.Command.StartPositionTicks);
+    }
+
+    [Fact]
+    public async Task MissingStopReportReturnsConflictWithoutBlindPlayOrResend()
+    {
+        using var f = new Fixture(); var target = f.Target();
+        target.NowPlayingItem = new BaseItemDto { Id = Guid.NewGuid() };
+        Assert.IsType<ConflictObjectResult>(await f.Api.Play(target.DeviceId, f.Channel.Id));
+        Assert.Equal(["Stop"], f.Commands); Assert.Null(f.Command);
+        Assert.Equal(50, f.Players.Waits.Count);
+    }
+
+    [Fact]
+    public async Task RevokedChannelDuringStopDoesNotStartNewPlayback()
+    {
+        using var f = new Fixture(); var target = f.Target();
+        target.NowPlayingItem = new BaseItemDto { Id = Guid.NewGuid() };
+        f.OnStop = stopped => stopped.NowPlayingItem = null;
+        f.Players.DuringWait = () => f.UserChannels.Clear();
+        await Assert.ThrowsAsync<SecurityException>(() => f.Play(target));
+        Assert.Equal(["Stop"], f.Commands); Assert.Null(f.Command);
+    }
+
+    [Fact]
+    public async Task ReconnectedOrReloggedTvDuringStopIsNotStartedByStaleRequest()
+    {
+        using var f = new Fixture(); var target = f.Target();
+        target.NowPlayingItem = new BaseItemDto { Id = Guid.NewGuid() };
+        f.Players.DuringWait = () => target.Id = "new-session";
+        await Assert.ThrowsAsync<PlayerUnavailableException>(() => f.Play(target));
+        Assert.Equal(["Stop"], f.Commands); Assert.Null(f.Command);
+    }
+
+    [Fact]
+    public async Task UnauthorizedChannelIsRejectedBeforeStoppingRunningTv()
+    {
+        using var f = new Fixture(); var target = f.Target();
+        target.NowPlayingItem = new BaseItemDto { Id = Guid.NewGuid() }; f.UserChannels.Clear();
+        await Assert.ThrowsAsync<SecurityException>(() => f.Play(target));
+        Assert.Empty(f.Commands);
+    }
+
+    [Fact]
+    public async Task CancellationDuringSwitchDoesNotStartAndDeviceLockIsReleased()
+    {
+        using var f = new Fixture(); var target = f.Target();
+        using var cancel = new CancellationTokenSource();
+        target.NowPlayingItem = new BaseItemDto { Id = Guid.NewGuid() };
+        f.Players.DuringWait = cancel.Cancel;
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => f.Players.Play(f.User, f.Caller, target.DeviceId, f.Channel.Id, cancel.Token));
+        Assert.Equal(["Stop"], f.Commands); Assert.Null(f.Command);
+        target.NowPlayingItem = null; f.Players.DuringWait = null; await f.Play(target);
+        Assert.Equal(["Stop", "Play"], f.Commands);
+    }
+
+    [Fact]
+    public async Task ConcurrentRequestsToSameDeviceCannotInterleaveStopAndPlay()
+    {
+        using var f = new Fixture(); var target = f.Target();
+        target.NowPlayingItem = new BaseItemDto { Id = Guid.NewGuid() };
+        f.OnStop = stopped => stopped.NowPlayingItem = null;
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var resume = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Players.DuringWaitAsync = () => { entered.TrySetResult(); return resume.Task; };
+        var first = f.Play(target); await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = f.Play(target);
+        Assert.False(second.IsCompleted); Assert.Equal(["Stop"], f.Commands);
+        resume.SetResult(); await Task.WhenAll(first, second);
+        Assert.Equal(["Stop", "Play", "Play"], f.Commands);
+    }
+
+    private sealed class SwitchingPlayer(ISessionManager sessions, IUserManager users, GroupService groups) : PlayerService(sessions, users, groups)
+    {
+        public Action? DuringWait;
+        public Func<Task>? DuringWaitAsync;
+        public List<TimeSpan> Waits { get; } = [];
+        protected override async Task WaitForPlayer(TimeSpan delay, CancellationToken cancellationToken)
+        {
+            Waits.Add(delay); DuringWait?.Invoke(); cancellationToken.ThrowIfCancellationRequested();
+            if (DuringWaitAsync is not null) { await DuringWaitAsync(); }
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+    }
+
     private static ISessionController Controller(bool active, bool media)
         => InterfaceStub.Create<ISessionController>((method, _) => method.Name switch
         {
@@ -233,7 +347,9 @@ public class PlayerTests
         public ISessionManager Manager { get; }
         public GroupStore Store { get; }
         public GroupService Groups { get; }
-        public PlayerService Players { get; }
+        public SwitchingPlayer Players { get; }
+        public Action<SessionInfo>? OnStop;
+        public List<string> Commands { get; } = [];
         public PlayersController Api { get; }
         private readonly ServiceProvider _provider;
 
@@ -247,8 +363,16 @@ public class PlayerTests
             {
                 if (method.Name == "get_Sessions") return Sessions.ToArray();
                 if (method.Name == "GetSessionByAuthenticationToken") { ResolvedToken = (string)args![0]!; return Task.FromResult(Caller!); }
+                if (method.Name == "SendPlaystateCommand")
+                {
+                    Assert.Equal(Caller!.Id, args![0]);
+                    Assert.Equal(PlaystateCommand.Stop, ((PlaystateRequest)args[2]!).Command);
+                    Commands.Add("Stop"); OnStop?.Invoke(Sessions.Find(s => s.Id == (string)args[1]!)!);
+                    return Task.CompletedTask;
+                }
                 if (method.Name == "SendPlayCommand")
                 {
+                    Commands.Add("Play");
                     SentCaller = (string)args![0]!; SentTarget = (string)args[1]!; Command = (PlayRequest)args[2]!;
                     return Task.CompletedTask;
                 }
@@ -265,7 +389,7 @@ public class PlayerTests
             }));
             _provider = services.BuildServiceProvider();
             Groups = _provider.GetRequiredService<GroupService>();
-            Players = new PlayerService(Manager, Users, Groups);
+            Players = new SwitchingPlayer(Manager, Users, Groups);
             var authorization = InterfaceStub.Create<IAuthorizationContext>((method, _) =>
                 method.Name == "GetAuthorizationInfo" ? Task.FromResult(Auth) : throw new NotSupportedException(method.Name));
             Api = new PlayersController(Players, Groups, Users, Manager, authorization);
