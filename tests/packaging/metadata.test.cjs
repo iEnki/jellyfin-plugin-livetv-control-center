@@ -12,7 +12,9 @@ test('manual package retains plugin identity, actual version and automatic futur
     const result = metadata();
     assert.equal(result.guid, JSON.parse(before)[0].guid);
     assert.equal(result.targetAbi, '12.0.0.0');
-    assert.equal(result.version, '0.3.1.1');
+    const project = fs.readFileSync(path.join(__dirname, '../../src/Jellyfin.Plugin.LiveTvGroups/Jellyfin.Plugin.LiveTvGroups.csproj'), 'utf8');
+    const expectedVersion = project.match(/<Version>([^<]+)<\/Version>/)[1];
+    assert.equal(result.version, expectedVersion);
     assert.equal(result.autoUpdate, true);
     assert.equal(result.status, 'Active');
     assert.deepEqual(result.assemblies, ['Jellyfin.Plugin.LiveTvGroups.dll']);
@@ -22,6 +24,7 @@ test('manual package retains plugin identity, actual version and automatic futur
         assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory, 'meta.json'), 'utf8')), result);
         assert.equal(fs.readFileSync(catalogPath, 'utf8'), before);
     } finally {
+        assert.ok(path.resolve(directory).startsWith(path.resolve(os.tmpdir())+path.sep+'ltvg-package-'));
         fs.rmSync(directory, { recursive: true });
     }
 });
