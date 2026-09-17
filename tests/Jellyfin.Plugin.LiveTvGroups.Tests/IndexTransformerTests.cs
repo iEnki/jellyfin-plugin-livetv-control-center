@@ -27,6 +27,10 @@ public class IndexTransformerTests
         => Assert.Equal(contents, Transform(contents));
 
     [Fact]
+    public void CacheKeyTracksTheInstalledPluginVersion()
+        => Assert.Contains("client.js?v=" + typeof(Plugin).Assembly.GetName().Version, Transform("<html><body></body></html>"), System.StringComparison.Ordinal);
+
+    [Fact]
     public void UsesSharedIndexHtmlKey()
         => Assert.Equal("index.html", IndexTransformer.FileNamePattern);
 }

@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, "dev-*"]
     paths-ignore: ['**/*.md', 'manifest.json']
   pull_request:
     branches: [main, dev]
@@ -28,3 +28,11 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Test independent groups page
         run: npm run test:web
+
+      - name: Build test plugin
+        run: dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release --no-restore --output out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: live-tv-groups-dev
+          path: out/Jellyfin.Plugin.LiveTvGroups.dll
+          if-no-files-found: error

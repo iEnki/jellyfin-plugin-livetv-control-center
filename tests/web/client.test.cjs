@@ -7,7 +7,7 @@ const {chromium}=require('playwright');
 let browser,server,url;
 const root='11111111111111111111111111111111',crime='22222222222222222222222222222222',sport='33333333333333333333333333333333';
 const a='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',b='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',c='cccccccccccccccccccccccccccccccc';
-function fixture(){return {groups:[{Id:crime,Name:'Crime',ChannelCount:2},{Id:sport,Name:'Sport',ChannelCount:2}],refs:{[crime]:[a,b],[sport]:[a,c]},prefs:{HiddenGroupIds:[],DefaultGroupId:crime,DefaultView:'guide',Zoom:5,RememberLastView:false,LastGroupId:null,LastView:'guide'},requests:[],fail:false,delay:false};}
+function fixture(){return {groups:[{Id:crime,Name:'Crime',ChannelCount:2},{Id:sport,Name:'Sport',ChannelCount:2}],refs:{[crime]:[a,b],[sport]:[a,c]},prefs:{HiddenGroupIds:[],DefaultGroupId:crime,DefaultView:'guide',Zoom:5,RememberLastView:false,LastGroupId:null,LastView:'guide'},players:[{DeviceId:'living-tv',Name:'Wohnzimmer Fire TV',Client:'Jellyfin Android TV',UsesAndroidTvDiscoveryFallback:true}],remotePlays:[],remoteFailure:false,preferenceFailure:false,requests:[],fail:false,delay:false};}
 const channels=[{Id:a,Name:'RTL Crime',ChannelNumber:'127'},{Id:b,Name:'Investigation',ChannelNumber:'7'},{Id:c,Name:'Sport',ChannelNumber:'58'}];
 let fixtures=new Map();
 const shell=`<!doctype html><html><head><meta charset="utf-8"><title>Jellyfin groups regression</title><link rel="stylesheet" href="/LiveTvGroups/client.css"><style>body{background:#101010;color:#eee;font:16px Arial;margin:0}header{padding:20px}.page{padding:20px}.hide{display:none}</style></head><body><header><a href="#/list?parentId=${root}&serverId=server">Live-TV Gruppen</a> <a href="#/livetv">Live TV</a> <a href="#/userpluginsettings.html?pageUrl=/LiveTvGroups/page.html">Plugin Pages</a></header><div class="page libraryPage"><div class="native-content">Original content</div></div><script>
@@ -21,6 +21,15 @@ before(async()=>{
  if(u.pathname==='/LiveTv/Channels'){send({Items:Array.from({length:432},(_,i)=>({Id:i}))});return;}
  if(!f){send({},401);return;}f.requests.push(req.method+' '+u.pathname);let data='';for await(const chunk of req)data+=chunk;const body=data?JSON.parse(data):null;
  if(u.pathname.endsWith('/Entry')){send({ChannelId:root,Version:'0.3.1.0'});return;}
+ if(u.pathname==='/LiveTvGroups/Players'){send(f.players);return;}
+ if(u.pathname==='/LiveTvGroups/Players/Preference'){
+  if(f.preferenceFailure){send('Preference unavailable',500);return;}
+  const target=f.players.find(p=>p.DeviceId===body.DeviceId);
+  f.prefs.PreferredTargetDeviceId=body.DeviceId;
+  f.prefs.PreferredTargetDeviceName=target?.Name||null;send(null,204);return;
+ }
+ const remote=u.pathname.match(/^\/LiveTvGroups\/Players\/([^/]+)\/Play\/([^/]+)$/);
+ if(remote){f.remotePlays.push({deviceId:decodeURIComponent(remote[1]),channelId:remote[2]});send(f.remoteFailure?'TV unavailable':null,f.remoteFailure?409:204);return;}
  if(u.pathname.endsWith('/Preferences')){if(req.method==='PUT'){f.prefs=body;send(null,204);}else send(f.prefs);return;}
  if(u.pathname.endsWith('/AvailableChannels')){send({Items:channels});return;}
  if(u.pathname==='/LiveTvGroups/Groups'){if(req.method==='POST'){const g={Id:'44444444444444444444444444444444',Name:body.Name,ChannelCount:0};f.groups.push(g);f.refs[g.Id]=[];send(g);}else send(f.groups);return;}
@@ -63,4 +72,56 @@ test('optional Plugin Pages fragment opens the same independent groups route',as
  await page.locator('.ltvg-guide-prog').first().waitFor();
  assert.match(page.url(),/liveTvGroups=1/);
  assert.equal(await page.locator('[data-ltvg-host]').count(),1);
+});
+
+test('remote target persists after reload; sender click sends TV command and keeps EPG open',async t=>{
+ const {page,f}=await open(t);
+ await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');
+ await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ assert.equal(f.prefs.PreferredTargetDeviceId,'living-tv');
+ assert.equal(f.prefs.PreferredTargetDeviceName,'Wohnzimmer Fire TV');
+ await page.reload();await page.locator('.ltvg-guide-prog').first().waitFor();
+ assert.equal(await page.getByLabel('Abspielen auf',{exact:true}).inputValue(),'living-tv');
+ await page.locator('[data-action="play"]').first().click();
+ await page.getByRole('status').filter({hasText:'Wiedergabebefehl an Wohnzimmer Fire TV gesendet.'}).waitFor();
+ assert.deepEqual(f.remotePlays,[{deviceId:'living-tv',channelId:a}]);
+ assert.ok(!page.url().includes('#/details'));
+ assert.ok(!f.requests.some(r=>r.includes('/Sessions')));
+});
+
+test('offline remembered TV stays selected; failed remote play never falls back to phone',async t=>{
+ const {page,f}=await open(t);
+ await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');
+ await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ f.players=[];await page.getByRole('button',{name:'Geräte aktualisieren',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Zielgerät nicht verfügbar'}).waitFor();
+ assert.equal(await page.getByLabel('Abspielen auf',{exact:true}).inputValue(),'living-tv');
+ assert.match(await page.getByLabel('Abspielen auf',{exact:true}).locator('option:checked').innerText(),/nicht verfügbar/);
+ f.remoteFailure=true;await page.locator('[data-action="play"]').first().click();
+ await page.locator('.ltvg-error:not([hidden])').waitFor();
+ assert.ok(!page.url().includes('#/details'));assert.equal(f.remotePlays.length,1);
+ assert.equal(await page.locator('#ltvg-page').count(),1);
+ await page.getByLabel('Abspielen auf',{exact:true}).selectOption('');
+ await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ assert.equal(f.prefs.PreferredTargetDeviceId,null);
+ await page.locator('[data-action="play"]').first().click();await page.waitForURL(/#\/details\?/);
+ assert.equal(f.remotePlays.length,1);
+});
+
+test('target preference save failure restores previous device',async t=>{
+ const {page,f}=await open(t);
+ f.preferenceFailure=true;
+ await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');
+ await page.locator('.ltvg-error:not([hidden])').waitFor();
+ assert.equal(await page.getByLabel('Abspielen auf',{exact:true}).inputValue(),'');
+ assert.ok(!f.prefs.PreferredTargetDeviceId);
+});
+
+test('mobile TV selector remains usable and fits the viewport',async t=>{
+ const {page}=await open(t,{width:390,height:844});
+ await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');
+ await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ assert.equal(await page.title(),'Jellyfin groups regression');
+ if(process.env.LTVG_QA_DIR)await page.screenshot({path:path.join(process.env.LTVG_QA_DIR,'remote-mobile.png')});
 });

@@ -327,7 +327,15 @@ public class GroupsController : ControllerBase
             return BadRequest("Ungültige Gruppeneinstellungen.");
         }
         preferences.HiddenGroupIds = preferences.HiddenGroupIds.Distinct().ToList();
-        _groups.Store.Update(user.Id, doc => { doc.Preferences = preferences; return true; });
+        _groups.Store.Update(user.Id, doc =>
+        {
+            // Player preference has its own validated endpoint. Older clients and queued page writes
+            // must not clear or override the current target.
+            preferences.PreferredTargetDeviceId = doc.Preferences.PreferredTargetDeviceId;
+            preferences.PreferredTargetDeviceName = doc.Preferences.PreferredTargetDeviceName;
+            doc.Preferences = preferences;
+            return true;
+        });
         return NoContent();
     }
 

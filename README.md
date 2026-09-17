@@ -40,6 +40,25 @@ The Fire TV app uses the native Android TV client. Its standard timeline belongs
 
 The server contracts and app navigation hierarchy have automated coverage. End-to-end playback on an actual Fire TV device still needs validation after installation. If it fails, record the selected sender, time and displayed error, and check the corresponding Jellyfin server log. Whether normal Live TV plays that same sender is a useful comparison.
 
+## Remote Live TV (development branch)
+
+On **dev-remote-live-tv**, the independent web/mobile **Live-TV Gruppen** EPG includes **Abspielen auf** and **Geräte aktualisieren**. Choose an active TV, then tap the **channel number/logo** in the guide or its play card in Sender/Programme. Program cells still open native program details. Selecting **Dieses Gerät** restores the existing local behavior.
+
+The chosen target is saved automatically per Jellyfin user as PreferredTargetDeviceId/PreferredTargetDeviceName. A remembered offline target stays selected, with a warning; failed remote commands never start playback on the phone. The server resolves the current session each time. Normally both clients use the same Jellyfin user; controlling another user's TV requires **EnableRemoteControlOfOtherUsers**, and both users must be allowed to play the selected Live TV channel.
+
+V1 requires the official **Jellyfin Android TV** app (also used on Fire TV) open in the foreground with its **internal player**. The server cannot reliably detect foreground state or the external-player setting; a sent command is not playback confirmation. No TV wake-up, app launch, pause/stop panel or catch-up playback is included. Standard remote-capable sessions are also listed, but V1 hardware validation targets Android TV/Fire TV.
+
+### Test this branch
+
+1. Use Jellyfin **12.0** (the plugin targets ABI 12.0.0.0) and the existing web integration dependencies. Back up the per-user plugin data.
+2. Download **live-tv-groups-dev** from this branch's successful **Build** action; its artifact ZIP contains the plugin DLL. Alternatively, check out this branch and run `dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release --output out`.
+3. Stop Jellyfin. Replace the installed Live-TV Groups DLL with this DLL in the appropriate plugin directory. Keep only one installed copy and restart Jellyfin. Confirm plugin version **0.3.1.1**.
+4. Reload/reopen Jellyfin Web or the web-based mobile client. On the Fire TV, open Jellyfin using the same user and disable **Use external player**.
+5. Open **Live-TV Gruppen → Fernsehprogramm**, refresh devices, choose the TV, and tap a channel's number/logo. Verify the channel starts on the TV while the phone keeps the EPG; tap another channel to switch.
+6. Reopen the EPG to check the target is remembered. Restart the TV app, refresh devices, and play again to exercise new-session resolution. Close the TV app and check unavailable-target/error behavior; select **Dieses Gerät** to return to local playback.
+
+Version ordering is **0.3.1.0 < 0.3.1.1 < 0.3.2.0**. The stable manifest remains unchanged. Installing manually or from a branch artifact does not add this build to the shared development catalog. The current dev-release tag workflow only accepts commits reachable from origin/dev; this feature branch is not tagged. Before the stable release, set Version to **0.3.2.0** and remove the development InformationalVersion override. Jellyfin can then offer the higher stable version through the existing stable catalog.
+
 ## Settings
 
 | Location | Setting | Effect |

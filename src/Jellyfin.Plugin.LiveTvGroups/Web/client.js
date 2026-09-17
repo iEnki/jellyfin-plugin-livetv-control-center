@@ -10,6 +10,7 @@
     let state = { group: 'all', view: 'guide', start: null, reorder: false };
     let loadedChannels = [], guideData = null, tick = 0, restoreFocus = null;
     const positions = new Map();
+    let players = [], playerRequest = 0, playerBusy = false, playerMessage = '', playbackBusy = false;
     let preferenceWrites = Promise.resolve();
     function savePreferences(value = prefs) {
         const snapshot = JSON.parse(JSON.stringify(value)), expected = userKey;
@@ -51,7 +52,7 @@
     function styles() {
         if (document.getElementById('ltvg-styles')) return;
         const link = document.createElement('link'); link.id = 'ltvg-styles'; link.rel = 'stylesheet';
-        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.1.0'));
+        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.1.1'));
         document.head.appendChild(link);
     }
     function ownRoute() {
@@ -91,9 +92,71 @@
         keepLabelsVisible();
     }
     function stop() {
-        active = false; request++; abort?.abort(); clearInterval(timer); timer = null; closeModal();
+        active = false; request++; playerRequest++; abort?.abort(); clearInterval(timer); timer = null; closeModal();
         if (host) { host.removeAttribute('data-ltvg-host'); host = null; }
         page()?.remove(); guideData = null; lastRoute = '';
+    }
+    function playerOptions() {
+        const target = prefs?.PreferredTargetDeviceId || '';
+        const available = players.some(p => p.DeviceId === target);
+        return '<option value="">Dieses Gerät</option>'
+            + (target && !available ? '<option value="'+esc(target)+'">'+esc(prefs.PreferredTargetDeviceName || 'TV')+' · nicht verfügbar</option>' : '')
+            + players.map(p => '<option value="'+esc(p.DeviceId)+'">'+esc(p.Name)+' ('+esc(p.Client)+')</option>').join('');
+    }
+    function updatePlayers() {
+        const selector = page()?.querySelector('[data-control="player"]');
+        if (!selector || !prefs) return;
+        selector.innerHTML = playerOptions();
+        selector.value = prefs.PreferredTargetDeviceId || '';
+        selector.disabled = playerBusy || playbackBusy;
+        page().querySelector('.ltvg-player-status').textContent = playerMessage;
+    }
+    async function refreshPlayers() {
+        const seq = ++playerRequest, expected = userKey;
+        try {
+            const result = await api('GET','Players');
+            if (!active || seq !== playerRequest || expected !== userKey) return;
+            players = result.filter(p => p.DeviceId !== client().deviceId());
+            playerMessage = prefs?.PreferredTargetDeviceId && !players.some(p => p.DeviceId === prefs.PreferredTargetDeviceId)
+                ? 'Zielgerät nicht verfügbar. Jellyfin am TV öffnen und Geräte aktualisieren.' : '';
+            updatePlayers();
+        } catch(e) {
+            if (!active || seq !== playerRequest || expected !== userKey) return;
+            players = []; playerMessage = 'Geräte konnten nicht geladen werden. '+e.message; updatePlayers();
+        }
+    }
+    async function choosePlayer(selector) {
+        if (playerBusy || playbackBusy) { updatePlayers(); return; }
+        const expected = userKey, deviceId = selector.value || null;
+        const target = players.find(p => p.DeviceId === deviceId);
+        playerBusy = true; playerMessage = 'Speichert Zielgerät…'; updatePlayers();
+        try {
+            await api('PUT','Players/Preference',{ DeviceId:deviceId });
+            if (expected !== userKey || !active) return;
+            prefs.PreferredTargetDeviceId = deviceId;
+            prefs.PreferredTargetDeviceName = target?.Name || null;
+            playerMessage = '';
+        } catch(e) {
+            if (expected === userKey && active) { playerMessage = 'Zielgerät konnte nicht gespeichert werden.'; error(e); }
+        } finally {
+            if (expected === userKey) { playerBusy = false; updatePlayers(); }
+        }
+    }
+    async function playRemote(channelId) {
+        if (playerBusy || playbackBusy) return;
+        const expected = userKey, deviceId = prefs.PreferredTargetDeviceId;
+        const targetName = prefs.PreferredTargetDeviceName || 'TV';
+        playbackBusy = true; playerMessage = 'Sendet Wiedergabebefehl…'; updatePlayers();
+        page()?.querySelector('.ltvg-error')?.setAttribute('hidden','');
+        try {
+            // Resolve DeviceId again on the server for every click; never cache or persist SessionId.
+            await api('POST','Players/'+encodeURIComponent(deviceId)+'/Play/'+encodeURIComponent(channelId));
+            if (expected === userKey && active) playerMessage = 'Wiedergabebefehl an '+targetName+' gesendet.';
+        } catch(e) {
+            if (expected === userKey && active) { playerMessage = 'Wiedergabebefehl fehlgeschlagen.'; error(e); }
+        } finally {
+            if (expected === userKey) { playbackBusy = false; updatePlayers(); }
+        }
     }
     function chrome() {
         const root = page(); if (!root || !prefs) return;
@@ -104,9 +167,14 @@
             +'<label><span class="ltvg-sr">Gruppe</span><select class="ltvg-input" data-control="group" aria-label="Gruppe"><option value="all">Alle sichtbaren Gruppen</option>'
             +visible().map(g=>'<option value="'+esc(g.Id)+'"'+(id(g.Id)===id(state.group)?' selected':'')+'>'+esc(g.Name)+'</option>').join('')+'</select></label>'
             +'<div class="ltvg-actions ltvg-end">'+button('refresh','Aktualisieren')+button('manage','Gruppen verwalten')+'</div></div>'
+            +'<div class="ltvg-player-toolbar"><label>Abspielen auf <select class="ltvg-input" data-control="player" aria-label="Abspielen auf">'+playerOptions()+'</select></label>'
+            +button('players-refresh','Geräte aktualisieren')
+            +'<span class="ltvg-player-status" role="status" aria-live="polite">'+esc(playerMessage)+'</span></div>'
+            +'<p class="ltvg-player-hint">Am TV muss Jellyfin im Vordergrund mit internem Player geöffnet sein.</p>'
             +'<div class="ltvg-error" role="alert" hidden><span></span>'+button('refresh','Erneut versuchen')+'</div>'
             +'<div class="ltvg-content" aria-live="polite"></div>';
         root.querySelector('[data-control="group"]').value = state.group;
+        updatePlayers();
     }
     function content(html) { const target = page()?.querySelector('.ltvg-content'); if (target) target.innerHTML = html; }
     function remember() {
@@ -119,7 +187,7 @@
         try {
             const results = await Promise.all([api('GET','Groups',undefined,abort.signal), api('GET','Preferences',undefined,abort.signal)]);
             if (!active || seq !== request) return;
-            groups = results[0]; prefs = results[1]; readRoute(); chrome(); writeRoute(); await render();
+            groups = results[0]; prefs = results[1]; readRoute(); chrome(); writeRoute(); refreshPlayers(); await render();
         } catch(e) { if (seq===request) { if (!prefs) { page().innerHTML='<h1>Live-TV Gruppen</h1><div class="ltvg-error" role="alert"><span></span>'+button('refresh','Erneut versuchen')+'</div>'; } error(e); } }
     }
     async function render(keep = false) {
@@ -143,7 +211,7 @@
                 state.view==='guide' ? renderGuide(result) : renderPrograms(result);
             }
             restore(); clearInterval(timer); tick = 0;
-            timer = setInterval(() => { if (!active) return; tick++; if (tick%5===0) render(true); else if (state.view==='guide') updateNow(); },60000);
+            timer = setInterval(() => { if (!active) return; tick++; refreshPlayers(); if (tick%5===0) render(true); else if (state.view==='guide') updateNow(); },60000);
         } catch(e) { if (seq===request) { if (!keep) content('<p class="ltvg-empty">Daten konnten nicht geladen werden.</p>'); error(e); } }
     }
     function renderGroups() {
@@ -295,14 +363,15 @@
     }
     async function action(target) {
         const action=target.dataset.action,value=target.dataset.id;
-        if(action==='refresh'){page()?.querySelector('.ltvg-error')?.setAttribute('hidden','');prefs?await render(true):await boot();return;}
+        if(action==='refresh'){page()?.querySelector('.ltvg-error')?.setAttribute('hidden','');prefs?await Promise.all([render(true),refreshPlayers()]):await boot();return;}
+        if(action==='players-refresh'){await refreshPlayers();return;}
         if(action==='settings'){await settings();return;}
         if(action==='create'){const name=await askName('Neue Gruppe');if(name){const created=await api('POST','Groups',{Name:name});state.group=created.Id;state.view='channels';writeRoute();await reloadGroups();}return;}
         if(action==='rename'){const group=groups.find(g=>id(g.Id)===id(value)),name=await askName('Gruppe umbenennen',group.Name);if(name){await api('PUT','Groups/'+value,{Name:name});await reloadGroups();}return;}
         if(action==='delete'){const group=groups.find(g=>id(g.Id)===id(value));if(await confirmDelete(group.Name)){await api('DELETE','Groups/'+value);await reloadGroups();}return;}
         if(action==='edit-channels'){await editChannels();return;}
         if(action.startsWith('group-')||action.startsWith('channel-')){await move(action,value);return;}
-        if(action==='details'||action==='play'){capture();writeRoute();if(action==='play'){try{const sessions=await client().ajax({type:'GET',url:client().getUrl('Sessions',{deviceId:client().deviceId()})});if(!sessions.length)throw new Error('Keine Sitzung.');await client().ajax({type:'POST',url:client().getUrl('Sessions/'+sessions[0].Id+'/Playing',{playCommand:'PlayNow',itemIds:value})});return;}catch(_) { /* Native details remain the playback fallback. */ }}window.location.hash='#/details?id='+encodeURIComponent(value)+'&serverId='+encodeURIComponent(client().serverId());return;}
+        if(action==='details'||action==='play'){capture();writeRoute();if(action==='play'){if(prefs.PreferredTargetDeviceId){await playRemote(value);return;}if(playerBusy||playbackBusy)return;try{const sessions=await client().ajax({type:'GET',url:client().getUrl('Sessions',{deviceId:client().deviceId()})});if(!sessions.length)throw new Error('Keine Sitzung.');await client().ajax({type:'POST',url:client().getUrl('Sessions/'+sessions[0].Id+'/Playing',{playCommand:'PlayNow',itemIds:value})});return;}catch(_) { /* Native details remain the playback fallback. */ }}window.location.hash='#/details?id='+encodeURIComponent(value)+'&serverId='+encodeURIComponent(client().serverId());return;}
         capture();restoreFocus=null;
         if(action==='manage')state.view='manage';
         else if(action==='open'){state.group=value;state.view='guide';if(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(value))){prefs.HiddenGroupIds=prefs.HiddenGroupIds.filter(hidden=>id(hidden)!==id(value));await savePreferences();}}
@@ -320,6 +389,7 @@
     });
     document.addEventListener('change',e=>{
         const target=e.target;if(!page()?.contains(target)||!target.dataset.control)return;
+        if(target.dataset.control==='player'){choosePlayer(target).catch(error);return;}
         capture();restoreFocus=null;
         const control=target.dataset.control;
         if(control==='view'){state.view=target.value;state.reorder=false;}
@@ -343,7 +413,7 @@
     function ensure() {
         const current=client();const key=current?.getCurrentUserId?.()+'|'+current?.serverId?.();
         if(!current?.accessToken?.()||!current.getCurrentUserId()){if(active)stop();entry=null;userKey='';return;}
-        if(key!==userKey){stop();entry=null;prefs=null;groups=[];positions.clear();userKey=key;}
+        if(key!==userKey){stop();entry=null;prefs=null;groups=[];players=[];playerRequest++;playerBusy=false;playbackBusy=false;playerMessage='';positions.clear();userKey=key;}
         if(!entry&&!entryPending){entryPending=true;const expected=key;api('GET','Entry').then(result=>{if(expected===userKey)entry=result;}).catch(()=>{}).finally(()=>{entryPending=false;if(entry)schedule();});return;}
         if(!entry?.ChannelId)return;
         // Rewrite only the own channel entry. Never touch Live TV links or requests.

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add server-side player discovery and an **Abspielen auf** selector to the independent web/mobile groups EPG. Active official Jellyfin Android TV / Fire TV sessions are eligible even when SupportsRemoteControl is false, provided a session controller is connected.
+- Store preferred target DeviceId and server-owned name per user; resolve the current session on each PlayNow request. Validate both users’ Live TV/channel/playback rights and cross-user remote-control permission.
+- Keep remote failures in the EPG without falling back to local playback; retain offline remembered targets and provide manual/periodic discovery refresh.
+- Use the installed assembly version for the injected web-script cache key. Dev build is 0.3.1.1, below the next release 0.3.2.0.
+- V1 requires Jellyfin at the TV in the foreground with the internal player; no wake-up or external-player support.
+
 ## 0.3.1
 
 Web client

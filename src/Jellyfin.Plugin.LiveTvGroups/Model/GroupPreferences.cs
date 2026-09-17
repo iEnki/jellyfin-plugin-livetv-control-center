@@ -14,5 +14,8 @@ public class GroupPreferences
     public Guid? LastGroupId { get; set; }
     public string LastView { get; set; } = "guide";
 
+    public string? PreferredTargetDeviceId { get; set; }
+    public string? PreferredTargetDeviceName { get; set; }
+
     public static bool IsValidView(string view) => view is "programs" or "guide" or "channels";
 }
