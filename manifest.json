@@ -8,6 +8,14 @@
     "category": "Live TV",
     "versions": [
       {
+        "version": "0.3.1.0",
+        "changelog": "Web client\n- New independent **Live-TV Gruppen** page with Programme, Fernsehprogramm and Sender views based on Jellyfin's original Live TV layout.\n- Group selection, deduplicated \"all visible groups\" scope and personal settings for visible/default groups, initial/last view and guide zoom.\n- Improved guide: navigation, current-time mode, automatic refresh, mobile program labels and restored group/time/scroll state after opening details.\n- Searchable channel picker with selected-only filter, keyboard-friendly sorting, cancellable dialogs, request cancellation and retryable errors.\n- Optional Plugin Pages 3.x user-menu entry with channel-entry fallback and registration status in the dashboard.\n\nApps (Fire TV / Android TV)\n- Each app group now has a **Fernsehprogramm** folder: seven calendar days, channel lists, program times/episodes/descriptions and an explicit \"live ansehen\" action.\n- Playback of group channels uses a dedicated media-source provider with Jellyfin's native Live TV open/close lifecycle instead of raw tuner URLs and own stream probing.\n- Group membership and channel permissions are checked again when sources are discovered and streams are opened.\n- Configurable app-guide timezone, correct 23/25-hour days at DST changes, five-minute channel cache refresh.\n\nChanges and compatibility\n- Removed the Live TV/guide filter for native apps, its client exclusion setting, the guide selection folders and the groups button/overlay in the original Live TV. Original Live TV is no longer modified in any client, including upgrades with old filter values.\n- Existing groups, channel references and playlist IDs are preserved; personal preferences are stored separately per user.\n- Built for Jellyfin 12.0. Playback on actual TV hardware and Jellyfin 12.1 are not validated by automated tests.\n\n",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.3.1/live-tv-groups_0.3.1.0.zip",
+        "checksum": "64ca499b5c629344c6bf36adbdffaf29",
+        "timestamp": "2026-09-17T12:12:20Z"
+      },
+      {
         "version": "0.2.2.0",
         "changelog": "- Fix: the \"Groups\" button was missing in Live TV since 0.2.1. The script is registered for index.html again (shared with other plugins such as Jellyfin Enhanced) and is only added to real HTML documents, so JavaScript files stay untouched.\n\n",
         "targetAbi": "12.0.0.0",
