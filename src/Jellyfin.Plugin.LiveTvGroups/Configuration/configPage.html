@@ -9,7 +9,7 @@
         <div data-role="content">
             <div class="content-primary">
                 <h2>Live-TV Groups</h2>
-                <p>Benutzer legen ihre Sendergruppen selbst in <b>Live-TV → Gruppen</b> an. Jeder Benutzer hat eigene Gruppen.</p>
+                <p>Benutzer legen ihre Sendergruppen selbst in <b>Live-TV Gruppen</b> an. Jeder Benutzer hat eigene Gruppen.</p>
 
                 <div class="verticalSection">
                     <h3>Status Web-Integration</h3>
@@ -22,14 +22,14 @@
                             <input id="EnableWebIntegration" type="checkbox" is="emby-checkbox" />
                             <span>Gruppen im Web-Client anzeigen</span>
                         </label>
-                        <div class="fieldDescription checkboxFieldDescription">Fügt in Live-TV den Button „Gruppen“ hinzu. Benötigt das Plugin „File Transformation“. Änderung wirkt nach Neustart des Servers.</div>
+                        <div class="fieldDescription checkboxFieldDescription">Zeigt unter „Live-TV Gruppen“ eine eigene Ansicht mit Programme, EPG und Sendern. Originales Live-TV bleibt unverändert. Benötigt das Plugin „File Transformation“. Änderung wirkt nach Neustart des Servers.</div>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
                             <input id="EnableAppChannel" type="checkbox" is="emby-checkbox" />
                             <span>Gruppen als Kanal für Apps anbieten</span>
                         </label>
-                        <div class="fieldDescription checkboxFieldDescription">Zeigt die Gruppen in Android TV, Mobile und anderen Apps unter „Kanäle → Live-TV Gruppen“. Streams laufen dabei am Tuner-Limit von Jellyfin vorbei.</div>
+                        <div class="fieldDescription checkboxFieldDescription">Zeigt die Gruppen in Android TV, Mobile und anderen Apps unter „Kanäle → Live-TV Gruppen“. Bei aktivierter Webintegration bleibt der Gruppenkanal auch für den Web-Einstieg sichtbar. Streams laufen dabei am Tuner-Limit von Jellyfin vorbei.</div>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
@@ -37,18 +37,6 @@
                             <span>Gruppen zusätzlich als Wiedergabelisten anlegen</span>
                         </label>
                         <div class="fieldDescription checkboxFieldDescription">Für Apps ohne Kanal-Unterstützung (z. B. Wholphin). Jede Gruppe erscheint als Wiedergabeliste „Live-TV: Name“ des jeweiligen Benutzers. Benötigt den App-Kanal. Beim Ausschalten werden diese Wiedergabelisten wieder entfernt.</div>
-                    </div>
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="EnableGuideFilter" type="checkbox" is="emby-checkbox" />
-                            <span>Gruppe im TV-Programmführer anzeigen</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">Hat ein Benutzer eine Gruppe für den Programmführer gewählt (Web: 📺 an der Gruppe, TV: Kanäle → Live-TV Gruppen → „Programmführer wählen“), zeigen TV-Apps wie Fire TV, Android TV oder Wholphin im Live-TV nur die Sender dieser Gruppe.</div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="GuideFilterExcludedClients">Apps ohne Gruppenfilter</label>
-                        <input id="GuideFilterExcludedClients" type="text" is="emby-input" />
-                        <div class="fieldDescription">Kommagetrennte App-Namen, die immer alle Sender erhalten (Standard: „Jellyfin Web“, der Web-Client hat eigene Gruppen- und Programmansichten).</div>
                     </div>
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
@@ -75,6 +63,8 @@
                         var lines = [];
                         lines.push('File Transformation: ' + (status.FileTransformationInstalled ? '✔ installiert' : '✖ nicht gefunden'));
                         lines.push('Skript-Einbindung: ' + (status.Registered ? '✔ aktiv' : '✖ inaktiv'));
+                        lines.push('Plugin Pages (optional): ' + (status.PluginPagesRegistered ? '✔ Menüeintrag aktiv' : status.PluginPagesInstalled ? 'installiert, Menüeintrag inaktiv' : 'nicht installiert — Einstieg über Gruppenkanal'));
+                        if (status.PluginPagesError) lines.push(escapeHtml(status.PluginPagesError));
                         if (status.Error) {
                             lines.push('Hinweis: ' + escapeHtml(status.Error));
                         }
@@ -91,10 +81,7 @@
                         page.querySelector('#EnableWebIntegration').checked = config.EnableWebIntegration;
                         page.querySelector('#EnableAppChannel').checked = config.EnableAppChannel;
                         page.querySelector('#EnablePlaylistSync').checked = config.EnablePlaylistSync;
-                        page.querySelector('#EnableGuideFilter').checked = config.EnableGuideFilter;
-                        page.querySelector('#GuideFilterExcludedClients').value = config.GuideFilterExcludedClients || '';
-                        Dashboard.hideLoadingMsg();
-                    });
+                    }).catch(function () { Dashboard.alert('Einstellungen konnten nicht geladen werden.'); }).finally(function () { Dashboard.hideLoadingMsg(); });
                 });
 
                 page.querySelector('#LiveTvGroupsConfigForm').addEventListener('submit', function (e) {
@@ -103,13 +90,12 @@
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
                         config.EnableWebIntegration = page.querySelector('#EnableWebIntegration').checked;
                         config.EnableAppChannel = page.querySelector('#EnableAppChannel').checked;
+                        if (page.querySelector('#EnablePlaylistSync').checked && !page.querySelector('#EnableAppChannel').checked) { throw new Error('Wiedergabelisten benötigen den App-Kanal.'); }
                         config.EnablePlaylistSync = page.querySelector('#EnablePlaylistSync').checked;
-                        config.EnableGuideFilter = page.querySelector('#EnableGuideFilter').checked;
-                        config.GuideFilterExcludedClients = page.querySelector('#GuideFilterExcludedClients').value;
-                        ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                        return ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
                             Dashboard.processPluginConfigurationUpdateResult(result);
                         });
-                    });
+                    }).catch(function (error) { Dashboard.alert(error.message || 'Einstellungen konnten nicht gespeichert werden.'); }).finally(function () { Dashboard.hideLoadingMsg(); });
                     return false;
                 });
             })();

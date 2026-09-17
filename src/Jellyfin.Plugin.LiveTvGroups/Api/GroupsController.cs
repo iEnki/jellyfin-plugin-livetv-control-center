@@ -15,10 +15,7 @@ using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Jellyfin.Data.Enums;
-using Jellyfin.Database.Implementations.Enums;
 using Microsoft.Extensions.DependencyInjection;
-using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Controller.Entities;
 
 namespace Jellyfin.Plugin.LiveTvGroups.Api;
@@ -93,7 +90,7 @@ public class GroupsController : ControllerBase
         }
 
         var name = request.Name?.Trim();
-        if (string.IsNullOrEmpty(name))
+        if (string.IsNullOrEmpty(name) || name.Length > 100)
         {
             return BadRequest("Name fehlt.");
         }
@@ -126,7 +123,7 @@ public class GroupsController : ControllerBase
         }
 
         var name = request.Name?.Trim();
-        if (string.IsNullOrEmpty(name))
+        if (string.IsNullOrEmpty(name) || name.Length > 100)
         {
             return BadRequest("Name fehlt.");
         }
@@ -161,7 +158,13 @@ public class GroupsController : ControllerBase
             return Unauthorized();
         }
 
-        var removed = _groups.Store.Update(user.Id, doc => doc.Groups.RemoveAll(g => g.Id == groupId) > 0);
+        var removed = _groups.Store.Update(user.Id, doc =>
+        {
+            doc.Preferences.HiddenGroupIds.Remove(groupId);
+            if (doc.Preferences.DefaultGroupId == groupId) { doc.Preferences.DefaultGroupId = null; }
+            if (doc.Preferences.LastGroupId == groupId) { doc.Preferences.LastGroupId = null; }
+            return doc.Groups.RemoveAll(g => g.Id == groupId) > 0;
+        });
         _playlistSync.QueueSync(user.Id);
         return removed ? NoContent() : NotFound();
     }
@@ -180,6 +183,8 @@ public class GroupsController : ControllerBase
         {
             return Unauthorized();
         }
+
+        if (groupIds.Distinct().Count() != groupIds.Length) { return BadRequest("Doppelte Gruppen-ID."); }
 
         _groups.Store.Update(user.Id, doc =>
         {
@@ -290,74 +295,100 @@ public class GroupsController : ControllerBase
             return NotFound();
         }
 
-        var (from, to) = GuideWindow.Normalize(start, end, DateTime.UtcNow);
-        var channels = _groups.ResolveChannels(user, group, _groups.GetAccessibleChannels(user));
-        var channelOptions = new DtoOptions(false) { EnableImages = true, ImageTypeLimit = 1, ImageTypes = [ImageType.Primary] };
-        var channelDtos = _dtoService.GetBaseItemDtos(channels.Cast<MediaBrowser.Controller.Entities.BaseItem>().ToList(), channelOptions, user);
-
-        IReadOnlyList<BaseItemDto> programs = [];
-        if (channels.Count > 0)
-        {
-            var result = await HttpContext.RequestServices.GetRequiredService<ILiveTvManager>().GetPrograms(
-                new InternalItemsQuery(user)
-                {
-                    ChannelIds = channels.Select(c => c.Id).ToArray(),
-                    MinEndDate = from,
-                    MaxStartDate = to,
-                    OrderBy = [(ItemSortBy.StartDate, SortOrder.Ascending)]
-                },
-                new DtoOptions(false) { EnableImages = false, EnableUserData = false },
-                HttpContext.RequestAborted).ConfigureAwait(false);
-            programs = result.Items;
-        }
-
-        return Ok(new GuideDto(from, to, channelDtos, programs));
+        return Ok(await HttpContext.RequestServices.GetRequiredService<GroupGuideService>()
+            .GetGuide(user, [group], start, end, HttpContext.RequestAborted).ConfigureAwait(false));
     }
 
-    /// <summary>
-    /// Gets the group shown in the program guide of TV apps.
-    /// </summary>
-    /// <returns>The active group id, or null for all channels.</returns>
-    [HttpGet("GuideFilter")]
+    /// <summary>Gets personal preferences for the groups page.</summary>
+    [HttpGet("Preferences")]
     [Authorize(Policy = Policies.LiveTvAccess)]
-    public ActionResult<GuideFilterRequest> GetGuideFilter()
+    public ActionResult<GroupPreferences> GetPreferences()
     {
         var user = GetUser();
-        if (user is null)
-        {
-            return Unauthorized();
-        }
-
-        return Ok(new GuideFilterRequest { GroupId = _groups.Store.Get(user.Id).ActiveGuideGroupId });
+        return user is null ? Unauthorized() : Ok(_groups.Store.Get(user.Id).Preferences);
     }
 
-    /// <summary>
-    /// Sets the group shown in the program guide of TV apps.
-    /// </summary>
-    /// <param name="request">The group id, or null for all channels.</param>
-    /// <returns>No content.</returns>
-    [HttpPut("GuideFilter")]
+    /// <summary>Saves personal preferences without changing original Live TV.</summary>
+    [HttpPut("Preferences")]
     [Authorize(Policy = Policies.LiveTvAccess)]
-    public ActionResult SetGuideFilter([FromBody, Required] GuideFilterRequest request)
+    public ActionResult SetPreferences([FromBody, Required] GroupPreferences preferences)
     {
         var user = GetUser();
-        if (user is null)
+        if (user is null) { return Unauthorized(); }
+        var ids = _groups.Store.Get(user.Id).Groups.Select(g => g.Id).ToHashSet();
+        if (preferences.HiddenGroupIds is null || preferences.HiddenGroupIds.Any(id => !ids.Contains(id))
+            || (preferences.DefaultGroupId is { } selected && !ids.Contains(selected))
+            || (preferences.LastGroupId is { } last && !ids.Contains(last))
+            || (preferences.DefaultGroupId is { } defaultId && preferences.HiddenGroupIds.Contains(defaultId))
+            || !GroupPreferences.IsValidView(preferences.DefaultView)
+            || !GroupPreferences.IsValidView(preferences.LastView)
+            || preferences.Zoom is not (3 or 5 or 8))
         {
-            return Unauthorized();
+            return BadRequest("Ungültige Gruppeneinstellungen.");
         }
-
-        if (request.GroupId is { } id && !_groups.Store.Get(user.Id).Groups.Any(g => g.Id == id))
-        {
-            return NotFound();
-        }
-
-        _groups.Store.Update(user.Id, doc =>
-        {
-            doc.ActiveGuideGroupId = request.GroupId;
-            return true;
-        });
-
+        preferences.HiddenGroupIds = preferences.HiddenGroupIds.Distinct().ToList();
+        _groups.Store.Update(user.Id, doc => { doc.Preferences = preferences; return true; });
         return NoContent();
+    }
+
+    /// <summary>Gets the independent groups container, respecting user access.</summary>
+    [HttpGet("Entry")]
+    [Authorize(Policy = Policies.LiveTvAccess)]
+    public async Task<ActionResult> GetEntry()
+    {
+        var user = GetUser();
+        if (user is null) { return Unauthorized(); }
+        var channels = await HttpContext.RequestServices.GetRequiredService<MediaBrowser.Controller.Channels.IChannelManager>()
+            .GetChannelsAsync(new MediaBrowser.Model.Channels.ChannelQuery { UserId = user.Id }).ConfigureAwait(false);
+        var channel = channels.Items.FirstOrDefault(c => c.Name == Channel.GroupsChannel.ChannelName);
+        return Ok(new { ChannelId = channel?.Id, Version = typeof(Plugin).Assembly.GetName().Version?.ToString() });
+    }
+
+    /// <summary>Gets available channels for the groups editor only.</summary>
+    [HttpGet("AvailableChannels")]
+    [Authorize(Policy = Policies.LiveTvAccess)]
+    public ActionResult GetAvailableChannels()
+    {
+        var user = GetUser();
+        if (user is null) { return Unauthorized(); }
+        var channels = _groups.GetAccessibleChannels(user).Values.Cast<BaseItem>().ToList();
+        var items = _dtoService.GetBaseItemDtos(channels, new DtoOptions(false), user);
+        return Ok(new QueryResult<BaseItemDto>(0, items.Count, items));
+    }
+
+    /// <summary>Gets channels in the selected groups; this is not a native Live TV route.</summary>
+    [HttpGet("Channels")]
+    [Authorize(Policy = Policies.LiveTvAccess)]
+    public ActionResult GetScopeChannels([FromQuery] Guid[] groupIds)
+    {
+        var user = GetUser();
+        if (user is null) { return Unauthorized(); }
+        var scope = GetScope(user, groupIds);
+        if (scope is null) { return NotFound(); }
+        var channels = HttpContext.RequestServices.GetRequiredService<GroupGuideService>().ResolveScope(user, scope);
+        var items = _dtoService.GetBaseItemDtos(channels.Cast<BaseItem>().ToList(),
+            new DtoOptions(false) { AddCurrentProgram = true, EnableImages = true, ImageTypeLimit = 1, ImageTypes = [ImageType.Primary], EnableUserData = true }, user);
+        return Ok(new QueryResult<BaseItemDto>(0, items.Count, items));
+    }
+
+    /// <summary>Gets the independent program guide for selected groups.</summary>
+    [HttpGet("Guide")]
+    [Authorize(Policy = Policies.LiveTvAccess)]
+    public async Task<ActionResult<GuideDto>> GetScopeGuide([FromQuery] Guid[] groupIds, [FromQuery] DateTime? start, [FromQuery] DateTime? end)
+    {
+        var user = GetUser();
+        if (user is null) { return Unauthorized(); }
+        var scope = GetScope(user, groupIds);
+        if (scope is null) { return NotFound(); }
+        return Ok(await HttpContext.RequestServices.GetRequiredService<GroupGuideService>()
+            .GetGuide(user, scope, start, end, HttpContext.RequestAborted).ConfigureAwait(false));
+    }
+
+    private List<ChannelGroup>? GetScope(User user, Guid[] ids)
+    {
+        var selected = ids.ToHashSet();
+        var groups = _groups.Store.Get(user.Id).Groups;
+        return selected.Any(id => !groups.Any(g => g.Id == id)) ? null : groups.Where(g => selected.Contains(g.Id)).ToList();
     }
 
     /// <summary>
@@ -383,6 +414,11 @@ public class GroupsController : ControllerBase
     [HttpGet("client.css")]
     [AllowAnonymous]
     public ActionResult GetClientStyles() => ServeResource("client.css", "text/css");
+
+    /// <summary>Entry fragment loaded by the optional Plugin Pages menu.</summary>
+    [HttpGet("page.html")]
+    [Authorize(Policy = Policies.LiveTvAccess)]
+    public ActionResult GetUserPage() => ServeResource("page.html", "text/html");
 
     private static GroupDto ToDto(ChannelGroup group) => new(group.Id, group.Name, group.Channels.Count);
 
@@ -420,18 +456,9 @@ public record GroupDto(Guid Id, string Name, int ChannelCount);
 /// <param name="End">Window end (UTC).</param>
 /// <param name="Channels">Channels in group order.</param>
 /// <param name="Programs">Programs in the window, ordered by start.</param>
-public record GuideDto(DateTime Start, DateTime End, IReadOnlyList<BaseItemDto> Channels, IReadOnlyList<BaseItemDto> Programs);
-
-/// <summary>
-/// Active guide group.
-/// </summary>
-public class GuideFilterRequest
-{
-    /// <summary>
-    /// Gets or sets the group id; <c>null</c> shows all channels.
-    /// </summary>
-    public Guid? GroupId { get; set; }
-}
+/// <param name="MissingChannelCount">Unavailable stored channels.</param>
+/// <param name="InvalidProgramCount">Rejected program records.</param>
+public record GuideDto(DateTime Start, DateTime End, IReadOnlyList<BaseItemDto> Channels, IReadOnlyList<BaseItemDto> Programs, int MissingChannelCount = 0, int InvalidProgramCount = 0);
 
 /// <summary>
 /// Request body with a group name.

@@ -40,6 +40,11 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Verify development branch
+        run: |
+          git fetch origin dev
+          git merge-base --is-ancestor HEAD origin/dev
+
       - name: Determine version
         id: version
         run: |

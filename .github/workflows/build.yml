@@ -20,3 +20,11 @@ jobs:
         run: dotnet test --configuration Release
       - name: Check client script syntax
         run: node --check src/Jellyfin.Plugin.LiveTvGroups/Web/client.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Test independent groups page
+        run: npm run test:web

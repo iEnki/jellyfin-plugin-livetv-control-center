@@ -14,6 +14,9 @@ namespace Jellyfin.Plugin.LiveTvGroups.Web;
 /// </summary>
 public class WebInjectionStatus
 {
+    public bool PluginPagesInstalled { get; set; }
+    public bool PluginPagesRegistered { get; set; }
+    public string? PluginPagesError { get; set; }
     /// <summary>
     /// Gets or sets a value indicating whether the File Transformation plugin was found.
     /// </summary>

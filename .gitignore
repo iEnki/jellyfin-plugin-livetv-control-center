@@ -6,3 +6,4 @@ out/
 .vscode/
 *.zip
 TestResults/
+node_modules/

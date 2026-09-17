@@ -7,7 +7,6 @@ using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Channels;
 using MediaBrowser.Controller.Plugins;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.LiveTvGroups;
@@ -31,7 +30,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<WebInjectionStatus>();
         serviceCollection.AddSingleton<IChannel, GroupsChannel>();
         serviceCollection.AddHostedService<WebInjectionService>();
+        serviceCollection.AddHostedService<PluginPagesService>();
         serviceCollection.AddHostedService<PlaylistSyncTrigger>();
-        serviceCollection.AddTransient<IStartupFilter, GuideFilterStartupFilter>();
+        serviceCollection.AddSingleton<GroupGuideService>();
     }
 }

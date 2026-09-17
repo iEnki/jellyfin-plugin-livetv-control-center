@@ -1,0 +1,24 @@
+<div id="ltvg-entry" class="padded-top">
+    <h1>Live-TV Gruppen</h1>
+    <p role="status">Gruppen werden geöffnet…</p>
+    <button type="button" class="raised emby-button" hidden>Erneut versuchen</button>
+</div>
+<script>
+(function () {
+    var root = document.getElementById('ltvg-entry');
+    var button = root.querySelector('button');
+    function open() {
+        button.hidden = true;
+        ApiClient.getJSON(ApiClient.getUrl('LiveTvGroups/Entry')).then(function (entry) {
+            if (!root.isConnected) return;
+            if (!entry.ChannelId) throw new Error('Gruppenzugang nicht verfügbar. Bitte prüfe die Plugin-Einstellungen.');
+            window.location.hash = '#/list?parentId=' + encodeURIComponent(entry.ChannelId) + '&serverId=' + encodeURIComponent(ApiClient.serverId()) + '&liveTvGroups=1';
+        }).catch(function (error) {
+            root.querySelector('[role="status"]').textContent = error.message || 'Gruppen konnten nicht geöffnet werden.';
+            button.hidden = false;
+        });
+    }
+    button.onclick = open;
+    open();
+})();
+</script>

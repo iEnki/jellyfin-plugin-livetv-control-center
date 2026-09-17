@@ -24,9 +24,9 @@ public class UserGroups
     public Dictionary<Guid, Guid> PlaylistIds { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets the group shown in the program guide of TV apps; <c>null</c> shows all channels.
+    /// Gets or sets personal preferences for the independent groups page.
     /// </summary>
-    public Guid? ActiveGuideGroupId { get; set; }
+    public GroupPreferences Preferences { get; set; } = new();
 }
 
 /// <summary>

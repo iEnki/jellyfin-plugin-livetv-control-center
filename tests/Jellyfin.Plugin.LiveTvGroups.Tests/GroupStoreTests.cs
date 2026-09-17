@@ -77,6 +77,6 @@ public sealed class GroupStoreTests : IDisposable
         store.Delete(user);
 
         Assert.Empty(new GroupStore(_directory).Get(user).Groups);
-        Assert.Empty(Directory.GetFiles(Path.Combine(_directory)).Where(f => f.EndsWith(".json", StringComparison.Ordinal)));
+        Assert.DoesNotContain(Directory.GetFiles(_directory), f => f.EndsWith(".json", StringComparison.Ordinal));
     }
 }

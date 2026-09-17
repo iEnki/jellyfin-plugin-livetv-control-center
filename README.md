@@ -1,114 +1,84 @@
 # Live-TV Groups for Jellyfin
 
-A Jellyfin plugin that lets every user organize Live TV channels into personal groups, e.g. "Public broadcasters", "Sports" or "Documentaries".
+Personal Live TV channel groups with an independent **Live-TV Gruppen** page in Jellyfin Web.
 
-- **Web client:** Live TV gets a **Groups** button. Create groups, pick channels, reorder them via drag & drop and start channels directly.
-- **Apps** (Android TV, mobile, …): groups are available under **Channels → Live-TV Gruppen**.
-- **Apps without channel support** (e.g. Wholphin): optionally, groups are mirrored as playlists named "Live-TV: &lt;group&gt;". Enable it under Dashboard → Plugins → Live-TV Groups.
-- **Program guide (web):** every group has a **Program** tab with a timeline guide (EPG) of its channels. Click a program for details, click a channel to play it.
-- **Program guide in TV apps** (Fire TV / Android TV, Wholphin, …): pick a group for the TV guide – in the web client via 📺 on a group, or on the TV under **Channels → Live-TV Gruppen → 📺 Programmführer wählen**. Live TV and the guide of those apps then show only the channels of that group. "Alle Sender" shows all channels again.
-- Groups are **per user**. Channels a user may not access (parental control, channel restrictions) stay hidden.
+- **Programme**, **Fernsehprogramm** and **Sender** follow the layout of Jellyfin's Live TV views. The selected group applies to all three views.
+- Choose visible groups, a default group and view, remember the last selection and set the guide zoom. **Alle sichtbaren Gruppen** combines their channels without duplicates.
+- The guide has channel numbers and logos, 30-minute slots, a current-time indicator, date/time selection, Now, Tonight and seven calendar days. Data refreshes every five minutes; returning from program details preserves the group, time window and scroll position.
+- Create, rename and delete groups; search/select channels and reorder groups or channels with drag-and-drop or up/down buttons.
+- **Original Live TV stays unchanged in every client.** This plugin no longer filters native Live TV or guide requests. Personal group preferences only affect the separate groups page.
+- Apps with channel support can browse **Channels → Live-TV Gruppen**. Optional playlists named **Live-TV: <group>** provide another entry for apps without channel support. These entries do not add a grouped guide to native TV apps.
+- Groups and preferences belong to the current user. Only channels permitted by Jellyfin are included.
 
-Requires **Jellyfin 12.0**.
+Built for **Jellyfin 12.0**. Jellyfin 12.1 and native device playback require separate validation; this build does not claim those checks.
 
 ## Installation
 
-1. Dashboard → Plugins → Repositories → **+** and add:
+1. Add this repository in Dashboard → Plugins → Repositories:
    ```
    https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/latest/download/manifest.json
    ```
-2. For the web client integration, also add the **File Transformation** repository:
+2. Add the File Transformation repository:
    ```
    https://www.iamparadox.dev/jellyfin/plugins/manifest.json
    ```
-3. Install **Live-TV Groups** and **File Transformation** from the catalog and restart Jellyfin.
-4. Check the status under Dashboard → Plugins → Live-TV Groups.
+3. Install **Live-TV Groups** and **File Transformation** for your Jellyfin version, then restart Jellyfin.
+4. Open **Live-TV Gruppen** through the channels/library entry. If **Plugin Pages 3.x** is installed, the plugin also registers a user-menu entry automatically. Plugin Pages is optional and uses the same group page.
+5. Use **Einstellungen** on that page for personal preferences. Global integrations and registration status are under Dashboard → Plugins → Live-TV Groups.
+
+## Upgrading from 0.2.x
+
+Group IDs, channel references and playlist IDs are preserved. Old `ActiveGuideGroupId`, `EnableGuideFilter` and client-exception values no longer activate any filter. The native-guide selection folders and the button/overlay in original Live TV have been removed. After updating and restarting Jellyfin, original Live TV shows all channels permitted by Jellyfin, independently of every group action.
+
+The replacement guide is a separate component built from the original layout reference. It does not overwrite Jellyfin's guide component or global API client. Program clicks open Jellyfin's normal details page, including its playback/recording controls. Channel playback uses the current Jellyfin session, with native details as a fallback.
+
+## Settings
+
+| Location | Setting | Effect |
+| --- | --- | --- |
+| Groups page | Visible groups | Hides groups from the selector and combined scope without deleting them. |
+| Groups page | Default group / view | Initial selection when remembering the last view is disabled. |
+| Groups page | Remember last group and view | Saves the selection per user. |
+| Groups page | EPG zoom | Compact, normal or large time slots. |
+| Dashboard | Web integration | Independent groups page; requires File Transformation and a server restart after changing. |
+| Dashboard | App channel | Offers groups through Jellyfin's channel interface. The channel also remains available as the web entry while web integration is enabled. |
+| Dashboard | Playlist synchronization | Mirrors groups as user playlists; requires the app channel. Turning it off removes the mirrored playlists. |
+| Dashboard | Status | File Transformation registration and optional Plugin Pages installation/registration. Server registration alone does not prove successful client startup. |
 
 ## Notes
 
-- If channel ids change (e.g. the M3U was regenerated and re-imported), channels are matched again by name and number.
-- **App channel and playlists:** Jellyfin cannot open live streams through channels the regular Live TV way. The plugin therefore probes the tuner stream and passes it to the server, which remuxes it. Jellyfin's tuner limit does **not** apply here, so keep your provider's connection limit in mind. The stream URL is part of the playback info sent to clients.
-- The TV guide filter applies to `GET /LiveTv/Channels` for all apps except the ones listed under "Apps ohne Gruppenfilter" (default: Jellyfin Web). It can be disabled in the plugin settings.
-- The web integration depends on the jellyfin-web UI; major Jellyfin updates may require a new plugin version.
-
-## Features in detail
-
-### 1. Manage channel groups (web client)
-Live TV gets a **Groups** button next to the view menu.
-- **Create, rename (✎) and delete (🗑) groups.** Deleting a group never deletes channels.
-- **Pick channels:** a searchable list of all channels with checkboxes. Newly added channels are appended to the end of the group.
-- **Order:** groups and channels can be reordered via drag & drop.
-- **"Channels" tab:** tiles with logo, channel number and the program currently airing. Click a tile to play the channel.
-- **Per user:** every user has their own groups. Channels a user may not access (parental control, channel restrictions) are never shown.
-- **Re-imported M3U:** if channel ids change, channels are matched again by name and number.
-
-### 2. Program guide in the web client ("Program" tab)
-Every group has a **timeline program guide (EPG)** of its channels.
-- Channels on the left in group order, programs as blocks on a timeline with 30-minute slots.
-- A **red line** marks the current time; programs on air are highlighted.
-- Color stripes for movies, sports, news and kids; ● marks scheduled recordings.
-- **Navigation:** earlier / now / later (3-hour steps) and a day picker for up to 7 days. The window shows 6 hours (3 hours on phones).
-- **Click a program** to open the Jellyfin details page (description, play, record). **Click a channel** to play it.
-- Program data refreshes every 5 minutes.
-
-### 3. Program guide in TV apps (Fire TV, Android TV, Wholphin, …)
-Choose a **program guide group**. Live TV and the built-in program guide of these apps then only show the channels of that group, in group order – playback, recording and details keep working as usual.
-- **In the web client:** click **📺** on a group in the groups overview. The active group is shown at the top; **"Alle Sender anzeigen"** removes the filter.
-- **On the TV:** Channels → **Live-TV Gruppen** → **📺 Programmführer wählen**, then open a group or "Alle Sender". Afterwards open Live TV → Guide.
-- The selection is per user and applies to all of that user's TV apps. The web client is excluded by default and always shows all channels.
-- Technically, the plugin filters the response of `GET /LiveTv/Channels` for these apps. If anything goes wrong, the original response is returned unchanged.
-
-### 4. Groups as a channel for apps
-Under **Channels → "Live-TV Gruppen"** every group appears as a folder with its channels and logos, playable in the Jellyfin apps for Android TV, Fire TV and mobile.
-- Before playback the stream is probed for 3 seconds and the result is cached per channel for 6 hours, so the server can remux instead of transcoding.
-- **Note:** Jellyfin's tuner limit does not apply to this path – mind your provider's connection limit. The stream URL is part of the playback info sent to the app.
-
-### 5. Playlists for apps without channel support (optional)
-For apps such as **Wholphin**, every group is mirrored as a playlist **"Live-TV: &lt;group&gt;"** of the respective user.
-- Playlists update about 2 seconds after each change, at startup and every 6 hours. Run the scheduled task "Live-TV Gruppen als Wiedergabelisten synchronisieren" to update them manually.
-- Turning the option off removes these playlists again.
-
-### 6. Settings (Dashboard → Plugins → Live-TV Groups)
-| Setting | Description |
-| --- | --- |
-| Status | Shows whether File Transformation is installed and the web integration is active. |
-| Gruppen im Web-Client anzeigen | Groups button and views in the web client. Takes effect after a server restart. |
-| Gruppen als Kanal für Apps anbieten | The "Live-TV Gruppen" channel for apps. |
-| Gruppen zusätzlich als Wiedergabelisten anlegen | Playlists for apps without channel support. Requires the app channel. |
-| Gruppe im TV-Programmführer anzeigen | Enables the program guide filter for TV apps. |
-| Apps ohne Gruppenfilter | Comma separated client names that always receive all channels (default: `Jellyfin Web`). |
-
-### Storage
-Groups are stored per user as JSON files in `<jellyfin data>/plugins/LiveTvGroups/users/` and survive plugin updates.
+- Existing Jellyfin EPG data is used. Empty rows mean no programs are available for the selected period; the plugin does not obtain XMLTV data itself. Unresolved channels and discarded invalid program data are reported in the guide.
+- After an M3U re-import, channel references are resolved again by ID, then name/number. Ambiguous matches and advanced repair/import/export tools remain future work.
+- **App channel and playlists:** Jellyfin cannot open these channel items using its usual Live TV tuner path. The plugin probes the stream and the server remuxes it. Jellyfin's tuner limit does not apply to that path; the stream URL is included in the playback information sent to clients.
+- Playlists synchronize shortly after changes, at startup and every six hours. A scheduled task is available for manual synchronization.
+- Web integration depends on Jellyfin Web's channel-list route/container. Major client updates may require a plugin update. The current UI is tested on desktop and narrow mobile viewports.
+- Groups are stored as per-user JSON in `<jellyfin data>/plugins/LiveTvGroups/users/` and survive updates. Backup that directory before installing development builds.
 
 ## Development
 
 ```bash
-dotnet test
+dotnet test --configuration Release
+npm ci
+npx playwright install chromium
+npm run test:web
 ```
+
+Browser tests use a local Jellyfin-shell/API fixture. They cover navigation isolation, details/back state, preferences, overlapping groups, search, delayed responses/retry, mobile guide labels/date navigation and group CRUD/order. They do not replace testing a newly installed server plugin or native TV apps. To use installed Chrome locally, set `LTVG_BROWSER_CHANNEL=chrome`.
 
 ### Release process
 
-Development happens on the `dev` branch; `main` only contains released code.
+Development happens on `dev`; `main` contains stable releases.
 
-1. **Development build:** add the changes under `## Unreleased` in `CHANGELOG.md`, then tag the `dev` branch with a four-part version between the last and the next release, e.g. `v0.2.2.1-dev`, `v0.2.2.2-dev`:
-   ```bash
-   git tag v0.2.2.1-dev && git push origin v0.2.2.1-dev
-   ```
-   GitHub Actions publishes a **pre-release** and adds the build to `manifest-dev.json`. The public `manifest.json` is not changed.
-2. **Test** the build in Jellyfin with the development repository (see below).
-3. **Release:** rename `## Unreleased` to `## X.Y.Z`, merge `dev` into `main` and tag `main`:
-   ```bash
-   git tag v0.2.3 && git push origin v0.2.3
-   ```
-   GitHub Actions creates the release, adds it to `manifest.json` and removes older development builds from `manifest-dev.json`.
+1. Add changes under `## Unreleased` in `CHANGELOG.md` and push `dev`.
+2. Tag its tested commit with a four-part development version, for example `v0.3.0.1-dev`. Pushing that tag creates a GitHub **pre-release** and updates **manifest-dev.json**. It does not change `main` or the stable manifest.
+3. After testing, merge the approved changes into `main`, update the changelog and push a stable tag with a higher version. Stable publication is a separate action.
 
 ### Testing development builds
 
-Add a second repository in Jellyfin (Dashboard → Plugins → Repositories):
+Add a second plugin repository:
 ```
 https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/dev-channel/manifest-dev.json
 ```
-It lists all stable versions plus development builds marked `[DEV]`. Install the development build from the catalog and restart Jellyfin. The following stable release has a higher version and is offered as a regular update.
+Install the `[DEV]` version and restart Jellyfin. The next stable version must be higher than the development version to be offered as an update.
 
 License: GPL-3.0

@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "scripts": {
+    "test:web": "node --test tests/web/client.test.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  },
+  "name": "jellyfin-plugin-livetv-groups"
+}

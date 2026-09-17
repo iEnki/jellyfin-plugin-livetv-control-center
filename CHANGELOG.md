@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- New independent **Live-TV Gruppen** page with Programme, Fernsehprogramm and Sender views based on Jellyfin's original Live TV layout.
+- Group selection, deduplicated visible-group scope and personal settings for visible/default groups, initial/last view and guide zoom.
+- Improved guide navigation, current-time mode, automatic refresh, mobile program labels and restoration of group/time/scroll state after details.
+- Searchable sender picker with selected-only filtering, keyboard-friendly sorting, cancellable dialogs, request cancellation and retryable errors.
+- Optional Plugin Pages 3.x user-menu entry with channel-entry fallback and dashboard registration status.
+- Removed native Live TV/EPG filtering, client exception settings, native-guide selection folders and the groups overlay/button in original Live TV. Original Live TV requests remain untouched in every client, including upgrades with old filter values.
+- Preserve existing groups, channel references and playlist IDs; preferences are stored separately per user.
+- Added browser regression checks to CI and backend checks for migration, user isolation and valid group-guide program data.
+- Development build targets Jellyfin 12.0. Native TV-device playback and Jellyfin 12.1 are not validated by this release.
+
 ## 0.2.2
 
 - Fix: the "Groups" button was missing in Live TV since 0.2.1. The script is registered for index.html again (shared with other plugins such as Jellyfin Enhanced) and is only added to real HTML documents, so JavaScript files stay untouched.
