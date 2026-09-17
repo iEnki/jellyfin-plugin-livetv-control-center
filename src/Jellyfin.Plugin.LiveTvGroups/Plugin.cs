@@ -38,7 +38,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public override string Name => "Live-TV Groups";
 
     /// <inheritdoc />
-    public override string Description => "Sender in Live-TV zu eigenen Gruppen zusammenfassen.";
+    public override string Description => "Live-TV-Sender in persönliche oder zentral verwaltete Gruppen mit Fernsehprogramm und TV-Fernsteuerung einteilen.";
 
     /// <inheritdoc />
     public override Guid Id => Guid.Parse(PluginId);

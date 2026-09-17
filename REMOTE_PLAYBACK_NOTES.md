@@ -85,3 +85,11 @@ Target preferences use the existing atomic per-user GroupStore, with a dedicated
 - Tests cover mode/import persistence and rollback, allow/deny/admin visibility, blocked mutations/direct group APIs, normal-user EPG query identity, native EPG/stream revocation, ACL for both remote users, stop acknowledgement/timeouts/reconnects/revocation/cancellation, and mobile admin/guide/dashboard interactions.
 - Fire TV foreground/internal-player testing is pending; source inspection suggests a route replacement and old-player cleanup race but does not prove the cause on Robert’s installed client. No upstream Android TV modification was made.
 - Upstream references inspected: https://github.com/jellyfin/jellyfin-androidtv/blob/master/app/src/main/java/org/jellyfin/androidtv/data/eventhandling/SocketHandler.kt ; https://github.com/jellyfin/jellyfin-androidtv/blob/master/app/src/main/java/org/jellyfin/androidtv/util/sdk/SdkPlaybackHelper.kt ; https://github.com/jellyfin/jellyfin-androidtv/blob/master/app/src/main/java/org/jellyfin/androidtv/ui/playback/PlaybackLauncher.kt ; https://github.com/jellyfin/jellyfin/blob/master/src/Jellyfin.LiveTv/LiveTvManager.cs .
+
+## Stable release promotion: 0.3.2.0
+
+- The maintainer confirmed all requested functionality works on their setup and explicitly authorized promotion to main and stable publication.
+- Main includes the verified 0.3.1.2 dev implementation; assembly/file/package version becomes 0.3.2.0 and the dev InformationalVersion override is removed.
+- Earlier hardware-pending entries above describe the state before the maintainer’s confirmation; they are retained as development history. This confirmation does not claim compatibility with every client or Jellyfin 12.1.
+- The stable release workflow now checks main ancestry/version, runs browser/package regressions as well as .NET tests, and packages installation metadata without a dev label.
+- The English README is rewritten as the stable plugin documentation. Local workflow: release preparation -> validation -> review -> publication.

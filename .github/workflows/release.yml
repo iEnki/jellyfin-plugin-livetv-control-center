@@ -24,6 +24,16 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Verify stable branch
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor HEAD origin/main || { echo 'Stable tags must reference a commit on main.' >&2; exit 1; }
+
       - name: Determine version
         id: version
         run: |
@@ -31,16 +41,35 @@ jobs:
           version="${tag#v}"
           # Jellyfin expects four-part versions.
           while [ "$(echo "$version" | tr -cd '.' | wc -c)" -lt 3 ]; do version="$version.0"; done
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a four-part plugin version." >&2; exit 1
+          fi
+          project_version="$(dotnet msbuild src/Jellyfin.Plugin.LiveTvGroups -getProperty:Version)"
+          informational_version="$(dotnet msbuild src/Jellyfin.Plugin.LiveTvGroups -getProperty:InformationalVersion)"
+          if [ "$version" != "$project_version" ] || [[ "$informational_version" == *-dev* ]]; then
+            echo "Stable tag must match the project version and contain no development marker." >&2; exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Test
         run: dotnet test --configuration Release
 
+      - name: Check client and package metadata
+        run: |
+          node --check src/Jellyfin.Plugin.LiveTvGroups/Web/client.js
+          npm run test:packaging
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Test independent groups page
+        run: npm run test:web
+
       - name: Build
         run: |
           dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release \
             -p:Version=${{ steps.version.outputs.version }} --output out
-          zip -j "live-tv-groups_${{ steps.version.outputs.version }}.zip" out/Jellyfin.Plugin.LiveTvGroups.dll
+          node .github/scripts/write-dev-meta.cjs out
+          zip -j "live-tv-groups_${{ steps.version.outputs.version }}.zip" out/Jellyfin.Plugin.LiveTvGroups.dll out/meta.json
 
       - name: Extract changelog
         run: |

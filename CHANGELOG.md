@@ -2,17 +2,31 @@
 
 ## Unreleased
 
-- New: admin-selectable personal or central groups, optional import preserving personal groups, and allow/deny user policies per central group. Native folders, EPG, plugin stream opening and both remote users respect the current policy.
-- New: group-mode selection in the plugin dashboard and groups-page administration, with read-only controls for ordinary users in central mode.
-- Improved: direct Fernsehprogramm button for all users; documented the Jellyfin channel permission required for the My Media entry.
-- Fix: remote Android TV channel changes stop the active player, wait for its stopped report and route cleanup, recheck permissions/session and then send one native PlayNow. Timeout, cancellation and overlapping device commands are handled.
-- Dev build: 0.3.1.2, strictly below the planned stable 0.3.2.0. Hardware verification of the switch fix remains necessary.
+## 0.3.2.0
 
-- Add server-side player discovery and an **Abspielen auf** selector to the independent web/mobile groups EPG. Active official Jellyfin Android TV / Fire TV sessions are eligible even when SupportsRemoteControl is false, provided a session controller is connected.
-- Store preferred target DeviceId and server-owned name per user; resolve the current session on each PlayNow request. Validate both users’ Live TV/channel/playback rights and cross-user remote-control permission.
-- Keep remote failures in the EPG without falling back to local playback; retain offline remembered targets and provide manual/periodic discovery refresh.
-- Use the installed assembly version for the injected web-script cache key. Dev build is 0.3.1.2, below the next release 0.3.2.0.
-- V1 requires Jellyfin at the TV in the foreground with the internal player; no wake-up or external-player support.
+### Remote Live TV playback
+
+- Select an active Jellyfin Android TV / Fire TV target from the independent web/mobile program guide and start a channel on the TV while keeping the guide open.
+- Discover active official Android TV sessions even when SupportsRemoteControl is false, without bypassing user permissions.
+- Remember the preferred device per user and resolve its current session for every command.
+- Switch running Android TV channels with an authorized Stop, a stopped-report wait and player cleanup delay, followed by one native PlayNow. Serialize commands per device and handle timeout, cancellation, session changes and permission revocation.
+- Keep offline preferred targets selected and show remote failures without silently falling back to playback on the phone.
+
+### Personal and central groups
+
+- Choose personal groups per user or a central collection administered by administrators.
+- Optionally copy administrator personal groups into the central collection without deleting originals or overwriting already imported IDs. Switching modes preserves both collections.
+- Configure each central group for all users except selected exclusions, or only selected users. Administrator management access is retained.
+- Apply group permissions to the independent guide, native group/EPG folders, plugin stream opening and both users involved in remote playback. Original Jellyfin Live TV remains unchanged.
+- Make central collections read-only for ordinary users while keeping display and player preferences personal.
+
+### Documentation and delivery
+
+- Add a direct Fernsehprogramm button and document the Jellyfin channel permission needed for the My Media entry.
+- Provide a complete English README covering installation, permissions, group administration, all views, remote playback, native apps, playlists, settings, storage, troubleshooting and development.
+- Publish stable version 0.3.2.0 with matching installation metadata and automatic update support. Both development builds 0.3.1.1 and 0.3.1.2 are lower than this release.
+- Require stable tags to match the project version and reference main; run plugin, browser and package tests before publication.
+- The maintainer confirmed the 0.3.1.2 development build works as intended on their setup. External players, automatic TV wake-up and untested Jellyfin/client versions remain outside the supported scope.
 
 ## 0.3.1
 

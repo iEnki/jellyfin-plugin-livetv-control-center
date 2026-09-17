@@ -2,8 +2,8 @@
   {
     "guid": "7b3792b4-b988-4ec5-b9e5-1a952a652b83",
     "name": "Live-TV Groups",
-    "description": "Group Live TV channels into personal groups per user. Groups appear in the web client under Live TV, as a channel in apps, and optionally as playlists.",
-    "overview": "Channel groups for Live TV",
+    "description": "Organize Live TV into personal or centrally administered channel groups with per-user access rules, an independent program guide, Fire TV / Android TV remote playback, native app folders, and optional playlists.",
+    "overview": "Live TV groups, program guide and TV remote playback",
     "owner": "iEnki",
     "category": "Live TV",
     "versions": [

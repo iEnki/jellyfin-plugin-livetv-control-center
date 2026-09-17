@@ -7,8 +7,11 @@ function metadata() {
     const project = fs.readFileSync(path.join(root, 'src/Jellyfin.Plugin.LiveTvGroups/Jellyfin.Plugin.LiveTvGroups.csproj'), 'utf8');
     const version = project.match(/<Version>([^<]+)<\/Version>/)?.[1];
     if (!/^\d+\.\d+\.\d+\.\d+$/.test(version || '')) throw new Error('Expected a four-part plugin version.');
+    // The historical filename is retained for existing dev workflows and tooling.
+    // Stable projects produce stable metadata without the development marker.
+    const development = /<InformationalVersion>[^<]*-dev[.<]/.test(project);
     return {
-        category: catalog.category, changelog: '[DEV] Remote Live TV branch test build.',
+        category: catalog.category, changelog: development ? '[DEV] Remote Live TV branch test build.' : 'Live-TV Groups '+version+'. See the GitHub release notes for details.',
         description: catalog.description, guid: catalog.guid, name: catalog.name,
         overview: catalog.overview, owner: catalog.owner, targetAbi: catalog.versions[0].targetAbi,
         version, status: 'Active', autoUpdate: true, assemblies: ['Jellyfin.Plugin.LiveTvGroups.dll']
