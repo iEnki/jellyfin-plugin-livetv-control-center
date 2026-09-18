@@ -17,3 +17,10 @@ Build numeric version 0.3.2.5, informational marker -beta. Publish through beta 
 - 94 .NET tests, 32 Playwright/Chrome browser tests and 1 packaging test passed (127 total).
 - Build, JavaScript syntax, translation coverage, README links and diff whitespace passed.
 - Desktop and mobile test fixtures verify direct editing, correct group selection despite a different dropdown group, saved order, adding/removing channels, central administrator versus ordinary user permissions, failed selection loading and cancellation.
+
+## Verified publication
+
+- Published beta v0.3.2.5-beta from a8eb1b18d24eb4f02e1d7bbf11c42c3722ce7e69. GitHub Build 35327144841 and Beta release 35327144794 succeeded.
+- Public beta and legacy development catalogs offer 0.3.2.5 with matching source URL, checksum, GUID, ABI and DLL informational version. Existing packaged logo remains byte-identical.
+- Stable main 3a3efda7af9adaaa5c62fa5583fc8a8cd2716653 and latest stable 0.3.2.1 remain unchanged.
+- The next stable promotion must be numerically higher than the latest installed beta (currently at least 0.3.2.6).
