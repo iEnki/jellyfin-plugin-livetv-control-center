@@ -4,7 +4,7 @@ Live-TV Groups goes beyond browsing provider-defined IPTV categories: users can 
 
 Use channel groups to keep a large TV lineup easy to browse: collect channels by topic, language or household preference and view their schedules together. With a supported web-based Jellyfin phone app or mobile browser, your phone also becomes a TV guide and remote for Jellyfin Android TV / Fire TV. Browse programs on the phone, start a channel on the TV and switch channels without closing the guide.
 
-**Stable version: 0.3.3.1** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
+**Stable version: 0.3.3.1** · **Experimental beta: 0.3.3.2** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its groups page works independently of the original Jellyfin Live TV views.
 
@@ -24,6 +24,7 @@ The plugin uses Jellyfin's existing channels and EPG data. Its groups page works
 - [Creating and editing groups](#creating-and-editing-groups)
 - [Views and program guide](#views-and-program-guide)
 - [Remote playback](#remote-playback)
+- [Native TV guide filtering (beta)](#native-tv-guide-filtering-beta)
 - [Native apps and program lists](#native-apps-and-program-lists)
 - [Optional playlists](#optional-playlists)
 - [Settings reference](#settings-reference)
@@ -163,7 +164,7 @@ Reload the browser/mobile web client and fully close/reopen the TV app to clear 
 
 For upgrades from older stable versions, personal groups are preserved and personal mode remains the default. Central mode is an explicit administrator choice.
 
-The previous 0.2.x native Live TV/guide filter is no longer active. Old filter settings and guide-group selections do not filter original Live TV. Use the independent groups page or native group folders.
+The previous 0.2.x native filter settings and guide-group selections remain inactive. Beta 0.3.3.2 adds a separate, explicitly activated selection per user and TV device; installing it does not automatically filter original Live TV.
 
 ## User permissions
 
@@ -409,6 +410,36 @@ Successful command delivery does not prove that a tuner stream opened or that vi
 
 This version provides start/switch actions, not a separate pause/volume/stop remote-control panel.
 
+## Native TV guide filtering (beta)
+
+**Available in experimental beta 0.3.3.2, targeting Jellyfin 12 / .NET 10.** Install through the separate [beta repository](#optional-beta-repository); the stable repository is unchanged. No additional service, subscription or custom TV app is required.
+
+1. Open the official Jellyfin Android TV / Fire TV app and sign into the **same Jellyfin user** as your phone/browser. Keep it active so it appears in the device list.
+2. On the plugin's web/mobile groups page, choose a single **Group** and the TV under **Play on**.
+3. Select **Use group on TV** (**Gruppe am TV verwenden** in German).
+4. On the TV, open or reopen ordinary **Live TV → TV Guide**. If the client retains its old list, close/reopen the app. The original native timeline now uses the group's permitted original channels.
+5. Select **All channels on TV** (**Alle Sender am TV**) to remove that device's selection. Reset also works for a remembered offline TV.
+
+Choosing a group in the web guide alone does not change the native TV guide; the new action is explicit. The selection persists across server restarts until changed, reset or invalidated. A different user, TV/device or non-TV client remains unaffected. In this beta, another user's TV cannot receive your group even if you have permission to control that user's playback. **All visible groups** is a web-only union; choose a single group for the native action.
+
+The plugin registers a server-side MVC filter only for Jellyfin's normal `LiveTvController.GetLiveTvChannels`. It reads authenticated user/device/client claims and intersects `QueryResult<BaseItemDto>` with current `GroupService` access and resolved channel IDs, then applies the requested pagination. Original sorting, IDs, DTOs and playback are preserved. `/LiveTv/Programs` is unchanged: the stock TV client requests programs for the returned `channelIds`. No virtual channels, TV-provider service or modified Android TV client are used. The native **channel list** is also filtered for that user/device.
+
+Deleted, denied, empty or unresolvable groups invalidate the selection and restore ordinary authorized Live TV. Plugin filter failures fall back to the normal list; Jellyfin and central channel-access restrictions still apply. This feature is a viewing preference, not an access-control boundary. The independent web EPG and browsable native folder guide keep their existing behavior.
+
+Group selection remains outside the native timeline. This beta does not send `DisplayContent` or a direct Guide navigation command; open Live TV and click TV Guide manually. Client caching can require reopening the view/app. Server/controller integration and browser flows are tested; physical Fire TV playback/navigation acceptance still needs testing on your device.
+
+### Native guide API
+
+All endpoints require an authenticated non-API-key user with Live TV access. There is no caller-supplied UserId. For an official TV client's current authenticated device, use `GET`, `PUT` or `DELETE /LiveTvGroups/NativeGuide`. For an own-user target selected from the existing player list, use:
+
+| Method | Endpoint | Result |
+| --- | --- | --- |
+| GET | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | `{ DeviceId, GroupId, Enabled }`; invalid selection is removed. |
+| PUT | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | Body `{ "GroupId": "<group UUID>" }`; requires an eligible active official TV session signed into the caller's user. |
+| DELETE | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | Remove only the caller's device selection, including offline devices. |
+
+PUT/DELETE return 204 on success. Invalid groups return 404; unavailable or other-user targets return 409. Device IDs are Jellyfin device IDs, not device names or session IDs. Data is stored in the existing per-user JSON file under `NativeGuideScopes`; legacy `ActiveGuideGroupId` and web preferences cannot enable it. See [development plan and validation notes](docs/native-guide-beta-0.3.3.2.md).
+
 ## Native apps and program lists
 
 Apps with channel support can browse:
@@ -429,7 +460,7 @@ The native EPG contains seven local calendar days, channel lists, timing, episod
 
 **watch live** starts the current live stream. Selecting a past/future program does not play a recording or catch-up stream.
 
-The stock Fire TV / Android TV client uses browsable folders for this guide. It does not render the browser timeline inside the native TV app. Original Jellyfin Live TV/its timeline remain independent.
+The stock Fire TV / Android TV client uses browsable folders for this guide. It does not render the browser timeline inside the native TV app. The browsable folder guide remains independent; beta users may separately activate the [original native timeline filter](#native-tv-guide-filtering-beta).
 
 Grouped playback uses Jellyfin's Live TV streaming and transcoding. Users can play only channels permitted by their Jellyfin account and, in central mode, the group's access policy.
 

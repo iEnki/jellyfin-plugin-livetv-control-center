@@ -45,6 +45,14 @@ public class PlayerService
     public PlayerDto? FindPlayer(User user, string deviceId)
         => GetPlayers(user).FirstOrDefault(p => string.Equals(p.DeviceId, deviceId, StringComparison.Ordinal));
 
+    /// <summary>Guide scopes initially support only official TV sessions signed into the caller's own user.</summary>
+    public bool CanSetNativeGuide(User user, string deviceId)
+    {
+        RequirePlaybackAccess(user);
+        return EligibleSessions(user).Any(s => s.UserId == user.Id && IsAndroidTv(s)
+            && string.Equals(s.DeviceId, deviceId, StringComparison.Ordinal));
+    }
+
     public async Task Play(User user, SessionInfo caller, string deviceId, Guid channelId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

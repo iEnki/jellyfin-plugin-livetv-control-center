@@ -292,7 +292,7 @@ internal sealed class AccessFixture : IDisposable
     public string Directory = Path.Combine(Path.GetTempPath(), "ltvg-acl-" + Guid.NewGuid().ToString("N"));
     public User Admin = User("admin", true), Alice = User("alice"), Bob = User("bob");
     public LiveTvChannel Adult = Channel("Adult", "9", "iptv", "adult"), News = Channel("News", "1", "iptv", "news");
-    public LiveTvProgram Program; public Video Recording = new() { Id = Guid.NewGuid(), Name = "recording", Path = Path.Combine(Path.GetTempPath(), "recordings", "old.ts") };
+    public InternalItemsQuery? LastProgramQuery; public LiveTvProgram Program; public Video Recording = new() { Id = Guid.NewGuid(), Name = "recording", Path = Path.Combine(Path.GetTempPath(), "recordings", "old.ts") };
     public List<User> Users; public List<LiveTvChannel> Channels; public List<SessionInfo> Sessions = []; public List<string> Stopped = [], Killed = []; public HashSet<Guid> BaseDenied = []; public ActiveRecordingInfo? ActiveRecording; public int ClosedStreams; public Action? OnUpdate; public Action? OnAction; public TranscodingJob? TranscodeJob;
     public ServiceProvider Services; public GroupStore Store; public ChannelAccessService Access; public ChannelAccessTagBridge Bridge; public ChannelAccessRevoker Revoker; public GroupService Groups; public IUserManager UserManager; public ILibraryManager Library;
     public AccessFixture()
@@ -311,6 +311,7 @@ internal sealed class AccessFixture : IDisposable
         var tv = InterfaceStub.Create<ILiveTvManager>((m, a) => m.Name switch
         {
             "GetInternalChannels" => NativeChannels((LiveTvChannelQuery)a![0]!),
+            "GetPrograms" => Programs((InternalItemsQuery)a![0]!),
             _ => null
         });
         var recordings = InterfaceStub.Create<IRecordingsManager>((m, a) => m.Name switch { "GetRecordingFolders" => new[] { new VirtualFolderInfo() { Locations = [Path.Combine(Path.GetTempPath(), "recordings")] } }, "GetActiveRecordingInfo" => ActiveRecording, _ => null });
@@ -320,6 +321,12 @@ internal sealed class AccessFixture : IDisposable
         Services = new ServiceCollection().AddSingleton(Store).AddSingleton(UserManager).AddSingleton(Library).AddSingleton(tv).AddSingleton(recordings).AddSingleton(sessions).AddSingleton(transcode).AddSingleton(media)
             .AddLogging().AddSingleton<GroupService>().AddSingleton<ChannelAccessService>().AddSingleton<ChannelAccessTagBridge>().AddSingleton<ChannelAccessRevoker>().AddSingleton<PlaylistSyncService>().BuildServiceProvider();
         Access = Services.GetRequiredService<ChannelAccessService>(); Bridge = Services.GetRequiredService<ChannelAccessTagBridge>(); Revoker = Services.GetRequiredService<ChannelAccessRevoker>(); Groups = Services.GetRequiredService<GroupService>();
+    }
+    private Task<QueryResult<BaseItemDto>> Programs(InternalItemsQuery query)
+    {
+        LastProgramQuery = query;
+        return Task.FromResult(new QueryResult<BaseItemDto>(query.StartIndex, 1,
+            new[] { new BaseItemDto { Id = Program.Id, ChannelId = Program.ChannelId, Name = Program.Name } }));
     }
     private QueryResult<BaseItem> NativeChannels(LiveTvChannelQuery q)
     { var items = Channels.Where(c => q.UserId == Guid.Empty || !c.Tags.Contains(ChannelAccessService.UserTag(q.UserId))).Cast<BaseItem>().ToList(); return new(q.StartIndex, items.Count, items.Skip(q.StartIndex ?? 0).Take(q.Limit ?? int.MaxValue).ToArray()); }

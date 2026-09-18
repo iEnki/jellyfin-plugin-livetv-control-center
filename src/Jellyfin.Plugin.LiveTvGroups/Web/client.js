@@ -115,6 +115,12 @@
         selector.value = prefs.PreferredTargetDeviceId || '';
         selector.disabled = playerBusy || playbackBusy;
         page().querySelector('.ltvg-player-status').textContent = playerMessage;
+        const target = players.find(p => p.DeviceId === prefs.PreferredTargetDeviceId);
+        const apply = page().querySelector('[data-action="native-guide-apply"]');
+        const reset = page().querySelector('[data-action="native-guide-reset"]');
+        if (apply) apply.disabled = playerBusy || playbackBusy || state.group === 'all'
+            || target?.Client?.toLowerCase() !== 'jellyfin android tv';
+        if (reset) reset.disabled = playerBusy || playbackBusy || !prefs.PreferredTargetDeviceId;
     }
     async function refreshPlayers() {
         const seq = ++playerRequest, expected = userKey;
@@ -163,6 +169,22 @@
             if (expected === userKey) { playbackBusy = false; updatePlayers(); }
         }
     }
+    async function nativeGuide(reset) {
+        if (playerBusy || playbackBusy || !prefs.PreferredTargetDeviceId || (!reset && state.group === 'all')) return;
+        const expected = userKey, deviceId = prefs.PreferredTargetDeviceId, group = state.group;
+        playerBusy = true; playerMessage = t("Updating native TV guide…"); updatePlayers();
+        page()?.querySelector('.ltvg-error')?.setAttribute('hidden','');
+        try {
+            await api(reset ? 'DELETE' : 'PUT', 'NativeGuide/Devices/'+encodeURIComponent(deviceId), reset ? undefined : {GroupId:group});
+            if (expected === userKey && active) playerMessage = reset
+                ? t("All channels restored on the TV. Reopen Live TV / TV Guide.")
+                : t("Group applied on the TV. Reopen Live TV / TV Guide.");
+        } catch(e) {
+            if (expected === userKey && active) { playerMessage = t("Could not update the native TV guide."); error(e); }
+        } finally {
+            if (expected === userKey) { playerBusy = false; updatePlayers(); }
+        }
+    }
     function chrome() {
         const root = page(); if (!root || !prefs) return;
         root.innerHTML = ("<div class=\"ltvg-header\"><h1>" + esc(displayName()) + "</h1><div class=\"ltvg-actions\">")
@@ -174,6 +196,7 @@
             +'<div class="ltvg-actions ltvg-end">'+button('refresh',t("Refresh"))+(access.CanManage ? button('manage',t("Manage groups")) : '')+'</div></div>'
             +("<div class=\"ltvg-player-toolbar\"><label>" + t("Play on") + " <select class=\"ltvg-input\" data-control=\"player\" aria-label=\"" + t("Play on") + "\">")+playerOptions()+'</select></label>'
             +button('players-refresh',t("Refresh devices"))
+            +button('native-guide-apply',t("Use group on TV"),'disabled')+button('native-guide-reset',t("All channels on TV"),'disabled')
             +'<span class="ltvg-player-status" role="status" aria-live="polite">'+esc(playerMessage)+'</span></div>'
             +("<p class=\"ltvg-player-hint\">" + t("Jellyfin must be open in the foreground on the TV with the internal player.") + "</p>")
             +'<div class="ltvg-error" role="alert" hidden><span></span>'+button('refresh',t("Try again"))+'</div>'
@@ -414,6 +437,7 @@
         const action=target.dataset.action,value=target.dataset.id;
         if(action==='refresh'){page()?.querySelector('.ltvg-error')?.setAttribute('hidden','');prefs?await Promise.all([reloadGroups(),refreshPlayers()]):await boot();return;}
         if(action==='players-refresh'){await refreshPlayers();return;}
+        if(action==='native-guide-apply'||action==='native-guide-reset'){await nativeGuide(action==='native-guide-reset');return;}
         if(action==='settings'){await settings();return;}
         if(action==='guide'){state.view='guide';state.reorder=false;writeRoute();remember();await render();return;}
         if(action==='administration'){if(access.IsAdministrator)await administration();return;}

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.3.3.2-beta: native Android TV / Fire TV guide
+
+- Add an opt-in, plugin-only MVC filter for the original Jellyfin Live TV channel list and native TV guide. Preserve real channel IDs, native DTOs, sort/query options and playback; no virtual channels, ILiveTvService or custom TV client.
+- Persist explicit group selection per authenticated user/device, limited to the official Android TV client. Ignore old guide settings and keep other clients/devices/users unchanged.
+- Filter before native pagination and correct totals. Revalidate group/channel access and repaired source IDs on every request; deleted/denied/empty groups or plugin failures restore ordinary authorized Live TV. Keep existing central channel restrictions authoritative.
+- Add current-device and own-user target GET/PUT/DELETE NativeGuide endpoints, an offline-safe All channels reset, and English/German Use group on TV / All channels on TV actions using the existing device selector.
+- Keep /LiveTv/Programs, independent web EPG, browsable native fallback and remote playback unchanged. Open ordinary Live TV → TV Guide manually; reopening the view/app may be required due to caching. Cross-user scope transfer and DisplayContent/direct timeline navigation are not included.
+- Add scope/filter/controller tests, real Jellyfin-12 native channel/program integration coverage, browser regressions and a documented phased development plan. Publish only through the existing beta release/catalog workflow.
+
 ## 0.3.3.1
 
 ### Central channel access

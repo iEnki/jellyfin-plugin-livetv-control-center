@@ -27,6 +27,9 @@ public class UserGroups
     /// Gets or sets personal preferences for the independent groups page.
     /// </summary>
     public GroupPreferences Preferences { get; set; } = new();
+
+    /// <summary>Explicit native guide selection, keyed by Jellyfin device ID. Legacy guide selections are ignored.</summary>
+    public Dictionary<string, Guid> NativeGuideScopes { get; set; } = new(StringComparer.Ordinal);
 }
 
 /// <summary>

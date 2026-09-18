@@ -34,6 +34,9 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddScoped<ChannelAccessFilter>();
         serviceCollection.Configure<MvcOptions>(options => options.Filters.AddService<ChannelAccessFilter>());
         serviceCollection.AddSingleton<GroupService>();
+        serviceCollection.AddSingleton<NativeGuideService>();
+        serviceCollection.AddScoped<NativeGuideChannelFilter>();
+        serviceCollection.PostConfigure<MvcOptions>(options => options.Filters.AddService<NativeGuideChannelFilter>());
         serviceCollection.AddSingleton<PlaylistSyncService>();
         serviceCollection.AddSingleton<WebInjectionStatus>();
         serviceCollection.AddSingleton<IChannel, GroupsChannel>();

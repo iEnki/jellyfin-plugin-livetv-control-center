@@ -55,7 +55,7 @@ public class ChannelAccessNativeApiTests
                 s.AddAuthorization(o => { o.AddPolicy("Download", p => p.RequireAssertion(_ => true)); o.AddPolicy("LiveTvAccess", p => p.RequireAssertion(_ => true)); o.AddPolicy("RequiresElevation", p => p.RequireAssertion(_ => true)); o.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder().RequireAssertion(_ => true).Build(); });
             }).Configure(app =>
             {
-                app.Use(async (ctx, next) => { if (Guid.TryParse(ctx.Request.Headers["X-Test-User"], out var id)) ctx.User = new(new ClaimsIdentity([new Claim("Jellyfin-UserId", id.ToString()), new Claim("Jellyfin-IsApiKey", "False")], "fixture")); await next(); });
+                app.Use(async (ctx, next) => { if (Guid.TryParse(ctx.Request.Headers["X-Test-User"], out var id)) ctx.User = new(new ClaimsIdentity([new Claim("Jellyfin-UserId", id.ToString()), new Claim("Jellyfin-IsApiKey", "False"), new Claim("Jellyfin-DeviceId", ctx.Request.Headers["X-Test-Device"].ToString()), new Claim("Jellyfin-Client", ctx.Request.Headers["X-Test-Client"].ToString())], "fixture")); await next(); });
                 app.UseRouting(); app.UseAuthorization(); app.UseEndpoints(e => e.MapControllers());
             })).StartAsync();
             var client = host.GetTestClient(); client.DefaultRequestHeaders.Add("X-Test-User", f.Bob.Id.ToString());
@@ -65,6 +65,28 @@ public class ChannelAccessNativeApiTests
             var json = System.Text.Json.JsonDocument.Parse(await visible.Content.ReadAsStringAsync()); Assert.Equal(1, json.RootElement.GetProperty("TotalRecordCount").GetInt32()); Assert.Equal(f.News.Id, json.RootElement.GetProperty("Items")[0].GetProperty("Id").GetGuid());
             client.DefaultRequestHeaders.Remove("X-Test-User"); client.DefaultRequestHeaders.Add("X-Test-User", f.Alice.Id.ToString());
             var alice = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/LiveTv/Channels?limit=1&startIndex=1")); Assert.Equal(2, alice.RootElement.GetProperty("TotalRecordCount").GetInt32()); Assert.Equal(1, alice.RootElement.GetProperty("Items").GetArrayLength());
+            // Exercise the newly registered filter on the actual supported Jellyfin controller.
+            var groupId = Guid.NewGuid();
+            f.Store.Update(f.Alice.Id, d => { d.Groups.Add(new() { Id = groupId, Name = "News", Channels = [Jellyfin.Plugin.LiveTvGroups.Services.GroupService.ToRef(f.News)] }); return true; });
+            var scopes = host.Services.GetRequiredService<Jellyfin.Plugin.LiveTvGroups.Services.NativeGuideService>();
+            scopes.Set(f.Alice, "living-tv", groupId);
+            client.DefaultRequestHeaders.Add("X-Test-Device", "living-tv"); client.DefaultRequestHeaders.Add("X-Test-Client", "Jellyfin Android TV");
+            using var grouped = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/LiveTv/Channels?limit=1&startIndex=0&addCurrentProgram=true"));
+            Assert.Equal(1, grouped.RootElement.GetProperty("TotalRecordCount").GetInt32());
+            Assert.Equal(f.News.Id, grouped.RootElement.GetProperty("Items")[0].GetProperty("Id").GetGuid());
+            using var beyond = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/LiveTv/Channels?limit=1&startIndex=1"));
+            Assert.Equal(1, beyond.RootElement.GetProperty("TotalRecordCount").GetInt32()); Assert.Equal(0, beyond.RootElement.GetProperty("Items").GetArrayLength());
+            using var programs = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/LiveTv/Programs?channelIds=" + f.Adult.Id + "&limit=1&startIndex=0"));
+            Assert.Equal(f.Program.Id, programs.RootElement.GetProperty("Items")[0].GetProperty("Id").GetGuid());
+            Assert.Equal(f.Adult.Id, Assert.Single(f.LastProgramQuery!.ChannelIds)); Assert.Equal(1, f.LastProgramQuery.Limit);
+            client.DefaultRequestHeaders.Remove("X-Test-Device"); client.DefaultRequestHeaders.Add("X-Test-Device", "other-tv");
+            using var otherDevice = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/LiveTv/Channels?limit=1"));
+            Assert.Equal(2, otherDevice.RootElement.GetProperty("TotalRecordCount").GetInt32());
+            client.DefaultRequestHeaders.Remove("X-Test-Device"); client.DefaultRequestHeaders.Add("X-Test-Device", "living-tv");
+            f.Store.Update(f.Alice.Id, d => { d.Groups.Clear(); return true; });
+            using var deletedGroup = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/LiveTv/Channels?limit=1&startIndex=1"));
+            Assert.Equal(2, deletedGroup.RootElement.GetProperty("TotalRecordCount").GetInt32()); Assert.Null(scopes.Get(f.Alice.Id, "living-tv"));
+
             client.DefaultRequestHeaders.Remove("X-Test-User"); Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/Videos/" + f.Recording.Id + "/source/Subtitles/0/Stream.vtt")).StatusCode); Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/LiveTv/LiveStreamFiles/unknown/stream.ts")).StatusCode);
         }
         finally { AssemblyLoadContext.Default.Resolving -= Resolve; }

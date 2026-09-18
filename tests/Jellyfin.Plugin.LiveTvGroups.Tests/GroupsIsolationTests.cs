@@ -15,12 +15,12 @@ namespace Jellyfin.Plugin.LiveTvGroups.Tests;
 public class GroupsIsolationTests
 {
     [Fact]
-    public void RegistersNoNativeRequestFilterEvenForOldConfiguration()
+    public void RegistersOnlyExplicitNativeScopeFilterWithoutStartupMiddleware()
     {
         var services = new ServiceCollection();
         new PluginServiceRegistrator().RegisterServices(services, null!);
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IStartupFilter));
-        Assert.DoesNotContain(typeof(Plugin).Assembly.GetTypes(), type => type.Name.Contains("GuideFilter", StringComparison.Ordinal));
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(Jellyfin.Plugin.LiveTvGroups.Api.NativeGuideChannelFilter));
     }
 
     [Fact]
@@ -32,6 +32,7 @@ public class GroupsIsolationTests
         Assert.Equal(12, data.Revision);
         Assert.Empty(data.Preferences.HiddenGroupIds);
         Assert.Equal("guide", data.Preferences.DefaultView);
+        Assert.Empty(data.NativeGuideScopes);
         Assert.DoesNotContain("ActiveGuideGroupId", JsonSerializer.Serialize(data), StringComparison.Ordinal);
     }
 

@@ -22,6 +22,7 @@ public class StartupDependencyTests
     [InlineData(typeof(LiveTvStreamBridge))]
     [InlineData(typeof(AppGuideService))]
     [InlineData(typeof(GroupService))]
+    [InlineData(typeof(NativeGuideService))]
     [InlineData(typeof(PlaylistSyncService))]
     public void OnlyResolvesJellyfinServicesLazily(Type type)
     {
