@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.4.0.0
+
+- Promote the owner-accepted native TV guide and playback features from beta to stable. Update normally from stable or beta catalogs while preserving groups, permissions, preferences and per-user/device guide selections. Target Jellyfin 12 / net10.0.
+- Show only a selected group's permitted original channels in the official Android TV / Fire TV timeline. Select Native TV guide inside a group using the TV remote, or Use group on TV from the web guide. DisplayContent opens ordinary Live TV; select TV Guide there to open the native timeline.
+- Allow All visible groups with Use group on TV to apply the deduplicated union of all currently visible, accessible groups. Follow subsequent group, hidden-group and channel permission changes on the next guide reload. All channels on TV clears either selection and restores ordinarily permitted channels, including channels outside groups.
+- Filter the native channel response per authenticated user/device before pagination; preserve sorting, original channel IDs and playback. Revalidate current group/channel rights and fail open safely for deleted, denied, empty or unresolvable groups. Keep central channel restrictions authoritative and other clients/users/devices unchanged. No virtual channels, additional TV provider or custom TV client is required.
+- Restore remote target recognition for official Android TV and Jellyfin for Android TV client names, including supported connected sessions without the remote-control flag. Preserve user/channel authorization and existing remote playback behavior.
+- Preserve the independent web EPG, native program-list fallback and LiveTv/Programs. Guide navigation can require a further click or manual opening; cached guides may need reopening. Active playback or unavailable navigation keeps the selected group without interrupting playback.
+- Validate native MVC/API routes, scope persistence/isolation, pagination, visibility and access changes, playback client compatibility, packaging and German/English web activation/reset flows with automated tests. Publish through the stable release workflow and refresh stable/beta/development catalogs.
+
+## 0.3.3.4-beta
+
 ### 0.3.3.4-beta: all visible groups on the native TV guide
 
 - Enable Use group on TV when All visible groups is selected. Apply the deduplicated union of permitted original channels from all currently visible groups to the user's selected own-user TV.
