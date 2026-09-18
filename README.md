@@ -10,6 +10,7 @@ The plugin uses Jellyfin's existing channels and EPG data. Its groups page works
 
 ## Contents
 
+- [Screenshots and preview](#screenshots-and-preview)
 - [Requirements and client support](#requirements-and-client-support)
 - [Installation](#installation)
 - [Upgrading](#upgrading)
@@ -29,6 +30,61 @@ The plugin uses Jellyfin's existing channels and EPG data. Its groups page works
 - [Troubleshooting](#troubleshooting)
 - [Support](#support)
 - [License](#license)
+
+## Screenshots and preview
+
+Explore the independent groups page in Jellyfin Web. These screenshots show the English interface; custom group names and imported channel/program information keep their original language. Click any image to view it at full resolution.
+
+### Grouped TV guide
+
+[![Jellyfin Web TV guide for the Crime group, with channel logos, program times, day navigation and guide zoom](assets/screenshots/tv-guide-epg.png)](assets/screenshots/tv-guide-epg.png)
+
+Browse a selected group's EPG on a timeline, jump to another day or time, and adjust the guide zoom. Channel logos start playback on the selected device; program cells open Jellyfin's program details.
+
+<details>
+<summary>Programs overview</summary>
+
+[![Programs view showing Now playing, Up next and Later for the selected Crime group](assets/screenshots/programs-overview.png)](assets/screenshots/programs-overview.png)
+
+See what is on now, what starts next and what airs later across the selected group's channels.
+
+</details>
+
+<details>
+<summary>Group management</summary>
+
+[![Manage groups view with named channel groups, channel counts, a New group button and rename, delete and reorder controls](assets/screenshots/group-management.png)](assets/screenshots/group-management.png)
+
+Create named channel groups and keep them organized with rename, delete and ordering controls.
+
+</details>
+
+<details>
+<summary>Personal settings</summary>
+
+[![Group settings dialog with visible groups, default group and view, remembered selection and guide zoom](assets/screenshots/personal-settings.png)](assets/screenshots/personal-settings.png)
+
+Choose visible groups, the default group and view, whether to remember your last selection, and the guide zoom.
+
+</details>
+
+<details>
+<summary>Playback device selection</summary>
+
+[![Play on selector expanded with This device, Chrome and Edge Chromium Jellyfin Web sessions](assets/screenshots/playback-device-selection.png)](assets/screenshots/playback-device-selection.png)
+
+Choose where channel playback starts with **Play on**. This capture shows connected Jellyfin Web browser sessions. For Android TV / Fire TV requirements and setup, see [Remote playback](#remote-playback).
+
+</details>
+
+<details>
+<summary>Group administration</summary>
+
+[![Group administration dialog showing personal groups mode and the option to copy personal groups into central groups](assets/screenshots/group-administration.png)](assets/screenshots/group-administration.png)
+
+Administrators can switch between personal and centrally managed groups, optionally copying their personal collection into central groups while preserving both collections.
+
+</details>
 
 ## Requirements and client support
 
