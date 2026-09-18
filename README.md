@@ -4,7 +4,7 @@ Live-TV Groups goes beyond browsing provider-defined IPTV categories: users can 
 
 Use channel groups to keep a large TV lineup easy to browse: collect channels by topic, language or household preference and view their schedules together. With a supported web-based Jellyfin phone app or mobile browser, your phone also becomes a TV guide and remote for Jellyfin Android TV / Fire TV. Browse programs on the phone, start a channel on the TV and switch channels without closing the guide.
 
-**Beta version: 0.3.3.1** · **Latest stable version: 0.3.3.0** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
+**Stable version: 0.3.3.1** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its groups page works independently of the original Jellyfin Live TV views.
 
@@ -235,7 +235,7 @@ Saving a denial stops the affected Jellyfin playback sessions, HTTP streams and 
 
 Native listings use plugin-owned tags and blocked-tag preferences; direct media requests are checked against the authoritative rules. HTTP/HTTPS live-source URLs are delivered through Jellyfin's authenticated proxy without changing the shared tuner source. RTSP/RTMP sources require server remuxing and appropriate Jellyfin playback permissions; test these sources with your TV clients before relying on them. Disabling **Enable central channel access** and saving removes only this feature's owned tags/preferences and preserves unrelated restrictions and stored rules.
 
-After enabling the feature or restarting the server, reopen playback that used a previously cached URL. Unidentified legacy HLS files are refused rather than served without an owner. Subtitle and attachment requests must be authenticated while this feature is enabled; clients that request them anonymously need current authenticated URLs. Server API keys retain their existing privileged server access. If synchronization fails, protected native queries return an error until it succeeds; check Jellyfin logs. This beta includes automated tests against Jellyfin 12 API controllers; physical Fire TV/Smart TV testing is still required for your devices and sources.
+After enabling the feature or restarting the server, reopen playback that used a previously cached URL. Unidentified legacy HLS files are refused rather than served without an owner. Subtitle and attachment requests must be authenticated while this feature is enabled; clients that request them anonymously need current authenticated URLs. Server API keys retain their existing privileged server access. If synchronization fails, protected native queries return an error until it succeeds; check Jellyfin logs. Check playback on your devices and sources after changing channel access settings.
 
 ## Home screen entry
 

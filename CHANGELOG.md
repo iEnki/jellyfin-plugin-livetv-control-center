@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-### Beta 0.3.3.1: central channel access
+## 0.3.3.1
+
+### Central channel access
 
 - Add administrator-managed named channel rules independently of personal/shared group mode, disabled by default. New rules allow selected users only; everyone-except-selected is available, and overlapping denials win.
 - Apply restrictions to channel selection, existing groups, EPG, native and original Live TV, playlists, direct playback, stream identities, recording controls and attributed recordings, while preserving existing Jellyfin permissions.
@@ -11,7 +13,7 @@
 - Resolve rescanned channels using source/external identity; show missing/ambiguous mappings for correction and leave unclassified new channels visible.
 - Capture source attribution for new built-in DVR recordings without relying on NFO tags. Keep unidentified old recordings unchanged until manually assigned.
 - Stop denied sessions/HTTP consumers/device transcoding jobs without closing another authorized viewer's shared tuner. Protect source URLs and legacy HLS ownership.
-- Add policy, browser and supported Jellyfin 12 API-controller integration tests. Keep the stable release and installable beta/development repositories separate.
+- Add policy, browser and supported Jellyfin 12 API-controller integration tests.
 
 ## 0.3.3.0
 
@@ -37,11 +39,6 @@
 - Update the optional Plugin Pages shortcut after restart. Preserve channel identity, user permissions, groups, stream ownership and playlist mappings when changing display names.
 - Separate native guide caches and program metadata by language/culture. User-created names and imported EPG text remain unchanged.
 - Provide fully English user documentation, including language selection and custom display-name instructions.
-
-### Installation
-
-- Publish stable 0.3.2.1 with matching DLL and installation metadata. Existing stable 0.3.2.0 installations can update normally.
-- Development build 0.3.2.1 uses the same numeric version. Jellyfin does not treat this stable package as a higher version; reinstall the stable package manually to replace that development binary. Preserve plugin data and configuration.
 
 ## 0.3.2.0
 
