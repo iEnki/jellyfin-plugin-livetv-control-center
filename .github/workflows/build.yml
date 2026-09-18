@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [main, beta, dev, "dev-*"]
+    branches: [main, beta, "beta-*", dev, "dev-*"]
     paths-ignore: ['**/*.md', 'manifest.json']
   pull_request:
     branches: [main, beta, dev]
@@ -16,10 +16,18 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Test supported Jellyfin API integration
+        run: node .github/scripts/test-native-api.cjs
+
       - name: Test
         run: dotnet test --configuration Release
       - name: Check client script syntax
-        run: node --check src/Jellyfin.Plugin.LiveTvGroups/Web/client.js
+        run: |
+          node --check src/Jellyfin.Plugin.LiveTvGroups/Web/client.js
+          node --check src/Jellyfin.Plugin.LiveTvGroups/Web/channel-access.js
       - uses: actions/setup-node@v4
         with:
           node-version: '24'

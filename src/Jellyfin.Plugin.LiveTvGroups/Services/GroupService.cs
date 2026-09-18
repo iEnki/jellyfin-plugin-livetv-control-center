@@ -80,7 +80,9 @@ public class GroupService
             new DtoOptions(false),
             CancellationToken.None);
 
-        return result.Items.OfType<LiveTvChannel>().ToDictionary(c => c.Id);
+        var policy = _serviceProvider.GetService<ChannelAccessService>() ?? new ChannelAccessService(_store, _serviceProvider);
+        var inventory = policy.Configuration.Enabled ? policy.AllChannels() : result.Items.OfType<LiveTvChannel>().ToList();
+        return result.Items.OfType<LiveTvChannel>().Where(c => policy.Allowed(user, c, inventory)).ToDictionary(c => c.Id);
     }
 
     /// <summary>
@@ -99,15 +101,23 @@ public class GroupService
         var current = GetGroups(user).FirstOrDefault(g => g.Id == group.Id);
         if (current is null) { return []; }
         group = current;
-        var available = accessible.Values.Select(ToAvailable).ToList();
+        var policy = _serviceProvider.GetService<ChannelAccessService>() ?? new ChannelAccessService(_store, _serviceProvider);
+        var inventory = policy.Configuration.Enabled ? policy.AllChannels() : accessible.Values.ToList();
+        var available = inventory.Select(ToAvailable).ToList();
         var (matched, changed) = ChannelMatcher.Match(group.Channels, available);
-        var channels = matched.Select(c => accessible[c.Id]).ToList();
+        if (policy.Configuration.Enabled)
+        {
+            // Never remap a source-aware reference to an unrelated channel with the same name.
+            matched = group.Channels.SelectMany(r => ChannelAccessService.Resolve(r, inventory)).DistinctBy(c => c.Id).Select(ToAvailable).ToList();
+            changed = false; // Keep source references intact for administrator review and future restoration.
+        }
+        var channels = matched.Where(c => accessible.ContainsKey(c.Id)).Select(c => accessible[c.Id]).ToList();
 
         if (changed)
         {
             // Only repair when every stored reference could be resolved; otherwise keep the old
             // references so channels that are temporarily unavailable are not dropped.
-            if (matched.Count == group.Channels.Count && !Shared)
+            if (channels.Count == group.Channels.Count && !Shared)
             {
                 _store.Update(user.Id, doc =>
                 {
@@ -131,7 +141,7 @@ public class GroupService
     /// <param name="channel">The channel.</param>
     /// <returns>The reference.</returns>
     public static ChannelRef ToRef(LiveTvChannel channel)
-        => new() { ItemId = channel.Id, Name = channel.Name ?? string.Empty, Number = channel.Number };
+        => ChannelAccessService.Reference(channel);
 
     private static AvailableChannel ToAvailable(LiveTvChannel channel)
         => new(channel.Id, channel.Name ?? string.Empty, channel.Number);

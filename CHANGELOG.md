@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Beta 0.3.3.1: central channel access
+
+- Add administrator-managed named channel rules independently of personal/shared group mode, disabled by default. New rules allow selected users only; everyone-except-selected is available, and overlapping denials win.
+- Apply restrictions to channel selection, existing groups, EPG, native and original Live TV, playlists, direct playback, stream identities, recording controls and attributed recordings, while preserving existing Jellyfin permissions.
+- Preserve hidden group references/order and restore them when access is granted; show only authorized content and counts.
+- Add English/German administration with source/name/number search, bulk channel selection, user policies, effective preview, active-playback impact, recording assignment and revision conflicts.
+- Resolve rescanned channels using source/external identity; show missing/ambiguous mappings for correction and leave unclassified new channels visible.
+- Capture source attribution for new built-in DVR recordings without relying on NFO tags. Keep unidentified old recordings unchanged until manually assigned.
+- Stop denied sessions/HTTP consumers/device transcoding jobs without closing another authorized viewer's shared tuner. Protect source URLs and legacy HLS ownership.
+- Add policy, browser and supported Jellyfin 12 API-controller integration tests. Keep the stable release and installable beta/development repositories separate.
+
 ## 0.3.3.0
 
 - Promote the tested beta features to stable 0.3.3.0. Stable and beta installations can update normally while preserving existing settings and groups.

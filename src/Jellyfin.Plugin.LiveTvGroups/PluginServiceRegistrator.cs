@@ -1,4 +1,6 @@
 using System.IO;
+using Jellyfin.Plugin.LiveTvGroups.Api;
+using Microsoft.AspNetCore.Mvc;
 using Jellyfin.Plugin.LiveTvGroups.Channel;
 using Jellyfin.Plugin.LiveTvGroups.Services;
 using Jellyfin.Plugin.LiveTvGroups.Storage;
@@ -25,6 +27,12 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
                 ?? Path.Combine(sp.GetRequiredService<IApplicationPaths>().PluginsPath, "LiveTvGroups");
             return new GroupStore(Path.Combine(directory, "users"));
         });
+        serviceCollection.AddSingleton<ChannelAccessService>();
+        serviceCollection.AddSingleton<ChannelAccessTagBridge>();
+        serviceCollection.AddHostedService(sp => sp.GetRequiredService<ChannelAccessTagBridge>());
+        serviceCollection.AddSingleton<ChannelAccessRevoker>();
+        serviceCollection.AddScoped<ChannelAccessFilter>();
+        serviceCollection.Configure<MvcOptions>(options => options.Filters.AddService<ChannelAccessFilter>());
         serviceCollection.AddSingleton<GroupService>();
         serviceCollection.AddSingleton<PlaylistSyncService>();
         serviceCollection.AddSingleton<WebInjectionStatus>();

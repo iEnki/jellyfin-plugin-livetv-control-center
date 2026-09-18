@@ -68,7 +68,7 @@ public class GroupsChannel : IChannel, IHasCacheKey
     public string Description => T("Grouped Live TV channels.");
 
     /// <inheritdoc />
-    public string DataVersion => "7"; // Invalidates cached guide-selection folders while preserving existing channel/playback item IDs.
+    public string DataVersion => "8"; // Invalidates cached channel-access and guide folders while preserving existing channel/playback item IDs.
 
     /// <inheritdoc />
     public string HomePageUrl => "https://github.com/iEnki/jellyfin-plugin-livetv-groups";

@@ -7,6 +7,7 @@ public class GroupAdministration
     public int Revision { get; set; }
     /// <summary>Gets or sets personal or shared mode.</summary>
     public string Mode { get; set; } = "personal";
+    public ChannelAccessConfiguration ChannelAccess { get; set; } = new();
     /// <summary>Gets or sets the central groups.</summary>
     public List<ChannelGroup> Groups { get; set; } = [];
 }

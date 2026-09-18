@@ -62,6 +62,8 @@ public class ChannelGroup
 /// </summary>
 public class ChannelRef
 {
+    public string? ServiceName { get; set; }
+    public string? ExternalId { get; set; }
     /// <summary>
     /// Gets or sets the Jellyfin item id of the channel.
     /// </summary>

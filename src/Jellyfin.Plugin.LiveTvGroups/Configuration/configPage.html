@@ -33,6 +33,7 @@
                         <input id="AppGuideTimeZone" type="text" is="emby-input" required placeholder="Europe/Vienna" />
                         <div class="fieldDescription">Examples: Europe/Vienna, Europe/Berlin or UTC. The browser guide uses the device timezone.</div>
                     </div>
+                    <div class="inputContainer"><button id="ChannelAccessButton" type="button" class="raised emby-button">Channel access</button><div class="fieldDescription">Manage named channel rules for users across groups, Live TV and recordings.</div></div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
                             <input id="EnableWebIntegration" type="checkbox" is="emby-checkbox" />
@@ -87,6 +88,7 @@
                     input.disabled = !administrationLoaded || page.querySelector('#GroupMode').value !== 'shared';
                     if (input.disabled) input.checked = false;
                 }
+                page.querySelector('#ChannelAccessButton').onclick = async function () { try { await loadLocalization();if(!window.LiveTvGroupsChannelAccess)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=ApiClient.getUrl('LiveTvGroups/channel-access.js');script.onload=resolve;script.onerror=()=>reject(new Error(t("Could not load channel access.")));document.head.appendChild(script);});await window.LiveTvGroupsChannelAccess.open(); } catch(error) { Dashboard.alert(error.message); } };
                 page.querySelector('#GroupMode').addEventListener('change', updateImport);
 
                 function loadStatus() {

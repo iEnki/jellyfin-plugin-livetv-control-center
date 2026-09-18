@@ -75,7 +75,7 @@ public class GroupsController : Controller
             return Unauthorized();
         }
 
-        return Ok(_groups.GetGroups(user).Select(ToDto));
+        return Ok(_groups.GetGroups(user).Select(g => ToDto(g, user)));
     }
 
     /// <summary>
@@ -109,7 +109,7 @@ public class GroupsController : Controller
         });
 
         QueueGroupSync(user.Id);
-        return Ok(ToDto(group));
+        return Ok(ToDto(group, user));
     }
 
     /// <summary>
@@ -276,7 +276,19 @@ public class GroupsController : Controller
             var group = doc.Groups.FirstOrDefault(g => g.Id == groupId);
             if (group is not null)
             {
-                group.Channels = refs;
+                if (HttpContext.RequestServices.GetService<ChannelAccessService>() is { Configuration.Enabled: true } policy)
+                {
+                    var inventory = policy.AllChannels();
+                    var pending = new Queue<ChannelRef>(refs); var preserved = new List<ChannelRef>();
+                    foreach (var original in group.Channels)
+                    {
+                        if (!ChannelAccessService.Resolve(original, inventory).Any(c => accessible.ContainsKey(c.Id))) preserved.Add(original);
+                        else if (pending.TryDequeue(out var selected)) preserved.Add(selected);
+                    }
+                    preserved.AddRange(pending);
+                    group.Channels = preserved.DistinctBy(r => (r.ItemId, r.ServiceName, r.ExternalId)).ToList();
+                }
+                else group.Channels = refs;
             }
 
             return group is not null;
@@ -463,6 +475,10 @@ public class GroupsController : Controller
     /// Serves the web client stylesheet.
     /// </summary>
     /// <returns>The stylesheet.</returns>
+    [HttpGet("channel-access.js")]
+    [AllowAnonymous]
+    public ActionResult GetChannelAccessScript() => ServeResource("channel-access.js", "application/javascript");
+
     [HttpGet("client.css")]
     [AllowAnonymous]
     public ActionResult GetClientStyles() => ServeResource("client.css", "text/css");
@@ -586,7 +602,9 @@ public class GroupsController : Controller
         else { _playlistSync.QueueSync(userId); }
     }
 
-    private static GroupDto ToDto(ChannelGroup group) => new(group.Id, group.Name, group.Channels.Count);
+    private GroupDto ToDto(ChannelGroup group, User user) => new(group.Id, group.Name,
+        HttpContext.RequestServices.GetService<ChannelAccessService>()?.Configuration.Enabled == true
+            ? _groups.ResolveChannels(user, group, _groups.GetAccessibleChannels(user)).Count : group.Channels.Count);
 
     private ActionResult ServeResource(string name, string contentType)
     {

@@ -107,6 +107,16 @@ public class GroupStore
         }
     }
 
+    public bool TryUpdateAdministration(int expectedRevision, Action<GroupAdministration> change)
+    {
+        lock (_writeLock)
+        {
+            if (GetAdministration().Revision != expectedRevision) return false;
+            UpdateAdministration(config => { change(config); return true; });
+            return true;
+        }
+    }
+
     /// <summary>Atomically updates central configuration.</summary>
     public T UpdateAdministration<T>(Func<GroupAdministration, T> change)
     {

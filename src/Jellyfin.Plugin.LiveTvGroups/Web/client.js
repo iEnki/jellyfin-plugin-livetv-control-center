@@ -57,7 +57,7 @@
     function styles() {
         if (document.getElementById('ltvg-styles')) return;
         const link = document.createElement('link'); link.id = 'ltvg-styles'; link.rel = 'stylesheet';
-        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.3.0'));
+        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.3.1'));
         document.head.appendChild(link);
     }
     function ownRoute() {
@@ -166,7 +166,7 @@
     function chrome() {
         const root = page(); if (!root || !prefs) return;
         root.innerHTML = ("<div class=\"ltvg-header\"><h1>" + esc(displayName()) + "</h1><div class=\"ltvg-actions\">")
-            +(access.IsAdministrator ? button('administration',t("Administration")) : '')+button('guide',t("TV guide"))+button('settings',("<span class=\"material-icons\" aria-hidden=\"true\">settings</span><span>" + t("Settings") + "</span>"))+'</div></div>'
+            +(access.IsAdministrator ? button('administration',t("Administration")) : '')+(access.IsAdministrator ? button('channel-access',t("Channel access")) : '')+button('guide',t("TV guide"))+button('settings',("<span class=\"material-icons\" aria-hidden=\"true\">settings</span><span>" + t("Settings") + "</span>"))+'</div></div>'
             +("<div class=\"ltvg-toolbar\"><label class=\"ltvg-view-label\"><span class=\"ltvg-sr\">" + t("View") + "</span><select data-control=\"view\" aria-label=\"" + t("View") + "\" class=\"ltvg-view\">")
             +Object.keys(views).filter(v => v !== 'manage' || access.CanManage).map(v => '<option value="'+v+'"'+(v===state.view?' selected':'')+'>'+t(views[v])+'</option>').join('')+'</select></label>'
             +("<label><span class=\"ltvg-sr\">" + t("Group") + "</span><select class=\"ltvg-input\" data-control=\"group\" aria-label=\"" + t("Group") + "\"><option value=\"all\">" + t("All visible groups") + "</option>")
@@ -422,6 +422,7 @@
         if(action==='create'){const name=await askName(t("New group"));if(name){const created=await api('POST','Groups',{Name:name});state.group=created.Id;state.view='channels';writeRoute();await reloadGroups();}return;}
         if(action==='rename'){const group=groups.find(g=>id(g.Id)===id(value)),name=await askName(t("Rename group"),group.Name);if(name){await api('PUT','Groups/'+value,{Name:name});await reloadGroups();}return;}
         if(action==='delete'){const group=groups.find(g=>id(g.Id)===id(value));if(await confirmDelete(group.Name)){await api('DELETE','Groups/'+value);await reloadGroups();}return;}
+        if(action==='channel-access'){if(!window.LiveTvGroupsChannelAccess)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=client().getUrl('LiveTvGroups/channel-access.js');script.onload=resolve;script.onerror=()=>reject(new Error(t("Could not load channel access.")));document.head.appendChild(script);});await window.LiveTvGroupsChannelAccess.open();return;}
         if(action==='edit-channels'){await editChannels(value || state.group);return;}
         if(action.startsWith('group-')||action.startsWith('channel-')){await move(action,value);return;}
         if(action==='details'||action==='play'){capture();writeRoute();if(action==='play'){if(prefs.PreferredTargetDeviceId){await playRemote(value);return;}if(playerBusy||playbackBusy)return;try{const sessions=await client().ajax({type:'GET',url:client().getUrl('Sessions',{deviceId:client().deviceId()})});if(!sessions.length)throw new Error(t("No session."));await client().ajax({type:'POST',url:client().getUrl('Sessions/'+sessions[0].Id+'/Playing',{playCommand:'PlayNow',itemIds:value})});return;}catch(_) { /* Native details remain the playback fallback. */ }}window.location.hash='#/details?id='+encodeURIComponent(value)+'&serverId='+encodeURIComponent(client().serverId());return;}
@@ -523,7 +524,7 @@
         mount();
     }
     function schedule() { if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;ensure();}); }
-    window.addEventListener('hashchange',schedule);document.addEventListener('viewshow',schedule);
+    window.addEventListener('ltvg-channel-access-changed',()=>{if(page())reloadGroups().catch(e=>console.error(e));});window.addEventListener('hashchange',schedule);document.addEventListener('viewshow',schedule);
     window.addEventListener('resize',keepLabelsVisible);
     function start() { new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['href','class','hidden','style']});schedule(); }
     new MutationObserver(()=>{clearHomeEntries();stop();entryRequest++;entryPending=false;entry=null;schedule();}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});

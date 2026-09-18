@@ -34,7 +34,8 @@ public class GroupGuideService(GroupService groups, IServiceProvider services)
         foreach (var group in scope)
         {
             var resolved = groups.ResolveChannels(user, group, available);
-            missing += Math.Max(0, group.Channels.Count - resolved.Count);
+            if (services.GetService<ChannelAccessService>()?.Configuration.Enabled != true)
+                missing += Math.Max(0, group.Channels.Count - resolved.Count);
             channels.AddRange(resolved);
         }
         return channels.DistinctBy(c => c.Id).ToList();

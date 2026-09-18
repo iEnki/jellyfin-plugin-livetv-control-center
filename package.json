@@ -2,7 +2,8 @@
   "private": true,
   "scripts": {
     "test:packaging": "node --test tests/packaging/*.test.cjs",
-    "test:web": "node --test tests/web/client.test.cjs"
+    "test:web": "node --test tests/web/client.test.cjs",
+    "test:native": "node .github/scripts/test-native-api.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"

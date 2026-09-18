@@ -1,10 +1,10 @@
 # Live-TV Groups for Jellyfin
 
-Live-TV Groups goes beyond browsing provider-defined IPTV categories: users can manually create and order personal channel groups independently of the underlying M3U or Xtream categories. Administrators can optionally provide shared groups with per-group user access. The plugin combines this flexible organization with an independent program guide (EPG), remote playback on Jellyfin Android TV / Fire TV, grouped folders for native apps, and optional playlists.
+Live-TV Groups goes beyond browsing provider-defined IPTV categories: users can manually create and order personal channel groups independently of the underlying M3U or Xtream categories. Administrators can optionally provide shared groups with per-group user access, and centrally restrict individual channels regardless of whether users create their own groups. The plugin combines this flexible organization with an independent program guide (EPG), remote playback on Jellyfin Android TV / Fire TV, grouped folders for native apps, and optional playlists.
 
 Use channel groups to keep a large TV lineup easy to browse: collect channels by topic, language or household preference and view their schedules together. With a supported web-based Jellyfin phone app or mobile browser, your phone also becomes a TV guide and remote for Jellyfin Android TV / Fire TV. Browse programs on the phone, start a channel on the TV and switch channels without closing the guide.
 
-**Stable version: 0.3.3.0** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
+**Beta version: 0.3.3.1** · **Latest stable version: 0.3.3.0** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its groups page works independently of the original Jellyfin Live TV views.
 
@@ -15,6 +15,7 @@ The plugin uses Jellyfin's existing channels and EPG data. Its groups page works
 - [Installation](#installation)
 - [Upgrading](#upgrading)
 - [User permissions](#user-permissions)
+- [Central channel access](#central-channel-access)
 - [Home screen entry](#home-screen-entry)
 - [Language and display name](#language-and-display-name)
 - [Quick start](#quick-start)
@@ -190,7 +191,51 @@ Jellyfin media playback rights, disabled-account restrictions, channel access an
 
 Group rules apply to the plugin guide, native group/EPG folders, plugin stream resolution/opening and central-group remote playback. They do not remove access to the same channels in original Jellyfin Live TV. A channel also present in another allowed group remains accessible through that group.
 
-The plugin does not automatically change Jellyfin user/channel policies.
+Group visibility alone does not restrict original Live TV. For server-wide channel restrictions, use [Central channel access](#central-channel-access). This optional feature maintains its own Jellyfin item tags and user blocked-tag preferences while preserving unrelated permissions.
+
+## Central channel access
+
+Administrators can create named channel rules such as **Adult**, **Sports subscriptions** or **Children's TV**, independently of personal or central group ownership. This feature is **disabled by default**. Installing the update does not add restrictions until an administrator enables and saves them.
+
+A blocked channel is unavailable to that user in channel selection, existing groups, the plugin EPG, ordinary Jellyfin Live TV, native TV listings, playlists, direct item/playback requests and associated recordings. Users cannot bypass a rule by creating a personal group or using another allowed group. Existing Jellyfin Live TV, playback, parental and library permissions still apply: these rules restrict access and never grant missing rights.
+
+### Example: restrict adult channels
+
+1. Open **Dashboard → Plugins → Live-TV Groups → Channel access**, or select **Channel access** on the groups page as an administrator.
+2. Check **Enable central channel access** and select **New rule**.
+3. Enter **Adult** under **Rule name**.
+4. Keep **Only selected users**, the default policy, and check the ordinary users who may access these channels. Administrators retain management access.
+5. Search by channel name, number or source; optionally filter by **Source**. Select channels individually or use **Select filtered channels**. Bulk selection includes all matching results, even when only the first 500 are displayed.
+6. Select **Apply rule to draft**. This changes the draft only.
+7. Choose a user under **User preview** and review allowed/blocked channels, denial reasons, affected users and active playback. Select **Preview changes** again after editing the draft.
+8. Select **Save channel access** to apply the rules. Refresh or reopen clients to remove stale listings.
+
+The same administration screen works in both group modes. **Edit** changes a rule; **Delete** removes it from the draft. Review the preview and save to apply these changes. Closing the dialog discards unsaved changes. A conflict means another change occurred: use **Reload saved settings**, then review and reapply your edits.
+
+### Visibility policies
+
+| Policy | Checked ordinary users | New users |
+| --- | --- | --- |
+| **Only selected users** | Allowed by this rule; all other ordinary users are blocked. | Blocked until explicitly selected. |
+| **Everyone except selected users** | Blocked by this rule; other eligible users are allowed. | Allowed unless another rule or Jellyfin permission blocks them. |
+
+If several rules cover a channel, **any denial takes precedence**. Administrators are exempt from channel-rule denials for management, but their existing Jellyfin permissions still apply. New channels not covered by a rule are immediately visible subject to Jellyfin permissions; there is no automatic adult-channel classification. Review newly imported channels and add them to the appropriate rules.
+
+Hidden channel references and their positions remain stored in existing groups. Users can edit the channels they are allowed to see without deleting hidden entries. Counts and guides display only accessible channels. Granting access again restores those entries in their saved order.
+
+### Rescans and recordings
+
+Rules identify channels by Jellyfin ID and their service/source and external channel identity. Matching never relies on a channel name alone. After a tuner rescan or IPTV re-import, edit rules marked **Missing source** or **Ambiguous source** and select the intended replacement, or remove the saved reference. Ambiguous matches remain restricted until corrected; identical names from unrelated sources do not inherit a rule.
+
+New recordings made by Jellyfin's built-in DVR capture and persist their source during metadata import, independently of NFO tags. Associated recordings inherit channel restrictions, including direct playback/download requests and recording controls. Old recordings with unknown origin retain their existing Jellyfin permissions. Use **Recording channel assignment → Assign recording** to attribute them manually, then preview and save. Review recordings from third-party DVR providers when source attribution is unavailable. Copies exported outside Jellyfin's recording library require their own library/file access controls.
+
+### Active playback and compatibility
+
+Saving a denial stops the affected Jellyfin playback sessions, HTTP streams and device-specific transcoding jobs. Authorized viewers sharing the tuner are left running. A client may briefly display data already buffered before the change. Remote channel starts and queued playback controls check both the controlling user and the TV's signed-in user.
+
+Native listings use plugin-owned tags and blocked-tag preferences; direct media requests are checked against the authoritative rules. HTTP/HTTPS live-source URLs are delivered through Jellyfin's authenticated proxy without changing the shared tuner source. RTSP/RTMP sources require server remuxing and appropriate Jellyfin playback permissions; test these sources with your TV clients before relying on them. Disabling **Enable central channel access** and saving removes only this feature's owned tags/preferences and preserves unrelated restrictions and stored rules.
+
+After enabling the feature or restarting the server, reopen playback that used a previously cached URL. Unidentified legacy HLS files are refused rather than served without an owner. Subtitle and attachment requests must be authenticated while this feature is enabled; clients that request them anonymously need current authenticated URLs. Server API keys retain their existing privileged server access. If synchronization fails, protected native queries return an error until it succeeds; check Jellyfin logs. This beta includes automated tests against Jellyfin 12 API controllers; physical Fire TV/Smart TV testing is still required for your devices and sources.
 
 ## Home screen entry
 
@@ -412,6 +457,7 @@ Location: **Dashboard → Plugins → Live-TV Groups**.
 | Setting | Default | Effect |
 | --- | --- | --- |
 | Display name | Automatic | Translated default, or an administrator-defined name shared by all users. |
+| Channel access | Disabled | Administrator-only named channel rules and recording attribution, independent of group mode; open the dedicated dialog, preview and save. |
 | Group administration | Personal | Choose personal or central ownership; also available in groups-page administration. |
 | Copy personal groups | Unchecked | Copy admin personal groups into the central collection without deleting originals. |
 | Web integration | Enabled | Inject the independent web page through File Transformation. Restart after changing integration registration settings. |
@@ -448,11 +494,11 @@ Data is stored in the `users` subdirectory of the plugin's Jellyfin data folder:
     └── administration.json
 ```
 
-Per-user files contain personal groups, ordered channel references, personal preferences, preferred device identity/name and playlist mappings. The central file contains the operating mode, shared groups and access policies.
+Per-user files contain personal groups, ordered channel references, personal preferences, preferred device identity/name and playlist mappings. The central file contains the operating mode, shared groups, group access policies, revisioned channel rules, known source identities and recording assignments. Preserve it along with user files. Channel restrictions also maintain uniquely owned tags and blocked-tag preferences in Jellyfin's database.
 
 This data directory is separate from a versioned binary installation directory. Preserve the complete data folder and Jellyfin-managed plugin configuration when upgrading/moving the server. Stop Jellyfin before restoring a backup to prevent ongoing changes from overwriting restored files.
 
-If a tuner rescan/M3U re-import changes channel IDs, references can be matched using stored IDs, names and numbers. If a channel cannot be matched, open **Choose channels** and select its replacement.
+If a tuner rescan/M3U re-import changes channel IDs, ordinary group references can be matched using stored IDs, names and numbers. With central channel access enabled, source identity takes precedence and ambiguous or missing mappings require administrator review. If a channel cannot be matched, open **Choose channels** and select its replacement.
 
 ## Troubleshooting
 
@@ -464,6 +510,10 @@ If a tuner rescan/M3U re-import changes channel IDs, references can be matched u
 | Native folders appear instead of custom web UI | Check File Transformation, web integration/status, restart and browser reload/cache. Plugin Pages alone does not inject the interface. |
 | Channels have no programs | Check imported EPG, channel mapping, selected time/date and ordinary Jellyfin Live TV. |
 | Saved channel missing | Check user/parental rights, tuner availability and rescan matching; correct unresolved references through channel selection. |
+| Channel blocked unexpectedly | Open **Channel access**, preview the affected user and check all applicable rules and Jellyfin permissions. Any denial wins. |
+| Missing/ambiguous rule source | Edit the rule and correct the saved reference after a tuner/IPTV rescan. |
+| Old recording not restricted | Manually assign its channel in **Channel access**, then preview and save. |
+| Playback fails after enabling rules or restarting | Reopen playback to obtain a current authenticated source URL. Check rule preview and logs if native synchronization fails. |
 | Fire TV absent from target list | Open Jellyfin in the foreground, use the same account or grant cross-user remote permission, then refresh. Ensure the TV app is connected to your Jellyfin server. |
 | Remembered target unavailable | Reopen the TV app and refresh devices. The preference intentionally does not switch to local playback. |
 | No stop confirmation on sender change | Check TV connection/internal-player setting. Reopen the TV app and retry. The selected channel starts only after the current player has stopped. |

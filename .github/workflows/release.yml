@@ -51,12 +51,16 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      - name: Test supported Jellyfin API integration
+        run: node .github/scripts/test-native-api.cjs
+
       - name: Test
         run: dotnet test --configuration Release
 
       - name: Check client and package metadata
         run: |
           node --check src/Jellyfin.Plugin.LiveTvGroups/Web/client.js
+          node --check src/Jellyfin.Plugin.LiveTvGroups/Web/channel-access.js
           npm run test:packaging
 
       - run: npm ci
