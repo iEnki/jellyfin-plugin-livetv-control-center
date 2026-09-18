@@ -9,3 +9,8 @@ TestResults/
 node_modules/
 
 docs/
+
+# Keep development notes local; README and changelog are public documentation.
+*.md
+!/README.md
+!/CHANGELOG.md
