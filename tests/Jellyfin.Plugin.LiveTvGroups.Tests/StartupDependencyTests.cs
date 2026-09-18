@@ -23,6 +23,7 @@ public class StartupDependencyTests
     [InlineData(typeof(AppGuideService))]
     [InlineData(typeof(GroupService))]
     [InlineData(typeof(NativeGuideService))]
+    [InlineData(typeof(NativeGuideActionService))]
     [InlineData(typeof(PlaylistSyncService))]
     public void OnlyResolvesJellyfinServicesLazily(Type type)
     {

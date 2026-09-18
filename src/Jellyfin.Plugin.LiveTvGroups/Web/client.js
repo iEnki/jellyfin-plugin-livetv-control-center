@@ -57,7 +57,7 @@
     function styles() {
         if (document.getElementById('ltvg-styles')) return;
         const link = document.createElement('link'); link.id = 'ltvg-styles'; link.rel = 'stylesheet';
-        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.3.1'));
+        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.3.3'));
         document.head.appendChild(link);
     }
     function ownRoute() {
@@ -119,7 +119,7 @@
         const apply = page().querySelector('[data-action="native-guide-apply"]');
         const reset = page().querySelector('[data-action="native-guide-reset"]');
         if (apply) apply.disabled = playerBusy || playbackBusy || state.group === 'all'
-            || target?.Client?.toLowerCase() !== 'jellyfin android tv';
+            || !['android tv','jellyfin android tv','jellyfin for android tv','jellyfin for android tv (debug)'].includes(target?.Client?.toLowerCase());
         if (reset) reset.disabled = playerBusy || playbackBusy || !prefs.PreferredTargetDeviceId;
     }
     async function refreshPlayers() {

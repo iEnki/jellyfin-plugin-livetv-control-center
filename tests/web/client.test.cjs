@@ -483,3 +483,18 @@ test('failed native scope update is visible and does not change guide or playbac
  assert.equal(await page.locator('.ltvg-guide-row').count(),3);
  assert.equal(await page.getByLabel('Abspielen auf',{exact:true}).isDisabled(),false);
 });
+
+for (const clientName of ['Android TV','Jellyfin for Android TV']) test('official TV client '+clientName+' supports target playback and native guide activation',async t=>{
+ const {page,f}=await open(t);f.players[0].Client=clientName;
+ await page.getByRole('button',{name:'Geräte aktualisieren',exact:true}).click();
+ await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');
+ await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ const apply=page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true});
+ assert.equal(await apply.isDisabled(),false);await apply.click();
+ await page.getByRole('status').filter({hasText:'Gruppe am TV aktiviert'}).waitFor();
+ assert.equal(f.nativeScopes['living-tv'],crime);
+ await page.locator('[data-action="play"]').first().click();
+ await page.getByRole('status').filter({hasText:'Wiedergabebefehl an Wohnzimmer Fire TV gesendet.'}).waitFor();
+ assert.equal(f.remotePlays.length,1);
+ assert.ok(!(await page.getByLabel('Abspielen auf',{exact:true}).innerText()).includes('nicht verfügbar'));
+});

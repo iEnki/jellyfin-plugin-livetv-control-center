@@ -27,7 +27,7 @@ public class NativeGuideChannelFilter(NativeGuideService scopes, IUserManager us
         if (descriptor?.ControllerTypeInfo.FullName != "Jellyfin.Api.Controllers.LiveTvController"
             || descriptor.ActionName != "GetLiveTvChannels"
             || principal.Identity?.IsAuthenticated != true
-            || !string.Equals(principal.FindFirst("Jellyfin-Client")?.Value, "Jellyfin Android TV", StringComparison.OrdinalIgnoreCase)
+            || !PlayerService.IsAndroidTvClient(principal.FindFirst("Jellyfin-Client")?.Value)
             || !string.Equals(principal.FindFirst("Jellyfin-IsApiKey")?.Value, "False", StringComparison.OrdinalIgnoreCase)
             || string.IsNullOrWhiteSpace(device)
             || !Guid.TryParse(principal.FindFirst("Jellyfin-UserId")?.Value, out var userId) || userId == Guid.Empty
@@ -58,15 +58,15 @@ public class NativeGuideChannelFilter(NativeGuideService scopes, IUserManager us
         // intersect it and only then paginate. Preserve every other core argument/DTO option.
         var hasStart = context.ActionArguments.TryGetValue("startIndex", out var originalStart);
         var hasLimit = context.ActionArguments.TryGetValue("limit", out var originalLimit);
-        if (!hasStart || !hasLimit) { await next().ConfigureAwait(false); return; }
+        // MVC omits unbound nullable arguments. Supply null so filtering also works on the first/all-channel request.
         context.ActionArguments["startIndex"] = null;
         context.ActionArguments["limit"] = null;
         ActionExecutedContext executed;
         try { executed = await next().ConfigureAwait(false); }
         finally
         {
-            context.ActionArguments["startIndex"] = originalStart;
-            context.ActionArguments["limit"] = originalLimit;
+            if (hasStart) context.ActionArguments["startIndex"] = originalStart; else context.ActionArguments.Remove("startIndex");
+            if (hasLimit) context.ActionArguments["limit"] = originalLimit; else context.ActionArguments.Remove("limit");
         }
         if (executed.Exception is not null || executed.Canceled
             || executed.Result is not ObjectResult result || (result.StatusCode is int status && status != 200)

@@ -44,12 +44,14 @@ public class NativeGuideTests
     }
     private static async Task<QueryResult<BaseItemDto>> Invoke(AccessFixture f, NativeGuideService service,
         DefaultHttpContext? http = null, int? start = 0, int? limit = 1, string actionName = "GetLiveTvChannels",
-        Guid? queriedUser = null, Action<ActionExecutingContext>? duringAction = null)
+        Guid? queriedUser = null, Action<ActionExecutingContext>? duringAction = null, bool omitStart = false, bool omitLimit = false)
     {
         var action = new ActionContext(http ?? Http(f), new RouteData(), new ControllerActionDescriptor
         { ControllerTypeInfo = typeof(Jellyfin.Api.Controllers.LiveTvController).GetTypeInfo(), ActionName = actionName }, new ModelStateDictionary());
         var args = new Dictionary<string, object?> { ["startIndex"] = start, ["limit"] = limit, ["userId"] = queriedUser,
             ["addCurrentProgram"] = true, ["sortBy"] = "SortName" };
+        if (omitStart) args.Remove("startIndex");
+        if (omitLimit) args.Remove("limit");
         var context = new ActionExecutingContext(action, [], args, new object());
         ActionExecutedContext? executed = null;
         var filter = new NativeGuideChannelFilter(service, f.UserManager, NullLogger<NativeGuideChannelFilter>.Instance);
@@ -57,13 +59,44 @@ public class NativeGuideTests
         {
             duringAction?.Invoke(context);
             var original = new[] { new BaseItemDto { Id = f.Adult.Id, Name = "Adult" }, new BaseItemDto { Id = f.News.Id, Name = "News" } };
-            var page = original.Skip((int?)args["startIndex"] ?? 0).Take((int?)args["limit"] ?? int.MaxValue).ToArray();
-            executed = new ActionExecutedContext(action, [], new object()) { Result = new OkObjectResult(new QueryResult<BaseItemDto>((int?)args["startIndex"], 2, page)) };
+            var page = original.Skip((int?)args.GetValueOrDefault("startIndex") ?? 0).Take((int?)args.GetValueOrDefault("limit") ?? int.MaxValue).ToArray();
+            executed = new ActionExecutedContext(action, [], new object()) { Result = new OkObjectResult(new QueryResult<BaseItemDto>((int?)args.GetValueOrDefault("startIndex"), 2, page)) };
             return Task.FromResult(executed);
         });
-        Assert.Equal(start, args["startIndex"]); Assert.Equal(limit, args["limit"]);
+        if (omitStart) Assert.False(args.ContainsKey("startIndex")); else Assert.Equal(start, args["startIndex"]);
+        if (omitLimit) Assert.False(args.ContainsKey("limit")); else Assert.Equal(limit, args["limit"]);
         Assert.Equal(true, args["addCurrentProgram"]); Assert.Equal("SortName", args["sortBy"]);
         return (QueryResult<BaseItemDto>)Assert.IsType<OkObjectResult>(executed!.Result).Value!;
+    }
+
+    [Theory]
+    [InlineData(true,true)]
+    [InlineData(true,false)]
+    [InlineData(false,true)]
+    public async Task OmittedPaginationArgumentsAreFilteredAndRestoredOnSuccessAndCoreFailure(bool omitStart,bool omitLimit)
+    {
+        using var f = new AccessFixture(); var service = new NativeGuideService(f.Store, f.Groups); service.Set(f.Alice,"tv",Group(f));
+        var result=await Invoke(f,service,omitStart:omitStart,omitLimit:omitLimit);
+        Assert.Equal(1,result.TotalRecordCount);Assert.Equal(f.News.Id,Assert.Single(result.Items).Id);
+        ActionExecutingContext? captured=null;
+        await Assert.ThrowsAsync<InvalidOperationException>(()=>Invoke(f,service,omitStart:omitStart,omitLimit:omitLimit,
+            duringAction:c=>{captured=c;throw new InvalidOperationException("Core error");}));
+        Assert.NotNull(captured);Assert.Equal(!omitStart,captured.ActionArguments.ContainsKey("startIndex"));
+        Assert.Equal(!omitLimit,captured.ActionArguments.ContainsKey("limit"));
+    }
+
+    [Theory]
+    [InlineData("Android TV")]
+    [InlineData("Jellyfin for Android TV")]
+    [InlineData("Jellyfin for Android TV (debug)")]
+    public async Task OfficialClientAliasesActivateAndFilterNativeGuide(string client)
+    {
+        using var f = new AccessFixture(); var service = new NativeGuideService(f.Store, f.Groups); var group = Group(f);
+        var api = new NativeGuideController(service, null!, f.UserManager, NullLogger<NativeGuideController>.Instance)
+        { ControllerContext = new() { HttpContext = Http(f, client: client) } };
+        Assert.IsType<NoContentResult>(api.SetCurrent(new() { GroupId = group }));
+        var result = await Invoke(f, service, Http(f, client: client));
+        Assert.Equal(f.News.Id, Assert.Single(result.Items).Id); Assert.Equal(1, result.TotalRecordCount);
     }
 
     [Fact]

@@ -149,7 +149,14 @@ public class PlayerService
 
     internal static bool IsAndroidTv(SessionInfo session)
         // Fire TV runs the official Android TV client. Device names are user-editable and not evidence.
-        => string.Equals(session.Client, "Jellyfin Android TV", StringComparison.OrdinalIgnoreCase);
+        => IsAndroidTvClient(session.Client);
+
+    internal static bool IsAndroidTvClient(string? client)
+        // Exact official ClientInfo names across released app generations; never infer from device names.
+        => string.Equals(client, "Android TV", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(client, "Jellyfin Android TV", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(client, "Jellyfin for Android TV", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(client, "Jellyfin for Android TV (debug)", StringComparison.OrdinalIgnoreCase);
 
     private static void RequirePlaybackAccess(User user)
     {

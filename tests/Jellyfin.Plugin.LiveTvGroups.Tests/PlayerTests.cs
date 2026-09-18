@@ -30,6 +30,27 @@ namespace Jellyfin.Plugin.LiveTvGroups.Tests;
 
 public class PlayerTests
 {
+    [Theory]
+    [InlineData("Android TV")]
+    [InlineData("Jellyfin Android TV")]
+    [InlineData("Jellyfin for Android TV")]
+    [InlineData("Jellyfin for Android TV (debug)")]
+    public async Task OfficialClientNamesWithoutRemoteFlagRemainDiscoverableAndPlay(string client)
+    {
+        using var f = new Fixture(); var target = f.Target(client: client, name: "Wohnzimmer Stick");
+        Assert.False(target.SupportsRemoteControl);
+        Assert.Equal(target.DeviceId, Assert.Single(f.Players.GetPlayers(f.User)).DeviceId);
+        Assert.IsType<NoContentResult>(f.Api.SetPreference(new() { DeviceId = target.DeviceId }));
+        Assert.IsType<NoContentResult>(await f.Api.Play(target.DeviceId, f.Channel.Id));
+        Assert.Equal(target.Id, f.SentTarget); Assert.Equal(f.Caller.Id, f.SentCaller);
+        Assert.Equal(f.Channel.Id, Assert.Single(f.Command!.ItemIds));
+        Assert.True(f.Players.CanSetNativeGuide(f.User, target.DeviceId));
+        target.SessionControllers = [];
+        Assert.Empty(f.Players.GetPlayers(f.User));
+        Assert.IsType<ConflictObjectResult>(await f.Api.Play(target.DeviceId, f.Channel.Id));
+        Assert.Single(f.Commands);
+    }
+
     [Fact]
     public void AndroidTvWithoutRemoteFlagIsDiscoveredButUnconnectedAndOtherUsersAreNot()
     {

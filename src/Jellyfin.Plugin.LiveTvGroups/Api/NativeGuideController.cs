@@ -70,7 +70,7 @@ public class NativeGuideController(NativeGuideService scopes, PlayerService play
         {
             if (currentDevice)
             {
-                if (!string.Equals(User.FindFirst("Jellyfin-Client")?.Value, "Jellyfin Android TV", StringComparison.OrdinalIgnoreCase))
+                if (!PlayerService.IsAndroidTvClient(User.FindFirst("Jellyfin-Client")?.Value))
                     return BadRequest("Only the official Android TV / Fire TV client can scope its current device.");
             }
             else if (!players.CanSetNativeGuide(user, device))

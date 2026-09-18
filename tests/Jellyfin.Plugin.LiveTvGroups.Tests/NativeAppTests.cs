@@ -149,9 +149,9 @@ public class NativeAppTests
         using var f = new Fixture();
         var channelProvider = new GroupsChannel(f.Groups, f.Services, NullLogger<GroupsChannel>.Instance);
         var folder = await channelProvider.GetChannelItems(new InternalChannelItemQuery { UserId = f.User.Id, FolderId = GroupsChannel.GetFolderExternalId(f.Group) }, CancellationToken.None);
-        Assert.Equal(2, folder.Items.Count);
-        var guideRoot = folder.Items.Single(i => i.Type == ChannelItemType.Folder);
-        Assert.Equal("Fernsehprogramm", guideRoot.Name);
+        Assert.Equal(3, folder.Items.Count);
+        var guideRoot = folder.Items.Single(i => AppGuideService.Handles(i.Id));
+        Assert.Equal("Programmliste (Fallback)", guideRoot.Name);
         var guide = new AppGuideService(f.Groups, f.Services);
         var days = await guide.GetItems(f.User, guideRoot.Id, CancellationToken.None);
         Assert.Equal(7, days.Items.Count);
@@ -222,11 +222,11 @@ public class NativeAppTests
         Assert.Equal("Allowed program", Assert.Single(guide.Programs).Name);
         var provider = new GroupsChannel(f.Groups, f.Services, NullLogger<GroupsChannel>.Instance);
         var before = provider.GetCacheKey(f.User.Id.ToString());
-        Assert.Single((await provider.GetChannelItems(new() { UserId = f.User.Id }, CancellationToken.None)).Items);
+        Assert.Single((await provider.GetChannelItems(new() { UserId = f.User.Id }, CancellationToken.None)).Items, i => i.Id != NativeGuideActionRoute.AllChannelsId);
         var source = Assert.Single(await f.Provider.GetMediaSources(f.Video(), CancellationToken.None));
         f.Store.UpdateAdministration(config => { config.Groups[0].DeniedUserIds = [f.User.Id]; return true; });
         Assert.NotEqual(before, provider.GetCacheKey(f.User.Id.ToString()));
-        Assert.Empty((await provider.GetChannelItems(new() { UserId = f.User.Id }, CancellationToken.None)).Items);
+        Assert.Equal(NativeGuideActionRoute.AllChannelsId, Assert.Single((await provider.GetChannelItems(new() { UserId = f.User.Id }, CancellationToken.None)).Items).Id);
         Assert.Empty((await provider.GetChannelItems(new() { UserId = f.User.Id, FolderId = GroupsChannel.GetFolderExternalId(f.Group) }, CancellationToken.None)).Items);
         Assert.Empty((await f.Services.GetRequiredService<AppGuideService>().GetItems(f.User, AppGuideService.GetRootId(f.Group), CancellationToken.None)).Items);
         Assert.Empty(await f.Provider.GetMediaSources(f.Video(), CancellationToken.None));
@@ -244,8 +244,8 @@ public class NativeAppTests
         f.Http.HttpContext!.Request.Headers.AcceptLanguage = "en-US";
         Assert.NotEqual(germanCache, provider.GetCacheKey(f.User.Id.ToString()));
         var folder = await provider.GetChannelItems(new InternalChannelItemQuery { UserId=f.User.Id,FolderId=GroupsChannel.GetFolderExternalId(f.Group) }, CancellationToken.None);
-        var root = folder.Items.Single(i=>i.Type==ChannelItemType.Folder);
-        Assert.Equal("TV guide",root.Name);
+        var root = folder.Items.Single(i=>AppGuideService.Handles(i.Id));
+        Assert.Equal("Program list (fallback)",root.Name);
         var guide=f.Services.GetRequiredService<AppGuideService>();
         var days=await guide.GetItems(f.User,root.Id,CancellationToken.None);
         Assert.StartsWith("Today",days.Items[0].Name,StringComparison.Ordinal);
