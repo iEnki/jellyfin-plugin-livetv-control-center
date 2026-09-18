@@ -57,7 +57,7 @@
     function styles() {
         if (document.getElementById('ltvg-styles')) return;
         const link = document.createElement('link'); link.id = 'ltvg-styles'; link.rel = 'stylesheet';
-        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.3.3'));
+        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.3.4'));
         document.head.appendChild(link);
     }
     function ownRoute() {
@@ -118,7 +118,7 @@
         const target = players.find(p => p.DeviceId === prefs.PreferredTargetDeviceId);
         const apply = page().querySelector('[data-action="native-guide-apply"]');
         const reset = page().querySelector('[data-action="native-guide-reset"]');
-        if (apply) apply.disabled = playerBusy || playbackBusy || state.group === 'all'
+        if (apply) apply.disabled = playerBusy || playbackBusy || (state.group === 'all' && !visible().length)
             || !['android tv','jellyfin android tv','jellyfin for android tv','jellyfin for android tv (debug)'].includes(target?.Client?.toLowerCase());
         if (reset) reset.disabled = playerBusy || playbackBusy || !prefs.PreferredTargetDeviceId;
     }
@@ -170,14 +170,15 @@
         }
     }
     async function nativeGuide(reset) {
-        if (playerBusy || playbackBusy || !prefs.PreferredTargetDeviceId || (!reset && state.group === 'all')) return;
+        if (playerBusy || playbackBusy || !prefs.PreferredTargetDeviceId || (!reset && state.group === 'all' && !visible().length)) return;
         const expected = userKey, deviceId = prefs.PreferredTargetDeviceId, group = state.group;
         playerBusy = true; playerMessage = t("Updating native TV guide…"); updatePlayers();
         page()?.querySelector('.ltvg-error')?.setAttribute('hidden','');
         try {
-            await api(reset ? 'DELETE' : 'PUT', 'NativeGuide/Devices/'+encodeURIComponent(deviceId), reset ? undefined : {GroupId:group});
+            await api(reset ? 'DELETE' : 'PUT', 'NativeGuide/Devices/'+encodeURIComponent(deviceId), reset ? undefined : group === 'all' ? {AllVisibleGroups:true} : {GroupId:group});
             if (expected === userKey && active) playerMessage = reset
                 ? t("All channels restored on the TV. Reopen Live TV / TV Guide.")
+                : group === 'all' ? t("All visible groups applied on the TV. Reopen Live TV / TV Guide.")
                 : t("Group applied on the TV. Reopen Live TV / TV Guide.");
         } catch(e) {
             if (expected === userKey && active) { playerMessage = t("Could not update the native TV guide."); error(e); }

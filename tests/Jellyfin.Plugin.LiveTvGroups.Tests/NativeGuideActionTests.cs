@@ -47,6 +47,16 @@ namespace Jellyfin.Plugin.LiveTvGroups.Tests
 {
 public class NativeGuideActionTests
 {
+    [Fact]
+    public async Task NativeSingleGroupAndAllChannelsFoldersReplaceOrResetAVisibleUnion()
+    {
+        using var f=new Fixture();f.Scopes.SetVisibleGroups(f.User,"tv");
+        await f.Actions.OpenAsync(f.Http,f.ActionFolder.Id,null);
+        Assert.Equal(f.GroupId,f.Scopes.Get(f.User.Id,"tv"));Assert.False(f.Scopes.GetSelection(f.User.Id,"tv")!.AllVisibleGroups);
+        f.Scopes.SetVisibleGroups(f.User,"tv");f.ActionFolder.ExternalId=NativeGuideActionRoute.AllChannelsId;
+        await f.Actions.OpenAsync(f.Http,f.ActionFolder.Id,null);Assert.Null(f.Scopes.GetSelection(f.User.Id,"tv"));
+    }
+
     [Theory]
     [InlineData("Android TV")]
     [InlineData("Jellyfin Android TV")]

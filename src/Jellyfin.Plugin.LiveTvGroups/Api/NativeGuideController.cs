@@ -51,10 +51,10 @@ public class NativeGuideController(NativeGuideService scopes, PlayerService play
         if (string.IsNullOrWhiteSpace(device)) return BadRequest("Missing device identity.");
         try
         {
-            var group = scopes.Get(user.Id, device);
-            if (group is not null && scopes.Resolve(user, group.Value) is null)
-            { scopes.Clear(user.Id, device, group); group = null; }
-            return Ok(new { DeviceId = device, GroupId = group, Enabled = group is not null });
+            var selection = scopes.GetSelection(user.Id, device);
+            if (selection is not null && scopes.Resolve(user, selection) is null)
+            { scopes.ClearSelection(user.Id, device, selection); selection = null; }
+            return Ok(new { DeviceId = device, GroupId = selection?.GroupId, AllVisibleGroups = selection?.AllVisibleGroups == true, Enabled = selection is not null });
         }
         catch (Exception error) when (error is not OperationCanceledException)
         { return StorageFailure(error); }
@@ -64,8 +64,8 @@ public class NativeGuideController(NativeGuideService scopes, PlayerService play
     {
         var user = Caller();
         if (user is null) return Unauthorized();
-        if (string.IsNullOrWhiteSpace(device) || device.Length > 512 || request.GroupId == Guid.Empty)
-            return BadRequest("A device and group identity are required.");
+        if (string.IsNullOrWhiteSpace(device) || device.Length > 512 || (request.AllVisibleGroups ? request.GroupId != Guid.Empty : request.GroupId == Guid.Empty))
+            return BadRequest("Select exactly one group or all visible groups for a device.");
         try
         {
             if (currentDevice)
@@ -75,10 +75,11 @@ public class NativeGuideController(NativeGuideService scopes, PlayerService play
             }
             else if (!players.CanSetNativeGuide(user, device))
                 return Conflict("Open the official Jellyfin Android TV app on the target and sign in as the same user.");
-            scopes.Set(user, device, request.GroupId);
+            if (request.AllVisibleGroups) scopes.SetVisibleGroups(user, device);
+            else scopes.Set(user, device, request.GroupId);
             return NoContent();
         }
-        catch (NativeGuideGroupUnavailableException) { return NotFound("Group unavailable or has no accessible channels."); }
+        catch (NativeGuideGroupUnavailableException) { return NotFound("Selection unavailable or has no accessible group channels."); }
         catch (MediaBrowser.Controller.Net.SecurityException) { return Forbid(); }
         catch (Exception error) when (error is not OperationCanceledException) { return StorageFailure(error); }
     }
@@ -103,4 +104,5 @@ public class NativeGuideController(NativeGuideService scopes, PlayerService play
 public class NativeGuideRequest
 {
     public Guid GroupId { get; set; }
+    public bool AllVisibleGroups { get; set; }
 }

@@ -4,7 +4,7 @@ Live-TV Groups goes beyond browsing provider-defined IPTV categories: users can 
 
 Use channel groups to keep a large TV lineup easy to browse: collect channels by topic, language or household preference and view their schedules together. With a supported web-based Jellyfin phone app or mobile browser, your phone also becomes a TV guide and remote for Jellyfin Android TV / Fire TV. Browse programs on the phone, start a channel on the TV and switch channels without closing the guide.
 
-**Stable version: 0.3.3.1** · **Experimental beta: 0.3.3.3** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
+**Stable version: 0.3.3.1** · **Experimental beta: 0.3.3.4** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its groups page works independently of the original Jellyfin Live TV views.
 
@@ -412,7 +412,7 @@ This version provides start/switch actions, not a separate pause/volume/stop rem
 
 ## Native TV guide filtering (beta)
 
-**Available in experimental beta 0.3.3.3, targeting Jellyfin 12 / .NET 10.** Install through the separate [beta repository](#optional-beta-repository); the stable repository is unchanged. No additional service, subscription or custom TV app is required.
+**Available in experimental beta 0.3.3.4, targeting Jellyfin 12 / .NET 10.** Install through the separate [beta repository](#optional-beta-repository); the stable repository is unchanged. No additional service, subscription or custom TV app is required.
 
 Using only the TV remote:
 
@@ -423,9 +423,9 @@ Using only the TV remote:
 
 The old program-folder screen is now explicitly named **Program list (fallback)** / **Programmliste (Fallback)**. Opening a group or browsing this fallback does not activate a native scope. A request filter handles the explicit native action even when provider contents are cached; background channel refreshes never select groups or navigate the TV.
 
-Alternatively, on the plugin's web/mobile page, select a single **Group** and your own-user TV under **Play on**, then **Use group on TV** / **Gruppe am TV verwenden**. Open the normal TV Guide on that TV. **All channels on TV** / **Alle Sender am TV** resets even a remembered offline target. Merely choosing a group on the web page does not change the TV scope.
+Alternatively, on the plugin's web/mobile page, select one **Group** or **All visible groups**, and your own-user TV under **Play on**, then **Use group on TV** / **Gruppe am TV verwenden**. Open the normal TV Guide on that TV. **All channels on TV** / **Alle Sender am TV** resets even a remembered offline target. Merely choosing a group on the web page does not change the TV scope.
 
-The selection persists across server restarts until changed, reset or invalidated. A different user, TV/device or non-TV client remains unaffected. Another user's TV cannot receive your group even when remote playback permissions allow controlling it. **All visible groups** is a web-only union; choose a single group for native activation.
+The selection persists across server restarts until changed, reset or invalidated. A different user, TV/device or non-TV client remains unaffected. Another user's TV cannot receive your group even when remote playback permissions allow controlling it. **All visible groups** applies the union of currently permitted channels from every group visible on your groups page. Groups hidden in **Group settings → Visible groups** and denied shared groups are excluded. A sender appearing in several groups is included once. The active union follows later group, visibility and permission changes on the next native guide reload. **All channels on TV** removes either mode and restores every ordinarily permitted channel, including channels outside groups. If no visible accessible group channels remain, the union is invalidated and ordinary authorized Live TV is retained.
 
 The plugin filters only the normal `LiveTvController.GetLiveTvChannels` response, using authenticated user/device/client claims and current `GroupService` access/resolved original channel IDs. It intersects `QueryResult<BaseItemDto>` before pagination, including requests with omitted pagination parameters. Original sorting, IDs, DTOs and playback are preserved. `/LiveTv/Programs` is unchanged: the stock TV client requests programs for the returned `channelIds`. No virtual channels, TV-provider service or modified Android TV client are used. The native **channel list** is also filtered for that user/device.
 
@@ -442,11 +442,11 @@ All endpoints require an authenticated non-API-key user with Live TV access. The
 
 | Method | Endpoint | Result |
 | --- | --- | --- |
-| GET | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | `{ DeviceId, GroupId, Enabled }`; invalid selection is removed. |
-| PUT | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | Body `{ "GroupId": "<group UUID>" }`; requires an eligible active official TV session signed into the caller's user. |
+| GET | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | `{ DeviceId, GroupId, AllVisibleGroups, Enabled }`; invalid selection is removed. |
+| PUT | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | Body `{ "GroupId": "<group UUID>" }` for one group, or `{ "AllVisibleGroups": true }` for the current visible-group union; requires an eligible active official TV session signed into the caller's user. |
 | DELETE | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | Remove only the caller's device selection, including offline devices. |
 
-PUT/DELETE return 204 on success. Invalid groups return 404; unavailable or other-user targets return 409. Device IDs are Jellyfin device IDs, not device names or session IDs. Data is stored in the existing per-user JSON file under `NativeGuideScopes`; legacy `ActiveGuideGroupId` and web preferences cannot enable it. See [corrective development plan and validation notes](docs/native-guide-beta-0.3.3.3.md).
+PUT/DELETE return 204 on success. Mixed/missing selections return 400. Invalid/empty selections return 404; unavailable or other-user targets return 409. Device IDs are Jellyfin device IDs, not device names or session IDs. Data is stored in the existing per-user JSON file under `NativeGuideScopes` (single group) or `NativeGuideVisibleGroupDevices` (visible union); the modes are mutually exclusive per device. Legacy `ActiveGuideGroupId` and web preferences cannot enable it. See [corrective development plan and validation notes](docs/native-guide-beta-0.3.3.4.md).
 
 ## Native apps and program lists
 

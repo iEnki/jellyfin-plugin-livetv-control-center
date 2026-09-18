@@ -37,12 +37,12 @@ public class NativeGuideChannelFilter(NativeGuideService scopes, IUserManager us
         var active = false;
         try
         {
-            var observed = scopes.Get(userId, device);
+            var observed = scopes.GetSelection(userId, device);
             if (observed is not null && users.GetUserById(userId) is { } user)
             {
-                if (scopes.Resolve(user, observed.Value) is null)
+                if (scopes.Resolve(user, observed) is null)
                 {
-                    scopes.Clear(userId, device, observed);
+                    scopes.ClearSelection(userId, device, observed);
                     logger.LogDebug("Native guide scope invalid for user {UserId}, device {DeviceId}; ordinary Live TV retained.", userId, device);
                 }
                 else active = true;
@@ -77,15 +77,15 @@ public class NativeGuideChannelFilter(NativeGuideService scopes, IUserManager us
         try
         {
             // Re-read after the action: reset, replacement, deletion and permission changes may race it.
-            var current = scopes.Get(userId, device);
+            var current = scopes.GetSelection(userId, device);
             var user = users.GetUserById(userId);
-            var allowed = current is null || user is null ? null : scopes.Resolve(user, current.Value);
-            if (current is not null && allowed is null) scopes.Clear(userId, device, current);
+            var allowed = current is null || user is null ? null : scopes.Resolve(user, current);
+            if (current is not null && allowed is null) scopes.ClearSelection(userId, device, current);
             if (allowed is not null)
             {
                 items = items.Where(item => allowed.Contains(item.Id)).ToArray();
                 total = items.Length;
-                logger.LogDebug("Native guide filtered user {UserId}, device {DeviceId}, group {GroupId}: {Count} channels.", userId, device, current, total);
+                logger.LogDebug("Native guide filtered user {UserId}, device {DeviceId}, selection {Selection}: {Count} channels.", userId, device, current, total);
             }
         }
         catch (Exception error) when (error is not OperationCanceledException)

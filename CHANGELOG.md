@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 0.3.3.4-beta: all visible groups on the native TV guide
+
+- Enable Use group on TV when All visible groups is selected. Apply the deduplicated union of permitted original channels from all currently visible groups to the user's selected own-user TV.
+- Respect hidden-group preferences and current personal/shared group and channel rights. Persist an explicit per-device union mode; added/changed/hidden/denied groups update the selection on the next native guide fetch. Preserve existing single-group storage and activation.
+- Keep All channels on TV as a separate full reset, including offline remembered devices and channels outside groups. Single-group native/web activation replaces the union; native All channels folders also clear either mode.
+- Extend NativeGuide PUT with AllVisibleGroups=true and GET with AllVisibleGroups. Reject mixed/missing modes; empty/unavailable unions fail open safely. Preserve native pagination, other-user/device/client isolation, Programs, remote playback, native group navigation and the web guide.
+- Add union/persistence/permissions/API and real Jellyfin-controller coverage plus German/English browser activation, mode-switching, failure and offline-reset regressions. Target Jellyfin 12/net10.0 and publish through the beta-only release/catalog workflow.
+
+## 0.3.3.3-beta
+
 ### 0.3.3.3-beta: real native guide activation and official TV playback compatibility
 
 - Add an explicit Native TV guide action inside each group and All channels reset at the channel root, usable with the TV remote. Set the existing scope for the authenticated TV, then navigate via DisplayContent to Jellyfin's real Live TV UserView; select TV Guide there to open the original timeline.

@@ -55,7 +55,7 @@ before(async()=>{
   f.prefs.PreferredTargetDeviceName=target?.Name||null;send(null,204);return;
  }
  const native=u.pathname.match(/^\/LiveTvGroups\/NativeGuide\/Devices\/([^/]+)$/);
- if(native){if(f.nativeFailure){send('TV scope unavailable',409);return;}const device=decodeURIComponent(native[1]);if(req.method==='DELETE')delete f.nativeScopes[device];else f.nativeScopes[device]=body.GroupId;send(null,204);return;}
+ if(native){if(f.nativeFailure){send('TV scope unavailable',409);return;}const device=decodeURIComponent(native[1]);if(req.method==='DELETE')delete f.nativeScopes[device];else {f.nativeRequests??=[];f.nativeRequests.push(body);f.nativeScopes[device]=body.AllVisibleGroups ? {AllVisibleGroups:true} : body.GroupId;}send(null,204);return;}
  const remote=u.pathname.match(/^\/LiveTvGroups\/Players\/([^/]+)\/Play\/([^/]+)$/);
  if(remote){f.remotePlays.push({deviceId:decodeURIComponent(remote[1]),channelId:remote[2]});send(f.remoteFailure?'TV unavailable':null,f.remoteFailure?409:204);return;}
  if(u.pathname.endsWith('/Preferences')){if(req.method==='PUT'){f.prefs=body;send(null,204);}else send(f.prefs);return;}
@@ -466,7 +466,7 @@ test('native TV group apply and offline all-channels reset leave web guide and p
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  if(process.env.LTVG_QA_DIR)await page.screenshot({path:path.join(process.env.LTVG_QA_DIR,'native-guide-mobile.png')});
  await page.getByLabel('Gruppe',{exact:true}).selectOption('all');
- assert.equal(await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).isDisabled(),true);
+ assert.equal(await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).isDisabled(),false);
  f.players=[];await page.getByRole('button',{name:'Geräte aktualisieren',exact:true}).click();
  await page.getByRole('status').filter({hasText:'Zielgerät nicht verfügbar'}).waitFor();
  await page.getByRole('button',{name:'Alle Sender am TV',exact:true}).click();
@@ -498,3 +498,40 @@ for (const clientName of ['Android TV','Jellyfin for Android TV']) test('officia
  assert.equal(f.remotePlays.length,1);
  assert.ok(!(await page.getByLabel('Abspielen auf',{exact:true}).innerText()).includes('nicht verfügbar'));
 });
+
+
+ test('all visible groups can be applied to the TV, replaced by a single group and reset offline',async t=>{
+ const {page,f}=await open(t,{width:390,height:844});f.prefs.HiddenGroupIds=[sport];await page.reload();
+ await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');
+ await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ await page.getByLabel('Gruppe',{exact:true}).selectOption('all');
+ const apply=page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true});assert.equal(await apply.isDisabled(),false);await apply.click();
+ await page.getByRole('status').filter({hasText:'Alle sichtbaren Gruppen am TV aktiviert'}).waitFor();
+ assert.deepEqual(f.nativeScopes['living-tv'],{AllVisibleGroups:true});
+ assert.deepEqual(f.nativeRequests.at(-1),{AllVisibleGroups:true});assert.equal(f.remotePlays.length,0);
+ assert.equal(await page.locator('.ltvg-guide-row').count(),3);
+ if(process.env.LTVG_QA_DIR)await page.screenshot({path:path.join(process.env.LTVG_QA_DIR,'native-guide-visible-groups-mobile.png')});
+ await page.getByLabel('Gruppe',{exact:true}).selectOption(crime);await apply.click();
+ await page.getByRole('status').filter({hasText:'Gruppe am TV aktiviert.'}).waitFor();assert.equal(f.nativeScopes['living-tv'],crime);
+ await page.getByLabel('Gruppe',{exact:true}).selectOption('all');await apply.click();
+ await page.getByRole('status').filter({hasText:'Alle sichtbaren Gruppen am TV aktiviert'}).waitFor();
+ f.players=[];await page.getByRole('button',{name:'Geräte aktualisieren',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Zielgerät nicht verfügbar'}).waitFor();assert.equal(await apply.isDisabled(),true);
+ await page.getByRole('button',{name:'Alle Sender am TV',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Alle Sender am TV wiederhergestellt'}).waitFor();assert.equal(f.nativeScopes['living-tv'],undefined);
+ });
+
+ test('all-visible native guide action is disabled with no visible groups and failures preserve the prior scope',async t=>{
+ const {page,f}=await open(t);await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).click();await page.getByRole('status').filter({hasText:'Gruppe am TV aktiviert.'}).waitFor();
+ await page.getByLabel('Gruppe',{exact:true}).selectOption('all');f.nativeFailure=true;
+ await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).click();await page.locator('.ltvg-error:not([hidden])').waitFor();assert.equal(f.nativeScopes['living-tv'],crime);
+ f.prefs.HiddenGroupIds=[crime,sport];await page.reload();await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).isDisabled(),true);
+ });
+
+ test('English all-visible group activation sends an explicit union and localized confirmation',async t=>{
+ const {page,f}=await open(t,{width:1440,height:1000},null,'en-US');await page.getByLabel('Play on',{exact:true}).selectOption('living-tv');await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ await page.getByLabel('Group',{exact:true}).selectOption('all');await page.getByRole('button',{name:'Use group on TV',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'All visible groups applied on the TV.'}).waitFor();assert.deepEqual(f.nativeScopes['living-tv'],{AllVisibleGroups:true});
+ });

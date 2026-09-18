@@ -30,6 +30,9 @@ public class UserGroups
 
     /// <summary>Explicit native guide selection, keyed by Jellyfin device ID. Legacy guide selections are ignored.</summary>
     public Dictionary<string, Guid> NativeGuideScopes { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>Devices explicitly using the dynamic union of visible groups; mutually exclusive with a single-group scope.</summary>
+    public HashSet<string> NativeGuideVisibleGroupDevices { get; set; } = new(StringComparer.Ordinal);
 }
 
 /// <summary>

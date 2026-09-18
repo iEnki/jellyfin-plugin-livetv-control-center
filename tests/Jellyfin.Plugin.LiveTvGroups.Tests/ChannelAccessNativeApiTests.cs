@@ -79,6 +79,17 @@ public class ChannelAccessNativeApiTests
             using var programs = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/LiveTv/Programs?channelIds=" + f.Adult.Id + "&limit=1&startIndex=0"));
             Assert.Equal(f.Program.Id, programs.RootElement.GetProperty("Items")[0].GetProperty("Id").GetGuid());
             Assert.Equal(f.Adult.Id, Assert.Single(f.LastProgramQuery!.ChannelIds)); Assert.Equal(1, f.LastProgramQuery.Limit);
+            var secondGroup=Guid.NewGuid();
+            f.Store.Update(f.Alice.Id,d=>{d.Groups.Add(new() {Id=secondGroup,Name="Adult",Channels=[Jellyfin.Plugin.LiveTvGroups.Services.GroupService.ToRef(f.Adult),Jellyfin.Plugin.LiveTvGroups.Services.GroupService.ToRef(f.News)]});return true;});
+            scopes.SetVisibleGroups(f.Alice,"living-tv");
+            using var union=System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/LiveTv/Channels?limit=1&startIndex=1"));
+            Assert.Equal(2,union.RootElement.GetProperty("TotalRecordCount").GetInt32());Assert.Equal(1,union.RootElement.GetProperty("Items").GetArrayLength());
+            f.Store.Update(f.Alice.Id,d=>{d.Preferences.HiddenGroupIds=[secondGroup];return true;});
+            using var visibleUnion=System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/LiveTv/Channels"));
+            Assert.Equal(1,visibleUnion.RootElement.GetProperty("TotalRecordCount").GetInt32());Assert.Equal(f.News.Id,visibleUnion.RootElement.GetProperty("Items")[0].GetProperty("Id").GetGuid());
+            scopes.Clear(f.Alice.Id,"living-tv");
+            using var restored=System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/LiveTv/Channels"));Assert.Equal(2,restored.RootElement.GetProperty("TotalRecordCount").GetInt32());
+            scopes.Set(f.Alice,"living-tv",groupId);
             client.DefaultRequestHeaders.Remove("X-Test-Device"); client.DefaultRequestHeaders.Add("X-Test-Device", "other-tv");
             using var otherDevice = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/LiveTv/Channels?limit=1"));
             Assert.Equal(2, otherDevice.RootElement.GetProperty("TotalRecordCount").GetInt32());

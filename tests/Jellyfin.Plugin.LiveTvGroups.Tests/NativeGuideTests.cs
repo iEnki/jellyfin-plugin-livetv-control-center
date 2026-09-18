@@ -69,6 +69,135 @@ public class NativeGuideTests
         return (QueryResult<BaseItemDto>)Assert.IsType<OkObjectResult>(executed!.Result).Value!;
     }
 
+    [Fact]
+    public async Task VisibleGroupUnionDeduplicatesOriginalChannelsAndExcludesHiddenGroups()
+    {
+        using var f=new AccessFixture();var service=new NativeGuideService(f.Store,f.Groups);
+        var both=Group(f,both:true);Group(f);Group(f);
+        service.SetVisibleGroups(f.Alice,"tv");
+        var union=await Invoke(f,service,limit:null);Assert.Equal(2,union.TotalRecordCount);Assert.Equal(2,union.Items.Select(c=>c.Id).Distinct().Count());
+        f.Store.Update(f.Alice.Id,d=>{d.Preferences.HiddenGroupIds=[both];return true;});
+        var visible=await Invoke(f,service,limit:null);Assert.Equal(f.News.Id,Assert.Single(visible.Items).Id);Assert.Equal(1,visible.TotalRecordCount);
+        Assert.True(service.GetSelection(f.Alice.Id,"tv")!.AllVisibleGroups);
+    }
+
+    [Fact]
+    public async Task UnionModeIsDynamicAndResetRestoresUngroupedChannels()
+    {
+        using var f=new AccessFixture();var service=new NativeGuideService(f.Store,f.Groups);var news=Group(f);
+        service.SetVisibleGroups(f.Alice,"tv");Assert.Equal(1,(await Invoke(f,service,limit:null)).TotalRecordCount);
+        var both=Group(f,both:true);Assert.Equal(2,(await Invoke(f,service,limit:null)).TotalRecordCount);
+        f.Store.Update(f.Alice.Id,d=>{d.Groups.RemoveAll(g=>g.Id==both);return true;});
+        Assert.Equal(1,(await Invoke(f,service,limit:null)).TotalRecordCount);
+        service.Clear(f.Alice.Id,"tv");Assert.Null(service.GetSelection(f.Alice.Id,"tv"));
+        Assert.Equal(2,(await Invoke(f,service,limit:null)).TotalRecordCount); // Adult is outside the remaining News group.
+        Assert.Equal(news,Assert.Single(f.Groups.GetGroups(f.Alice)).Id);
+    }
+
+    [Fact]
+    public async Task UnionRevalidatesSharedGroupAccessAndCentralChannelRights()
+    {
+        using var f=new AccessFixture();f.Enable();var service=new NativeGuideService(f.Store,f.Groups);
+        var news=Guid.NewGuid();var adult=Guid.NewGuid();
+        f.Store.UpdateAdministration(d=>{d.Mode="shared";d.Groups=[new() {Id=news,Name="News",Channels=[GroupService.ToRef(f.News)]},new() {Id=adult,Name="Adult",Channels=[GroupService.ToRef(f.Adult)],DeniedUserIds=[f.Alice.Id]}];return true;});
+        service.SetVisibleGroups(f.Alice,"tv");Assert.Equal(f.News.Id,Assert.Single((await Invoke(f,service,limit:null)).Items).Id);
+        f.Store.UpdateAdministration(d=>{d.Groups[1].DeniedUserIds=[];return true;});Assert.Equal(2,(await Invoke(f,service,limit:null)).TotalRecordCount);
+        f.Store.UpdateAdministration(d=>{d.ChannelAccess.Rules[0].AllowedUserIds=[];return true;});
+        Assert.Equal(f.News.Id,Assert.Single((await Invoke(f,service,limit:null)).Items).Id);
+    }
+
+    [Fact]
+    public async Task EmptyUnionInvalidatesOnlyItsDeviceAndFailedActivationPreservesSingleGroup()
+    {
+        using var f=new AccessFixture();var service=new NativeGuideService(f.Store,f.Groups);var group=Group(f);
+        service.SetVisibleGroups(f.Alice,"tv");service.Set(f.Alice,"bedroom",group);
+        f.Store.Update(f.Alice.Id,d=>{d.Preferences.HiddenGroupIds=[group];return true;});
+        var normal=await Invoke(f,service);Assert.Equal(2,normal.TotalRecordCount);
+        Assert.Null(service.GetSelection(f.Alice.Id,"tv"));Assert.Equal(group,service.Get(f.Alice.Id,"bedroom"));
+        service.Set(f.Alice,"tv",group);Assert.Throws<NativeGuideGroupUnavailableException>(()=>service.SetVisibleGroups(f.Alice,"tv"));
+        Assert.Equal(group,service.Get(f.Alice.Id,"tv")); // Explicit single-group activation still works for an otherwise hidden group.
+    }
+
+    [Fact]
+    public void UnionPersistenceModeReplacementAndStaleCleanupAreIsolated()
+    {
+        using var f=new AccessFixture();var service=new NativeGuideService(f.Store,f.Groups);var group=Group(f);
+        service.Set(f.Alice,"tv",group);service.SetVisibleGroups(f.Alice,"tv");service.Set(f.Alice,"bedroom",group);
+        Assert.False(f.Store.Get(f.Alice.Id).NativeGuideScopes.ContainsKey("tv"));
+        var reloaded=new NativeGuideService(new Jellyfin.Plugin.LiveTvGroups.Storage.GroupStore(f.Directory),f.Groups);
+        Assert.Equal(new NativeGuideSelection(null,true),reloaded.GetSelection(f.Alice.Id,"tv"));
+        Assert.Equal(group,reloaded.Get(f.Alice.Id,"bedroom"));Assert.Null(reloaded.GetSelection(f.Bob.Id,"tv"));
+        service.Clear(f.Alice.Id,"tv",group);Assert.True(service.GetSelection(f.Alice.Id,"tv")!.AllVisibleGroups);
+        var observed=service.GetSelection(f.Alice.Id,"tv")!;service.Set(f.Alice,"tv",group);
+        service.ClearSelection(f.Alice.Id,"tv",observed);Assert.Equal(group,service.Get(f.Alice.Id,"tv"));
+        Assert.DoesNotContain("tv",f.Store.Get(f.Alice.Id).NativeGuideVisibleGroupDevices);
+        service.Clear(f.Alice.Id,"tv");Assert.Null(service.GetSelection(f.Alice.Id,"tv"));Assert.Equal(group,service.Get(f.Alice.Id,"bedroom"));
+    }
+
+    [Fact]
+    public async Task ModeReplacementOrResetDuringCoreActionUsesTheCurrentSelection()
+    {
+        using var f=new AccessFixture();var service=new NativeGuideService(f.Store,f.Groups);var news=Group(f);Group(f,both:true);
+        service.SetVisibleGroups(f.Alice,"tv");
+        var single=await Invoke(f,service,limit:null,duringAction:_=>service.Set(f.Alice,"tv",news));
+        Assert.Equal(f.News.Id,Assert.Single(single.Items).Id);Assert.Equal(1,single.TotalRecordCount);
+        service.SetVisibleGroups(f.Alice,"tv");var reset=await Invoke(f,service,start:1,duringAction:_=>service.Clear(f.Alice.Id,"tv"));
+        Assert.Equal(2,reset.TotalRecordCount);Assert.Equal(f.News.Id,Assert.Single(reset.Items).Id);
+    }
+
+    [Fact]
+    public void ControllerAcceptsExplicitUnionReportsItAndResetsOfflineButRejectsMixedModes()
+    {
+        using var f=new AccessFixture();var service=new NativeGuideService(f.Store,f.Groups);var group=Group(f);
+        var api=new NativeGuideController(service,null!,f.UserManager,NullLogger<NativeGuideController>.Instance) {ControllerContext=new() {HttpContext=Http(f)}};
+        Assert.IsType<NoContentResult>(api.SetCurrent(new() {AllVisibleGroups=true}));
+        var json=System.Text.Json.JsonSerializer.SerializeToElement(Assert.IsType<OkObjectResult>(api.GetCurrent()).Value);
+        Assert.True(json.GetProperty("AllVisibleGroups").GetBoolean());Assert.True(json.GetProperty("Enabled").GetBoolean());Assert.Equal(System.Text.Json.JsonValueKind.Null,json.GetProperty("GroupId").ValueKind);
+        Assert.IsType<BadRequestObjectResult>(api.SetCurrent(new() {GroupId=group,AllVisibleGroups=true}));
+        Assert.IsType<BadRequestObjectResult>(api.SetCurrent(new()));Assert.True(service.GetSelection(f.Alice.Id,"tv")!.AllVisibleGroups);
+        Assert.IsType<NoContentResult>(api.ClearDevice("tv"));Assert.Null(service.GetSelection(f.Alice.Id,"tv"));
+        Assert.IsType<NoContentResult>(api.SetCurrent(new() {GroupId=group}));
+        f.Store.Update(f.Alice.Id,d=>{d.Preferences.HiddenGroupIds=[group];return true;});
+        Assert.IsType<NotFoundObjectResult>(api.SetCurrent(new() {AllVisibleGroups=true}));Assert.Equal(group,service.Get(f.Alice.Id,"tv"));
+        api.ControllerContext.HttpContext=Http(f,apiKey:"True");Assert.IsType<UnauthorizedResult>(api.SetCurrent(new() {AllVisibleGroups=true}));
+    }
+
+    [Fact]
+    public void LegacyScopeJsonCannotAccidentallyActivateAUnion()
+    {
+        var group=Guid.NewGuid();var old=System.Text.Json.JsonSerializer.Deserialize<Jellyfin.Plugin.LiveTvGroups.Model.UserGroups>("{\"NativeGuideScopes\":{\"tv\":\""+group+"\"}}")!;
+        Assert.Equal(group,old.NativeGuideScopes["tv"]);Assert.Empty(old.NativeGuideVisibleGroupDevices);
+    }
+
+    [Fact]
+    public async Task UnionScopeIsLimitedToOwnUserTvTargetsAndDoesNotFilterOtherClientsOrDevices()
+    {
+        using var f=new AccessFixture();var service=new NativeGuideService(f.Store,f.Groups);Group(f);
+        var manager=f.Services.GetRequiredService<ISessionManager>();var players=new PlayerService(manager,f.UserManager,f.Groups);
+        var api=new NativeGuideController(service,players,f.UserManager,NullLogger<NativeGuideController>.Instance) {ControllerContext=new() {HttpContext=Http(f,client:"Jellyfin Web")}};
+        f.Alice.SetPermission(PermissionKind.EnableRemoteControlOfOtherUsers,true);
+        var tv=new SessionInfo(manager,NullLogger.Instance) {Id="target",DeviceId="tv",Client="Jellyfin for Android TV",UserId=f.Bob.Id,SessionControllers=[InterfaceStub.Create<ISessionController>((m,a)=>m.Name=="get_IsSessionActive" ? true : false)]};
+        f.Sessions.Add(tv);Assert.IsType<ConflictObjectResult>(api.SetDevice("tv",new() {AllVisibleGroups=true}));Assert.Null(service.GetSelection(f.Alice.Id,"tv"));
+        tv.UserId=f.Alice.Id;Assert.IsType<NoContentResult>(api.SetDevice("tv",new() {AllVisibleGroups=true}));
+        Assert.Equal(2,(await Invoke(f,service,Http(f,device:"other-tv"))).TotalRecordCount);
+        Assert.Equal(2,(await Invoke(f,service,Http(f,client:"Jellyfin Web"))).TotalRecordCount);
+        Assert.IsType<BadRequestObjectResult>(api.SetCurrent(new() {AllVisibleGroups=true}));
+        f.Sessions.Clear();Assert.IsType<ConflictObjectResult>(api.SetDevice("tv",new() {AllVisibleGroups=true}));
+        Assert.IsType<NoContentResult>(api.ClearDevice("tv"));Assert.Null(service.GetSelection(f.Alice.Id,"tv"));Assert.Null(service.GetSelection(f.Bob.Id,"tv"));
+    }
+
+    [Fact]
+    public void ReadingAnInvalidVisibleUnionClearsOnlyTheObservedDevice()
+    {
+        using var f=new AccessFixture();var service=new NativeGuideService(f.Store,f.Groups);var group=Group(f);
+        service.SetVisibleGroups(f.Alice,"tv");service.SetVisibleGroups(f.Alice,"bedroom");
+        f.Store.Update(f.Alice.Id,d=>{d.Preferences.HiddenGroupIds=[group];return true;});
+        var api=new NativeGuideController(service,null!,f.UserManager,NullLogger<NativeGuideController>.Instance) {ControllerContext=new() {HttpContext=Http(f)}};
+        var json=System.Text.Json.JsonSerializer.SerializeToElement(Assert.IsType<OkObjectResult>(api.GetCurrent()).Value);
+        Assert.False(json.GetProperty("Enabled").GetBoolean());Assert.False(json.GetProperty("AllVisibleGroups").GetBoolean());
+        Assert.Null(service.GetSelection(f.Alice.Id,"tv"));Assert.True(service.GetSelection(f.Alice.Id,"bedroom")!.AllVisibleGroups);
+    }
+
     [Theory]
     [InlineData(true,true)]
     [InlineData(true,false)]
