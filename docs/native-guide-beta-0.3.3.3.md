@@ -72,3 +72,5 @@ Task 3 implementation notes: updated README with TV-remote selection/reset, ordi
 ### 5. Beta publication and catalog verification — doing
 
 Task checked after local implementation review. Existing beta workflow researched above; publish the reviewed commit to beta using a non-force push, wait for Build/Beta release checks, then verify prerelease flag/tag/package version/checksum and separate beta/dev catalogs. Do not touch stable main or stable release/catalog. Hosted workflow outcome and hardware-acceptance limits will be recorded after publication.
+
+Publication housekeeping note: the staged diff check detected one whitespace-only line in the newly added integration test (not yet tracked during the earlier local diff check). Remove that line in a follow-up formatting commit; no runtime/code behavior or package version changes. Recheck the staged diff before committing. The published runtime implementation remains commit 09c718e125dc4c8b8ec1d4e8e6a404440ad5a646.

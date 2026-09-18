@@ -214,7 +214,7 @@ public class NativeGuideActionTests
             var api=AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.GetFullPath(path)); using var f=new Fixture();
             using var host=await new HostBuilder().ConfigureWebHost(web=>web.UseTestServer().ConfigureServices(s=>
             {
-                
+
                 new PluginServiceRegistrator().RegisterServices(s,InterfaceStub.Create<IServerApplicationHost>((m,a)=>null));
                 s.AddSingleton(f.Access.Store).AddSingleton(f.Access.Groups).AddSingleton(f.Access.UserManager).AddSingleton(f.Library).AddSingleton(f.Manager).AddSingleton(f.Channels).AddSingleton(f.Tv).AddSingleton(f.AuthContext);
                 s.AddSingleton(f.Access.Access).AddSingleton(f.Access.Bridge).AddSingleton(f.Access.Revoker);
