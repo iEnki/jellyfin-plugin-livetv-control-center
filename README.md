@@ -4,7 +4,7 @@ Live-TV Groups goes beyond browsing provider-defined IPTV categories: users can 
 
 Use channel groups to keep a large TV lineup easy to browse: collect channels by topic, language or household preference and view their schedules together. With a supported web-based Jellyfin phone app or mobile browser, your phone also becomes a TV guide and remote for Jellyfin Android TV / Fire TV. Browse programs on the phone, start a channel on the TV and switch channels without closing the guide.
 
-**Stable version: 0.3.2.1** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
+**Stable version: 0.3.3.0** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its groups page works independently of the original Jellyfin Live TV views.
 

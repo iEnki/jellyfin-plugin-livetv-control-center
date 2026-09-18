@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.3.3.0
+
+- Promote the tested beta features to stable 0.3.3.0. Stable and beta installations can update normally while preserving existing settings and groups.
+
 - Add an Edit channels button to existing group cards, with fresh group-specific selection, preserved channel order and unchanged editing permissions.
 
 - Add the Live-TV Groups plugin logo to the catalog, installed-plugin metadata and all installation packages.

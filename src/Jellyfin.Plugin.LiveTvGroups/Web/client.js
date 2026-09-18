@@ -57,7 +57,7 @@
     function styles() {
         if (document.getElementById('ltvg-styles')) return;
         const link = document.createElement('link'); link.id = 'ltvg-styles'; link.rel = 'stylesheet';
-        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.2.5'));
+        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.3.0'));
         document.head.appendChild(link);
     }
     function ownRoute() {

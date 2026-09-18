@@ -6,8 +6,16 @@
     "overview": "Live TV groups, program guide and TV remote playback",
     "owner": "iEnki",
     "category": "Live TV",
-    "imageUrl": "https://raw.githubusercontent.com/iEnki/jellyfin-plugin-livetv-groups/beta/assets/Live-TV_Logo.png",
+    "imageUrl": "https://raw.githubusercontent.com/iEnki/jellyfin-plugin-livetv-groups/v0.3.3.0/assets/Live-TV_Logo.png",
     "versions": [
+      {
+        "version": "0.3.3.0",
+        "changelog": "- Promote the tested beta features to stable 0.3.3.0. Stable and beta installations can update normally while preserving existing settings and groups.\n\n- Add an Edit channels button to existing group cards, with fresh group-specific selection, preserved channel order and unchanged editing permissions.\n\n- Add the Live-TV Groups plugin logo to the catalog, installed-plugin metadata and all installation packages.\n\n- Add an installable beta channel with a dedicated repository URL, automatic catalog publication and compatibility with the existing development repository.\n\n- Add an optional administrator setting to hide the original Live TV My Media entry in web and web-based mobile clients when a usable groups entry is visible.\n- Keep the Live TV menu, recordings, permissions, server streaming and native TV apps unchanged; restore the original entry when groups are unavailable or the user changes.\n- Localize the dashboard option in English and German and document its web-only behavior.\n\n",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.3.3.0/live-tv-groups_0.3.3.0.zip",
+        "checksum": "6e9e0fbf48af2dcc55422302ee35a885",
+        "timestamp": "2026-09-18T09:48:35Z"
+      },
       {
         "version": "0.3.2.1",
         "changelog": "### Language and display name\n\n- Add English and German interface translations following Jellyfin display language; other interface languages fall back to English.\n- Use client locale for web dates and times. Native guide labels use the language sent by the client, falling back to server display language.\n- Add an optional administrator-defined display name; empty restores the translated default. The shared library name follows server language, while the web title follows client language.\n- Update the optional Plugin Pages shortcut after restart. Preserve channel identity, user permissions, groups, stream ownership and playlist mappings when changing display names.\n- Separate native guide caches and program metadata by language/culture. User-created names and imported EPG text remain unchanged.\n- Provide fully English user documentation, including language selection and custom display-name instructions.\n\n### Installation\n\n- Publish stable 0.3.2.1 with matching DLL and installation metadata. Existing stable 0.3.2.0 installations can update normally.\n- Development build 0.3.2.1 uses the same numeric version. Jellyfin does not treat this stable package as a higher version; reinstall the stable package manually to replace that development binary. Preserve plugin data and configuration.\n\n",
