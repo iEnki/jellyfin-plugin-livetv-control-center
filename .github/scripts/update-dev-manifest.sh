@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Rebuilds manifest-dev.json on the "dev-channel" pre-release:
 # all stable versions from manifest.json plus development builds newer than the latest stable version.
-# Usage: update-dev-manifest.sh <stable-manifest.json> [entry.json] [channel] [catalog] [marker]
+# Usage: update-dev-manifest.sh <stable-manifest.json> [entry.json] [channel] [catalog] [marker] [branding-manifest]
 set -euo pipefail
 
 stable="$1"
@@ -9,6 +9,7 @@ entry="${2:-}"
 channel="${3:-dev-channel}"
 catalog="${4:-manifest-dev.json}"
 marker="${5:-[DEV]}"
+branding="${6:-$stable}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
@@ -23,7 +24,7 @@ fi
 
 if [ -n "$entry" ]; then new="$(cat "$entry")"; else new='null'; fi
 
-jq --slurpfile old "$work/$catalog" --argjson new "$new" --arg marker "$marker" '
+jq --slurpfile old "$work/$catalog" --slurpfile branding "$branding" --argjson new "$new" --arg marker "$marker" '
   def ver: split(".") | map(tonumber);
   (.[0].versions | map(.version | ver) | max) as $latest
   | ([ $old[0][0].versions[]? | select(.changelog | startswith($marker)) ]) as $devs
@@ -32,6 +33,7 @@ jq --slurpfile old "$work/$catalog" --argjson new "$new" --arg marker "$marker" 
       | unique_by(.version)
       | sort_by(.version | ver) | reverse) as $keep
   | .[0].versions = ($keep + .[0].versions)
+  | if ($branding[0][0].imageUrl // "") != "" then .[0].imageUrl = $branding[0][0].imageUrl else . end
 ' "$stable" > "$catalog"
 
 gh release upload "$channel" "$catalog" --clobber

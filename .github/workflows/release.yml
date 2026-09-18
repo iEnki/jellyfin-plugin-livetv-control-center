@@ -69,7 +69,7 @@ jobs:
           dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release \
             -p:Version=${{ steps.version.outputs.version }} --output out
           node .github/scripts/write-dev-meta.cjs out
-          zip -j "live-tv-groups_${{ steps.version.outputs.version }}.zip" out/Jellyfin.Plugin.LiveTvGroups.dll out/meta.json
+          zip -j "live-tv-groups_${{ steps.version.outputs.version }}.zip" out/Jellyfin.Plugin.LiveTvGroups.dll out/meta.json out/Live-TV_Logo.png
 
       - name: Extract changelog
         run: |

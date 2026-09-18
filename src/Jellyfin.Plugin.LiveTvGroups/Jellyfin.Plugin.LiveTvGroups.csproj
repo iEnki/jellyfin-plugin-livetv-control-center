@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Jellyfin.Plugin.LiveTvGroups</RootNamespace>
-    <Version>0.3.2.3</Version>
+    <Version>0.3.2.4</Version>
     <InformationalVersion>$(Version)-beta</InformationalVersion>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>

@@ -20,10 +20,14 @@ test('manual package retains plugin identity, actual version and automatic futur
     else assert.ok(!/^\[(BETA|DEV)\]/.test(result.changelog));
     assert.equal(result.autoUpdate, true);
     assert.equal(result.status, 'Active');
+    assert.equal(result.imagePath, 'Live-TV_Logo.png');
     assert.deepEqual(result.assemblies, ['Jellyfin.Plugin.LiveTvGroups.dll']);
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ltvg-package-'));
     try {
         writeMetadata(directory);
+        const bundledLogo = path.join(directory, result.imagePath);
+        const sourceLogo = path.join(__dirname, '../../assets/Live-TV_Logo.png');
+        assert.deepEqual(fs.readFileSync(bundledLogo), fs.readFileSync(sourceLogo));
         assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory, 'meta.json'), 'utf8')), result);
         assert.equal(fs.readFileSync(catalogPath, 'utf8'), before);
     } finally {

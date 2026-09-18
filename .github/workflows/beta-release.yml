@@ -79,7 +79,7 @@ jobs:
           dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release \
             -p:Version=${{ steps.version.outputs.version }} --output out
           node .github/scripts/write-dev-meta.cjs out
-          zip -j "live-tv-groups_${{ steps.version.outputs.version }}-beta.zip" out/Jellyfin.Plugin.LiveTvGroups.dll out/meta.json
+          zip -j "live-tv-groups_${{ steps.version.outputs.version }}-beta.zip" out/Jellyfin.Plugin.LiveTvGroups.dll out/meta.json out/Live-TV_Logo.png
 
       - name: Release notes
         run: |
@@ -107,14 +107,14 @@ jobs:
              --rawfile log release-notes.md \
              '{version: $v, changelog: $log, targetAbi: $abi, sourceUrl: $url, checksum: $sum, timestamp: $ts}' > entry.json
           git show origin/main:manifest.json > stable-manifest.json
-          bash .github/scripts/update-dev-manifest.sh stable-manifest.json entry.json beta-channel manifest-beta.json "[BETA]"
+          bash .github/scripts/update-dev-manifest.sh stable-manifest.json entry.json beta-channel manifest-beta.json "[BETA]" manifest.json
 
       - name: Keep existing development repository installable
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view dev-channel >/dev/null 2>&1; then
-            bash .github/scripts/update-dev-manifest.sh stable-manifest.json entry.json dev-channel manifest-dev.json '[BETA]'
+            bash .github/scripts/update-dev-manifest.sh stable-manifest.json entry.json dev-channel manifest-dev.json '[BETA]' manifest.json
           fi
 
       - name: Attach beta catalog to the version release

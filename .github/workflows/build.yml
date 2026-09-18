@@ -41,4 +41,5 @@ jobs:
           path: |
             out/Jellyfin.Plugin.LiveTvGroups.dll
             out/meta.json
+            out/Live-TV_Logo.png
           if-no-files-found: error

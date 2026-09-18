@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add the Live-TV Groups plugin logo to the catalog, installed-plugin metadata and all installation packages.
+
 - Add an installable beta channel with a dedicated repository URL, automatic catalog publication and compatibility with the existing development repository.
 
 - Add an optional administrator setting to hide the original Live TV My Media entry in web and web-based mobile clients when a usable groups entry is visible.

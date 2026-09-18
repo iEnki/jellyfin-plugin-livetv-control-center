@@ -147,10 +147,10 @@ Jellyfin compares four-part numeric versions. Beta updates and a later stable re
 2. Stop Jellyfin and preserve the plugin data/configuration.
 3. Move the older binary installation outside the scanned plugins directory.
 4. Create a folder such as `Live-TV Groups_<version>` inside Jellyfin's plugins directory.
-5. Extract **both** `Jellyfin.Plugin.LiveTvGroups.dll` and `meta.json` into it. Keep only one installed binary copy.
+5. Extract `Jellyfin.Plugin.LiveTvGroups.dll`, `meta.json` and `Live-TV_Logo.png` into it. Keep only one installed binary copy.
 6. Start Jellyfin and confirm the installed version.
 
-The package contains matching plugin identity/version metadata and automatic update support. Add the stable repository to receive subsequent stable updates.
+The package contains matching plugin identity/version metadata, the plugin logo and automatic update support. Add the stable repository to receive subsequent stable updates.
 
 ## Upgrading
 
