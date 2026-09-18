@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/iEnki/jellyfin-plugin-livetv-groups/v0.3.3.0/assets/Live-TV_Logo.png",
     "versions": [
       {
+        "version": "0.3.3.1",
+        "changelog": "### Central channel access\n\n- Add administrator-managed named channel rules independently of personal/shared group mode, disabled by default. New rules allow selected users only; everyone-except-selected is available, and overlapping denials win.\n- Apply restrictions to channel selection, existing groups, EPG, native and original Live TV, playlists, direct playback, stream identities, recording controls and attributed recordings, while preserving existing Jellyfin permissions.\n- Preserve hidden group references/order and restore them when access is granted; show only authorized content and counts.\n- Add English/German administration with source/name/number search, bulk channel selection, user policies, effective preview, active-playback impact, recording assignment and revision conflicts.\n- Resolve rescanned channels using source/external identity; show missing/ambiguous mappings for correction and leave unclassified new channels visible.\n- Capture source attribution for new built-in DVR recordings without relying on NFO tags. Keep unidentified old recordings unchanged until manually assigned.\n- Stop denied sessions/HTTP consumers/device transcoding jobs without closing another authorized viewer's shared tuner. Protect source URLs and legacy HLS ownership.\n- Add policy, browser and supported Jellyfin 12 API-controller integration tests.\n\n",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.3.3.1/live-tv-groups_0.3.3.1.zip",
+        "checksum": "b1c333234185b836990d9e5215181e46",
+        "timestamp": "2026-09-18T17:36:43Z"
+      },
+      {
         "version": "0.3.3.0",
         "changelog": "- Promote the tested beta features to stable 0.3.3.0. Stable and beta installations can update normally while preserving existing settings and groups.\n\n- Add an Edit channels button to existing group cards, with fresh group-specific selection, preserved channel order and unchanged editing permissions.\n\n- Add the Live-TV Groups plugin logo to the catalog, installed-plugin metadata and all installation packages.\n\n- Add an installable beta channel with a dedicated repository URL, automatic catalog publication and compatibility with the existing development repository.\n\n- Add an optional administrator setting to hide the original Live TV My Media entry in web and web-based mobile clients when a usable groups entry is visible.\n- Keep the Live TV menu, recordings, permissions, server streaming and native TV apps unchanged; restore the original entry when groups are unavailable or the user changes.\n- Localize the dashboard option in English and German and document its web-only behavior.\n\n",
         "targetAbi": "12.0.0.0",
