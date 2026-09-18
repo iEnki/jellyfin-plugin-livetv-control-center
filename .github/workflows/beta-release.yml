@@ -6,7 +6,8 @@ name: Beta release
 on:
   push:
     branches: [beta]
-    paths-ignore: ['**/*.md', 'manifest.json']
+    # Every installable beta changes the numeric project version. Maintenance does not publish a build.
+    paths: ['src/Jellyfin.Plugin.LiveTvGroups/Jellyfin.Plugin.LiveTvGroups.csproj']
 
 concurrency:
   group: beta-release
