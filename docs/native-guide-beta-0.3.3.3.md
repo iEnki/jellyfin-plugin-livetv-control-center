@@ -69,8 +69,12 @@ Final local validation: 193 .NET tests passed with JELLYFIN_NATIVE_API set (0 fa
 
 Task 3 implementation notes: updated README with TV-remote selection/reset, ordinary Live TV navigation, extra Guide click, cached views and physical-device acceptance limits. Changelog Unreleased contains only 0.3.3.3-beta release notes; archived prior beta notes. Increased package version to 0.3.3.3 while preserving -beta informational version. Status: review (local build/docs); beta publication and hosted workflow/catalog verification next.
 
-### 5. Beta publication and catalog verification — doing
+### 5. Beta publication and catalog verification — review
 
 Task checked after local implementation review. Existing beta workflow researched above; publish the reviewed commit to beta using a non-force push, wait for Build/Beta release checks, then verify prerelease flag/tag/package version/checksum and separate beta/dev catalogs. Do not touch stable main or stable release/catalog. Hosted workflow outcome and hardware-acceptance limits will be recorded after publication.
 
 Publication housekeeping note: the staged diff check detected one whitespace-only line in the newly added integration test (not yet tracked during the earlier local diff check). Remove that line in a follow-up formatting commit; no runtime/code behavior or package version changes. Recheck the staged diff before committing. The published runtime implementation remains commit 09c718e125dc4c8b8ec1d4e8e6a404440ad5a646.
+
+Task 5 hosted verification and review: runtime Build 35381170594 and Beta release 35381170619 succeeded. Follow-up formatting Build 35381378328 succeeded. Published v0.3.3.3-beta is a non-draft prerelease. Downloaded ZIP MD5 cd1a266d7351e337f5410104cba53c83 matches beta catalog; SHA256 dda8d761d2e6a21fb109edec7fff4dd38a846ba63cc83c0031516643e94e3a17. DLL FileVersion 0.3.3.3, ProductVersion 0.3.3.3-beta+09c718e125dc4c8b8ec1d4e8e6a404440ad5a646; target ABI 12.0.0.0, plugin identity and auto-update preserved. Separate beta/dev catalogs contain the version. Stable release remains v0.3.3.1 and main remains 8033de45d56c0a77b4ca759deab0129c29fe408b. Status: review.
+
+User acceptance: the user reports that 0.3.3.3 now works very well. This is their real-device feedback, alongside the recorded server/browser checks. They subsequently requested that the web "All visible groups" selection also activate a union on the TV; track that separately in docs/native-guide-beta-0.3.3.4.md.
