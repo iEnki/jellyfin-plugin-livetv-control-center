@@ -6,7 +6,7 @@
     "overview": "Live TV groups, program guide and TV remote playback",
     "owner": "iEnki",
     "category": "Live TV",
-    "imageUrl": "https://raw.githubusercontent.com/iEnki/jellyfin-plugin-livetv-groups/beta/assets/Live-TV_Logo.png",
+    "imageUrl": "https://raw.githubusercontent.com/iEnki/jellyfin-plugin-livetv-groups/v0.3.3.0/assets/Live-TV_Logo.png",
     "versions": [
       {
         "version": "0.3.2.1",
