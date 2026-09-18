@@ -53,6 +53,12 @@ Final local checks: 204 .NET tests passed with the real supported Jellyfin API s
 
 Task 3 implementation notes and review: updated README with dynamic visible union, hidden/denied exclusions, duplicate removal, distinct full reset and API flags/storage. Archived prior beta changelog; Unreleased contains only 0.3.3.4-beta. Updated numeric package version and web asset fallback version while retaining -beta and the established release workflow. Status: review (local implementation/docs).
 
-### 4. Beta release and hosted verification — doing
+### 4. Beta release and hosted verification — review
 
 Next task checked after implementation review. Existing beta-only workflow researched before publication. Publish the reviewed commit to beta with a non-force push; wait for both checks and verify non-draft prerelease, actual DLL version/ABI, ZIP/catalog checksum, separate beta/dev catalogs, stable release/main and clean working tree. Record exact hosted run/commit/package evidence. The new union has server/browser coverage; the user's positive TV acceptance applies to 0.3.3.3 until they try this update.
+
+Task 4 implementation notes and review: published v0.3.3.4-beta is a non-draft prerelease from commit 287b0cb1000a4352da8bb2f31a48e119158a1463. Build 35383719822 and Beta release 35383719830 succeeded. Official downloaded ZIP MD5 266492c5973627baaa0959660c4a7d7f matches the beta catalog; SHA256 0bd8c4310c4c1b3660c488224f077b707590064521ad189d3a951e41a6331952. DLL FileVersion 0.3.3.4, ProductVersion 0.3.3.4-beta+287b0cb1000a4352da8bb2f31a48e119158a1463, ABI 12.0.0.0, identity and auto-update preserved. Separate beta/dev catalogs contain 0.3.3.4. Stable remains v0.3.3.1 and main 8033de45d56c0a77b4ca759deab0129c29fe408b. Working tree was clean after implementation publication. Status: review. No further implementation task pending; newly added union hardware acceptance remains for the user's device.
+
+Release: https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/tag/v0.3.3.4-beta
+Build: https://github.com/iEnki/jellyfin-plugin-livetv-groups/actions/runs/35383719822
+Beta workflow: https://github.com/iEnki/jellyfin-plugin-livetv-groups/actions/runs/35383719830
