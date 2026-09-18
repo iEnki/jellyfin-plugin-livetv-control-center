@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add an Edit channels button to existing group cards, with fresh group-specific selection, preserved channel order and unchanged editing permissions.
+
 - Add the Live-TV Groups plugin logo to the catalog, installed-plugin metadata and all installation packages.
 
 - Add an installable beta channel with a dedicated repository URL, automatic catalog publication and compatibility with the existing development repository.

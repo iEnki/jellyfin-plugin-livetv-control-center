@@ -280,6 +280,7 @@ Users with editing permission can:
 
 - Create groups with a nonempty name of up to 100 characters.
 - Rename/delete groups.
+- Edit an existing group directly with **Edit channels** on its card under **Manage groups**. The saved selection and channel order are loaded for that group. You can also open its **Channels** view and select **Choose channels**.
 - Search/select channels that Jellyfin permits the editing user to access.
 - Filter the picker with **Selected channels only**.
 - Reorder groups by drag-and-drop or up/down buttons.

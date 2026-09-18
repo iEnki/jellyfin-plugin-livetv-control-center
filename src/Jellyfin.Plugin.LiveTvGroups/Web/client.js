@@ -57,7 +57,7 @@
     function styles() {
         if (document.getElementById('ltvg-styles')) return;
         const link = document.createElement('link'); link.id = 'ltvg-styles'; link.rel = 'stylesheet';
-        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.2.4'));
+        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.3.2.5'));
         document.head.appendChild(link);
     }
     function ownRoute() {
@@ -224,7 +224,7 @@
         content(("<div class=\"ltvg-section-heading\"><h2>" + t("Channel groups") + "</h2>")+button('create',t("New group"),'','ltvg-primary')+'</div>'
             +'<div class="ltvg-grid" data-list="groups">'+groups.map(g=>'<article class="ltvg-card ltvg-group-card" draggable="true" data-id="'+esc(g.Id)+'">'
                 +button('open','<strong>'+esc(g.Name)+'</strong><span>'+g.ChannelCount+t(" channels")+(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?t(" · Hidden"):'')+'</span>','data-id="'+esc(g.Id)+'"','ltvg-card-main')
-                +'<div class="ltvg-card-tools">'+button('rename',t("Rename"),'data-id="'+esc(g.Id)+'"')+button('delete',t("Delete"),'data-id="'+esc(g.Id)+'"')
+                +'<div class="ltvg-card-tools">'+button('edit-channels',t("Edit channels"),'data-id="'+esc(g.Id)+'"')+button('rename',t("Rename"),'data-id="'+esc(g.Id)+'"')+button('delete',t("Delete"),'data-id="'+esc(g.Id)+'"')
                 +(access.Mode === 'shared' && access.IsAdministrator ? button('group-access',t("User access"),'data-id="'+esc(g.Id)+'"') : '')
                 +button('group-up','↑','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+(t(" up") + "\""))+button('group-down','↓','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+(t(" down") + "\""))+'</div></article>').join('')+'</div>'
             +(!groups.length?("<p class=\"ltvg-empty\">" + t("No groups yet.") + "</p>"):''));
@@ -380,16 +380,17 @@
             catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
         };
     }
-    async function editChannels() {
-        const group=groups.find(g=>id(g.Id)===id(state.group));if(!group)return;
-        const current=loadedChannels.map(c=>c.Id),chosen=new Set(current);
+    async function editChannels(groupId = state.group) {
+        const group=groups.find(g=>id(g.Id)===id(groupId));if(!group)return;
+        const expectedUser=userKey,current=[],chosen=new Set();
         const wrapper=modal(("<h2 id=\"ltvg-dialog-title\">" + t("Channels for “"))+esc(group.Name)+("”</h2><input type=\"search\" class=\"ltvg-input\" aria-label=\"" + t("Search channels") + "\" placeholder=\"" + t("Search channels…") + "\"><label class=\"ltvg-picker-row\"><input type=\"checkbox\" data-selected-only>" + t("Selected channels only") + "</label><span class=\"ltvg-picker-count\"></span><div class=\"ltvg-picker\"><p role=\"status\">" + t("Loading…") + "</p></div><div class=\"ltvg-modal-actions\">")+button('cancel',t("Cancel"))+button('save',t("Save"),'disabled','ltvg-primary')+'</div>');
         wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;
-        try{const result=await api('GET','AvailableChannels');if(!wrapper.isConnected)return;const channels=result.Items||[];
+        try{const [result,selection]=await Promise.all([api('GET','AvailableChannels'),api('GET','Groups/'+encodeURIComponent(group.Id)+'/Channels')]);if(!wrapper.isConnected||expectedUser!==userKey)return;const channels=result.Items||[];
+            current.push(...(selection.Items||[]).map(channel=>channel.Id));current.forEach(channelId=>chosen.add(channelId));
             const list=wrapper.querySelector('.ltvg-picker');list.innerHTML=channels.map(c=>'<label class="ltvg-picker-row" data-search="'+esc(((c.ChannelNumber||'')+' '+c.Name).toLowerCase())+'"><input type="checkbox" value="'+esc(c.Id)+'"'+(chosen.has(c.Id)?' checked':'')+'><span class="ltvg-number">'+esc(c.ChannelNumber||'')+'</span>'+esc(c.Name)+'</label>').join('');
             const filter=()=>{const term=wrapper.querySelector('[type="search"]').value.trim().toLowerCase(),only=wrapper.querySelector('[data-selected-only]').checked;let matches=0;list.querySelectorAll('.ltvg-picker-row').forEach(row=>{row.hidden=!row.dataset.search.includes(term)||(only&&!chosen.has(row.querySelector('input').value));if(!row.hidden)matches++;});wrapper.querySelector('.ltvg-picker-count').textContent=chosen.size+t(" selected · ")+matches+t(" matches");};
             list.onchange=e=>{e.target.checked?chosen.add(e.target.value):chosen.delete(e.target.value);filter();};wrapper.querySelector('[type="search"]').oninput=filter;wrapper.querySelector('[data-selected-only]').onchange=filter;filter();
-            const save=wrapper.querySelector('[data-action="save"]');save.disabled=false;save.onclick=async()=>{save.disabled=true;const ids=current.filter(value=>chosen.has(value));channels.forEach(c=>{if(chosen.has(c.Id)&&!ids.includes(c.Id))ids.push(c.Id);});try{await api('PUT','Groups/'+group.Id+'/Channels',ids);closeModal();await reloadGroups();}catch(e){modalError(wrapper,e);save.disabled=false;}};
+            const save=wrapper.querySelector('[data-action="save"]');save.disabled=false;save.onclick=async()=>{if(expectedUser!==userKey)return;save.disabled=true;const ids=current.filter(value=>chosen.has(value));channels.forEach(c=>{if(chosen.has(c.Id)&&!ids.includes(c.Id))ids.push(c.Id);});try{await api('PUT','Groups/'+group.Id+'/Channels',ids);closeModal();await reloadGroups();}catch(e){modalError(wrapper,e);save.disabled=false;}};
         }catch(e){modalError(wrapper,e);}
     }
     async function reloadGroups() {
@@ -421,7 +422,7 @@
         if(action==='create'){const name=await askName(t("New group"));if(name){const created=await api('POST','Groups',{Name:name});state.group=created.Id;state.view='channels';writeRoute();await reloadGroups();}return;}
         if(action==='rename'){const group=groups.find(g=>id(g.Id)===id(value)),name=await askName(t("Rename group"),group.Name);if(name){await api('PUT','Groups/'+value,{Name:name});await reloadGroups();}return;}
         if(action==='delete'){const group=groups.find(g=>id(g.Id)===id(value));if(await confirmDelete(group.Name)){await api('DELETE','Groups/'+value);await reloadGroups();}return;}
-        if(action==='edit-channels'){await editChannels();return;}
+        if(action==='edit-channels'){await editChannels(value || state.group);return;}
         if(action.startsWith('group-')||action.startsWith('channel-')){await move(action,value);return;}
         if(action==='details'||action==='play'){capture();writeRoute();if(action==='play'){if(prefs.PreferredTargetDeviceId){await playRemote(value);return;}if(playerBusy||playbackBusy)return;try{const sessions=await client().ajax({type:'GET',url:client().getUrl('Sessions',{deviceId:client().deviceId()})});if(!sessions.length)throw new Error(t("No session."));await client().ajax({type:'POST',url:client().getUrl('Sessions/'+sessions[0].Id+'/Playing',{playCommand:'PlayNow',itemIds:value})});return;}catch(_) { /* Native details remain the playback fallback. */ }}window.location.hash='#/details?id='+encodeURIComponent(value)+'&serverId='+encodeURIComponent(client().serverId());return;}
         capture();restoreFocus=null;

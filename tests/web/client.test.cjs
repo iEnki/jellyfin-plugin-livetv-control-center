@@ -52,7 +52,7 @@ before(async()=>{
  if(u.pathname.endsWith('/AvailableChannels')){send({Items:channels});return;}
  if(u.pathname==='/LiveTvGroups/Groups'){if(req.method==='POST'){const g={Id:'44444444444444444444444444444444',Name:body.Name,ChannelCount:0};f.groups.push(g);f.refs[g.Id]=[];send(g);}else send(f.groups);return;}
  const match=u.pathname.match(/\/Groups\/([^/]+)(?:\/(Channels|Order))?$/);
- if(match){const gid=match[1],g=f.groups.find(g=>g.Id===gid);if(req.method==='DELETE'){f.groups=f.groups.filter(g=>g.Id!==gid);send(null,204);}else if(match[2]==='Channels'){f.refs[gid]=body;g.ChannelCount=body.length;send(null,204);}else if(g){g.Name=body.Name;send(null,204);}else send({},404);return;}
+ if(match){const gid=match[1],g=f.groups.find(g=>g.Id===gid);if(req.method==='DELETE'){f.groups=f.groups.filter(g=>g.Id!==gid);send(null,204);}else if(match[2]==='Channels'){if(req.method==='GET'){send(f.channelSelectionFailure?'Group selection unavailable':{Items:(f.refs[gid]||[]).map(id=>channels.find(c=>c.Id===id)).filter(Boolean)},f.channelSelectionFailure?500:200);}else{f.refs[gid]=body;g.ChannelCount=body.length;send(null,204);}}else if(g){g.Name=body.Name;send(null,204);}else send({},404);return;}
  const ids=[...new Set(u.searchParams.getAll('groupIds').flatMap(g=>f.refs[g]||[]))],scope=ids.map(id=>channels.find(c=>c.Id===id)).filter(Boolean);
  if(u.pathname.endsWith('/Channels')){send({Items:scope});return;}
  if(u.pathname.endsWith('/Guide')){f.lastGuide={start:u.searchParams.get('start'),end:u.searchParams.get('end')};if(f.fail){f.fail=false;send('Guide unavailable',500);return;}if(f.delay&&u.searchParams.getAll('groupIds').includes(sport))await new Promise(r=>setTimeout(r,300));const start=u.searchParams.get('start'),end=u.searchParams.get('end');send({Start:start,End:end,Channels:scope,Programs:scope.filter(c=>c.Id!==b).map((c,i)=>({Id:c.Id,ChannelId:c.Id,Name:c.Name+' program',EpisodeTitle:'Episode',StartDate:new Date(Date.parse(start)-6*3600000).toISOString(),EndDate:new Date(Date.parse(end)+6*3600000).toISOString()})),MissingChannelCount:0,InvalidProgramCount:0});return;}
@@ -356,4 +356,51 @@ test('administrator can load, enable and disable the localized home option witho
  await page.goto(page.url().replace('language=en-US','language=de-DE'));await page.locator('#GroupMode:not([disabled])').waitFor();
  await page.getByLabel('Normalen Live-TV-Eintrag auf der Web-Startseite ausblenden',{exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>window.dashboardError),undefined);
+});
+test('existing group cards edit the clicked personal group on mobile with saved order and no cross-group changes',async t=>{
+ const {page,f}=await open(t,{width:390,height:844});f.refs[sport]=[c,a];
+ await page.getByRole('button',{name:'Gruppen verwalten',exact:true}).click();
+ const sportCard=page.locator('.ltvg-group-card[data-id="'+sport+'"]');
+ await sportCard.getByRole('button',{name:'Sender bearbeiten',exact:true}).click();
+ const modal=page.locator('#ltvg-modal');await modal.getByRole('button',{name:'Speichern',exact:true}).waitFor({state:'visible'});
+ await page.waitForFunction(()=>!document.querySelector('#ltvg-modal [data-action="save"]').disabled);
+ assert.equal(await modal.locator('input[value="'+c+'"]').isChecked(),true);
+ assert.equal(await modal.locator('input[value="'+a+'"]').isChecked(),true);
+ assert.equal(await modal.locator('input[value="'+b+'"]').isChecked(),false);
+ assert.match(await modal.getByRole('heading').innerText(),/Sport/);
+ assert.equal(await page.getByLabel('Gruppe',{exact:true}).inputValue(),crime);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ if(process.env.LTVG_QA_DIR)await page.screenshot({path:path.join(process.env.LTVG_QA_DIR,'edit-group-channels-mobile.png')});
+ await modal.locator('input[value="'+b+'"]').check();await modal.getByRole('button',{name:'Speichern',exact:true}).click();await modal.waitFor({state:'detached'});
+ assert.deepEqual(f.refs[sport],[c,a,b]);assert.deepEqual(f.refs[crime],[a,b]);
+ await sportCard.getByText('3 Sender',{exact:true}).waitFor();
+ await sportCard.getByRole('button',{name:'Sender bearbeiten',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('#ltvg-modal [data-action="save"]').disabled);
+ await modal.locator('input[value="'+a+'"]').uncheck();await modal.getByRole('button',{name:'Speichern',exact:true}).click();await modal.waitFor({state:'detached'});
+ assert.deepEqual(f.refs[sport],[c,b]);assert.deepEqual(f.refs[crime],[a,b]);
+});
+
+test('central administrator edits existing group cards in English while ordinary shared users have no editing controls',async t=>{
+ const {page,f}=await open(t,{width:1440,height:1000},null,'en-US');f.access={Mode:'shared',CanManage:true,IsAdministrator:true};
+ await page.reload();await page.locator('.ltvg-guide-prog').first().waitFor();
+ await page.getByRole('button',{name:'Manage groups',exact:true}).click();
+ const card=page.locator('.ltvg-group-card[data-id="'+crime+'"]');await card.getByRole('button',{name:'Edit channels',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('#ltvg-modal [data-action="save"]').disabled);
+ await page.locator('#ltvg-modal input[value="'+b+'"]').uncheck();await page.locator('#ltvg-modal').getByRole('button',{name:'Save',exact:true}).click();await page.locator('#ltvg-modal').waitFor({state:'detached'});
+ assert.deepEqual(f.refs[crime],[a]);assert.deepEqual(f.refs[sport],[a,c]);
+ if(process.env.LTVG_QA_DIR)await page.screenshot({path:path.join(process.env.LTVG_QA_DIR,'edit-group-cards-desktop.png')});
+ f.access={Mode:'shared',CanManage:false,IsAdministrator:false};await page.reload();await page.locator('.ltvg-guide-prog').first().waitFor();
+ assert.equal(await page.getByRole('button',{name:'Edit channels',exact:true}).count(),0);
+ assert.equal(await page.locator('#ltvg-page [data-action="edit-channels"]').count(),0);
+});
+
+test('failed existing selection load disables saving and cancel never changes saved group channels',async t=>{
+ const {page,f}=await open(t);await page.getByRole('button',{name:'Gruppen verwalten',exact:true}).click();f.channelSelectionFailure=true;
+ await page.locator('.ltvg-group-card[data-id="'+sport+'"]').getByRole('button',{name:'Sender bearbeiten',exact:true}).click();
+ const modal=page.locator('#ltvg-modal');await modal.getByRole('alert').waitFor();assert.equal(await modal.getByRole('button',{name:'Speichern',exact:true}).isDisabled(),true);
+ await modal.getByRole('button',{name:'Abbrechen',exact:true}).click();await modal.waitFor({state:'detached'});assert.deepEqual(f.refs[sport],[a,c]);
+ f.channelSelectionFailure=false;await page.locator('.ltvg-group-card[data-id="'+sport+'"]').getByRole('button',{name:'Sender bearbeiten',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('#ltvg-modal [data-action="save"]').disabled);
+ await modal.locator('input[value="'+a+'"]').uncheck();await modal.getByRole('button',{name:'Abbrechen',exact:true}).click();await modal.waitFor({state:'detached'});
+ assert.deepEqual(f.refs[sport],[a,c]);assert.ok(!f.requests.includes('PUT /LiveTvGroups/Groups/'+sport+'/Channels'));
 });
