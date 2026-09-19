@@ -10,99 +10,11 @@
     "versions": [
       {
         "version": "1.0.0.0",
-        "changelog": "- Rename the plugin and new repository to **Live-TV Control Center**, with the original Jellyfin TV Guide group filter prominent in the catalog and README. Release stable 1.0.0.0 for Jellyfin 12 / net10.0.\n- Preserve the existing plugin GUID, assembly, channel provider identity and stored data, so users of Live-TV Groups 0.4.x can update their installation without losing groups, access rules, preferences or per-device native-guide selections. Existing custom display names remain user-controlled.\n- Continue the tested native Android TV / Fire TV timeline filtering, visible-group union, reset to all channels, web EPG, remote playback, native folders and central channel access without a runtime behavior change.\n- Publish from the new stable repository and establish a beta branch/catalog for future test versions.\n",
+        "changelog": "- Organize Live TV channels in ordered personal groups independent of IPTV-provider categories, or use administrator-managed shared groups with per-group user access.\n- Show one selected group's original channels in Jellyfin's native Android TV / Fire TV timeline. Select the group on the TV or from the web/mobile page; the web page can also apply the deduplicated union of all visible groups. Reset to all ordinarily permitted channels at any time. Selections are per user and TV device.\n- Browse an independent web EPG with a channel/program timeline, now/next/later programs, channel cards, day/time navigation and zoom. Save visible/default groups and view preferences; use the interface in English or German.\n- Use the web or phone guide as a remote for the official Jellyfin Android TV / Fire TV app: discover a compatible TV, remember the target, and start or switch live channels while the guide stays open.\n- Apply optional central channel-access rules to selected users, including children's accounts. Restrictions cover the plugin and ordinary Jellyfin Live TV, direct playback, playlists and associated recordings while preserving Jellyfin permissions.\n- Browse grouped channel and daily program folders in supported native apps; optionally mirror groups as playlists for other clients.\n- Integrate the web interface through File Transformation, optionally add a Plugin Pages menu shortcut, customize the display name and hide the original Live TV home tile when the groups entry is available.\n- Support Jellyfin 12.0 or later in the Jellyfin 12 series (12.1 confirmed). Keep the existing plugin ID, channel identity and stored settings for upgrades from Live-TV Groups. Native guide navigation may require one additional TV Guide selection; no virtual channels or custom TV client are used.\n",
         "targetAbi": "12.0.0.0",
         "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-control-center/releases/download/v1.0.0.0/live-tv-control-center_1.0.0.0.zip",
         "checksum": "459d3fbed07a385762857ef68953b6ac",
         "timestamp": "2026-09-19T10:07:19Z"
-      },
-      {
-        "version": "0.4.0.0",
-        "changelog": "- Promote the owner-accepted native TV guide and playback features from beta to stable. Update normally from stable or beta catalogs while preserving groups, permissions, preferences and per-user/device guide selections. Target Jellyfin 12 / net10.0.\n- Show only a selected group's permitted original channels in the official Android TV / Fire TV timeline. Select Native TV guide inside a group using the TV remote, or Use group on TV from the web guide. DisplayContent opens ordinary Live TV; select TV Guide there to open the native timeline.\n- Allow All visible groups with Use group on TV to apply the deduplicated union of all currently visible, accessible groups. Follow subsequent group, hidden-group and channel permission changes on the next guide reload. All channels on TV clears either selection and restores ordinarily permitted channels, including channels outside groups.\n- Filter the native channel response per authenticated user/device before pagination; preserve sorting, original channel IDs and playback. Revalidate current group/channel rights and fail open safely for deleted, denied, empty or unresolvable groups. Keep central channel restrictions authoritative and other clients/users/devices unchanged. No virtual channels, additional TV provider or custom TV client is required.\n- Restore remote target recognition for official Android TV and Jellyfin for Android TV client names, including supported connected sessions without the remote-control flag. Preserve user/channel authorization and existing remote playback behavior.\n- Preserve the independent web EPG, native program-list fallback and LiveTv/Programs. Guide navigation can require a further click or manual opening; cached guides may need reopening. Active playback or unavailable navigation keeps the selected group without interrupting playback.\n- Validate native MVC/API routes, scope persistence/isolation, pagination, visibility and access changes, playback client compatibility, packaging and German/English web activation/reset flows with automated tests. Publish through the stable release workflow and refresh stable/beta/development catalogs.\n\n",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.4.0.0/live-tv-groups_0.4.0.0.zip",
-        "checksum": "491b0023051f87acfe283371c01f7c85",
-        "timestamp": "2026-09-18T23:08:29Z"
-      },
-      {
-        "version": "0.3.3.1",
-        "changelog": "### Central channel access\n\n- Add administrator-managed named channel rules independently of personal/shared group mode, disabled by default. New rules allow selected users only; everyone-except-selected is available, and overlapping denials win.\n- Apply restrictions to channel selection, existing groups, EPG, native and original Live TV, playlists, direct playback, stream identities, recording controls and attributed recordings, while preserving existing Jellyfin permissions.\n- Preserve hidden group references/order and restore them when access is granted; show only authorized content and counts.\n- Add English/German administration with source/name/number search, bulk channel selection, user policies, effective preview, active-playback impact, recording assignment and revision conflicts.\n- Resolve rescanned channels using source/external identity; show missing/ambiguous mappings for correction and leave unclassified new channels visible.\n- Capture source attribution for new built-in DVR recordings without relying on NFO tags. Keep unidentified old recordings unchanged until manually assigned.\n- Stop denied sessions/HTTP consumers/device transcoding jobs without closing another authorized viewer's shared tuner. Protect source URLs and legacy HLS ownership.\n- Add policy, browser and supported Jellyfin 12 API-controller integration tests.\n\n",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.3.3.1/live-tv-groups_0.3.3.1.zip",
-        "checksum": "b1c333234185b836990d9e5215181e46",
-        "timestamp": "2026-09-18T17:36:43Z"
-      },
-      {
-        "version": "0.3.3.0",
-        "changelog": "- Promote the tested beta features to stable 0.3.3.0. Stable and beta installations can update normally while preserving existing settings and groups.\n\n- Add an Edit channels button to existing group cards, with fresh group-specific selection, preserved channel order and unchanged editing permissions.\n\n- Add the Live-TV Groups plugin logo to the catalog, installed-plugin metadata and all installation packages.\n\n- Add an installable beta channel with a dedicated repository URL, automatic catalog publication and compatibility with the existing development repository.\n\n- Add an optional administrator setting to hide the original Live TV My Media entry in web and web-based mobile clients when a usable groups entry is visible.\n- Keep the Live TV menu, recordings, permissions, server streaming and native TV apps unchanged; restore the original entry when groups are unavailable or the user changes.\n- Localize the dashboard option in English and German and document its web-only behavior.\n\n",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.3.3.0/live-tv-groups_0.3.3.0.zip",
-        "checksum": "6e9e0fbf48af2dcc55422302ee35a885",
-        "timestamp": "2026-09-18T09:48:35Z"
-      },
-      {
-        "version": "0.3.2.1",
-        "changelog": "### Language and display name\n\n- Add English and German interface translations following Jellyfin display language; other interface languages fall back to English.\n- Use client locale for web dates and times. Native guide labels use the language sent by the client, falling back to server display language.\n- Add an optional administrator-defined display name; empty restores the translated default. The shared library name follows server language, while the web title follows client language.\n- Update the optional Plugin Pages shortcut after restart. Preserve channel identity, user permissions, groups, stream ownership and playlist mappings when changing display names.\n- Separate native guide caches and program metadata by language/culture. User-created names and imported EPG text remain unchanged.\n- Provide fully English user documentation, including language selection and custom display-name instructions.\n\n### Installation\n\n- Publish stable 0.3.2.1 with matching DLL and installation metadata. Existing stable 0.3.2.0 installations can update normally.\n- Development build 0.3.2.1 uses the same numeric version. Jellyfin does not treat this stable package as a higher version; reinstall the stable package manually to replace that development binary. Preserve plugin data and configuration.\n\n",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.3.2.1/live-tv-groups_0.3.2.1.zip",
-        "checksum": "2cdb7f59ebb034f86da6db5678c15bc2",
-        "timestamp": "2026-09-17T16:29:25Z"
-      },
-      {
-        "version": "0.3.2.0",
-        "changelog": "### Remote Live TV playback\n\n- Select an active Jellyfin Android TV / Fire TV target from the independent web/mobile program guide and start a channel on the TV while keeping the guide open.\n- Discover active official Android TV sessions even when SupportsRemoteControl is false, without bypassing user permissions.\n- Remember the preferred device per user and resolve its current session for every command.\n- Switch running Android TV channels with an authorized Stop, a stopped-report wait and player cleanup delay, followed by one native PlayNow. Serialize commands per device and handle timeout, cancellation, session changes and permission revocation.\n- Keep offline preferred targets selected and show remote failures without silently falling back to playback on the phone.\n\n### Personal and central groups\n\n- Choose personal groups per user or a central collection administered by administrators.\n- Optionally copy administrator personal groups into the central collection without deleting originals or overwriting already imported IDs. Switching modes preserves both collections.\n- Configure each central group for all users except selected exclusions, or only selected users. Administrator management access is retained.\n- Apply group permissions to the independent guide, native group/EPG folders, plugin stream opening and both users involved in remote playback. Original Jellyfin Live TV remains unchanged.\n- Make central collections read-only for ordinary users while keeping display and player preferences personal.\n\n### Documentation and delivery\n\n- Add a direct Fernsehprogramm button and document the Jellyfin channel permission needed for the My Media entry.\n- Provide a complete English README covering installation, permissions, group administration, all views, remote playback, native apps, playlists, settings, storage, troubleshooting and development.\n- Publish stable version 0.3.2.0 with matching installation metadata and automatic update support. Both development builds 0.3.1.1 and 0.3.1.2 are lower than this release.\n- Require stable tags to match the project version and reference main; run plugin, browser and package tests before publication.\n- The maintainer confirmed the 0.3.1.2 development build works as intended on their setup. External players, automatic TV wake-up and untested Jellyfin/client versions remain outside the supported scope.\n\n",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.3.2.0/live-tv-groups_0.3.2.0.zip",
-        "checksum": "4c1a6ede681dd6d07cc28dbca956af16",
-        "timestamp": "2026-09-17T15:42:42Z"
-      },
-      {
-        "version": "0.3.1.0",
-        "changelog": "Web client\n- New independent **Live-TV Gruppen** page with Programme, Fernsehprogramm and Sender views based on Jellyfin's original Live TV layout.\n- Group selection, deduplicated \"all visible groups\" scope and personal settings for visible/default groups, initial/last view and guide zoom.\n- Improved guide: navigation, current-time mode, automatic refresh, mobile program labels and restored group/time/scroll state after opening details.\n- Searchable channel picker with selected-only filter, keyboard-friendly sorting, cancellable dialogs, request cancellation and retryable errors.\n- Optional Plugin Pages 3.x user-menu entry with channel-entry fallback and registration status in the dashboard.\n\nApps (Fire TV / Android TV)\n- Each app group now has a **Fernsehprogramm** folder: seven calendar days, channel lists, program times/episodes/descriptions and an explicit \"live ansehen\" action.\n- Playback of group channels uses a dedicated media-source provider with Jellyfin's native Live TV open/close lifecycle instead of raw tuner URLs and own stream probing.\n- Group membership and channel permissions are checked again when sources are discovered and streams are opened.\n- Configurable app-guide timezone, correct 23/25-hour days at DST changes, five-minute channel cache refresh.\n\nChanges and compatibility\n- Removed the Live TV/guide filter for native apps, its client exclusion setting, the guide selection folders and the groups button/overlay in the original Live TV. Original Live TV is no longer modified in any client, including upgrades with old filter values.\n- Existing groups, channel references and playlist IDs are preserved; personal preferences are stored separately per user.\n- Built for Jellyfin 12.0. Playback on actual TV hardware and Jellyfin 12.1 are not validated by automated tests.\n\n",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.3.1/live-tv-groups_0.3.1.0.zip",
-        "checksum": "64ca499b5c629344c6bf36adbdffaf29",
-        "timestamp": "2026-09-17T12:12:20Z"
-      },
-      {
-        "version": "0.2.2.0",
-        "changelog": "- Fix: the \"Groups\" button was missing in Live TV since 0.2.1. The script is registered for index.html again (shared with other plugins such as Jellyfin Enhanced) and is only added to real HTML documents, so JavaScript files stay untouched.\n\n",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.2.2/live-tv-groups_0.2.2.0.zip",
-        "checksum": "867665998feac90465a244642d02637f",
-        "timestamp": "2026-09-16T23:57:59Z"
-      },
-      {
-        "version": "0.2.1.0",
-        "changelog": "- Fix: the Jellyfin web client could no longer be opened (blank login page, \"Unexpected token '<'\"). The script tag was also injected into JavaScript files of the web client; it is now only added to index.html.\n- Recommended update for everyone using 0.1.0 – 0.2.0.",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.2.1/live-tv-groups_0.2.1.0.zip",
-        "checksum": "1d6b8846aff8f44cea2877b0326e074b",
-        "timestamp": "2026-09-16T23:45:13Z"
-      },
-      {
-        "version": "0.2.0.0",
-        "changelog": "- New: \"Program\" tab for every group in the web client – timeline program guide (EPG) of the group's channels with day selection, now indicator and categories. Click a program for details, click a channel to play it.\n- New: program guide filter for TV apps (Fire TV / Android TV, Wholphin, …). Pick a group via 📺 in the web client or on the TV under Channels → Live-TV Gruppen → \"Programmführer wählen\"; Live TV and the guide of these apps then show only that group.\n- New settings: enable/disable the guide filter and apps that always get all channels (default: Jellyfin Web).\n- Known issue: breaks loading the web client – update to 0.2.1.",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.2.0/live-tv-groups_0.2.0.0.zip",
-        "checksum": "703a86b359855efd2455732a8a1cafb0",
-        "timestamp": "2026-09-16T18:46:04Z"
-      },
-      {
-        "version": "0.1.1.0",
-        "changelog": "- Fix: channel logos were missing in the \"Live-TV Gruppen\" channel. Logos are now stored locally before the channel entries are created.",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.1.1/live-tv-groups_0.1.1.0.zip",
-        "checksum": "05ee24dad13d6dae9bd8e2e87f21d1da",
-        "timestamp": "2026-09-16T17:16:09Z"
-      },
-      {
-        "version": "0.1.0.0",
-        "changelog": "- Personal channel groups per user: create, rename, delete and reorder groups, pick channels and play them from Live TV → Groups in the web client.\n- Groups as channel \"Live-TV Gruppen\" for apps (Android TV, mobile, …), including stream probing for reliable playback.\n- Optional playlists \"Live-TV: <group>\" for apps without channel support (e.g. Wholphin).\n- Channels are matched again by name and number after the M3U is re-imported; channels a user may not access stay hidden.",
-        "targetAbi": "12.0.0.0",
-        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/v0.1.0/live-tv-groups_0.1.0.0.zip",
-        "checksum": "1126d7bf8d6b72e2d308409a0f9c379f",
-        "timestamp": "2026-09-16T17:03:15Z"
       }
     ]
   }

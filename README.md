@@ -166,7 +166,7 @@ The package contains matching plugin identity/version metadata and automatic upd
 
 ### Moving from Live-TV Groups 0.4.x
 
-**Live-TV Control Center 1.0.0.0 is an in-place update of Live-TV Groups.** It keeps the same Jellyfin plugin ID, assembly and stored group/configuration identities so your existing groups, permissions, preferences and native-guide selections can be reused. Add the new stable repository URL above, then update the existing plugin to 1.0.0.0 and restart Jellyfin. Remove the old `jellyfin-plugin-livetv-groups` repository afterward to avoid competing update sources; do not install a second plugin copy. Back up your plugin configuration and data before a manual replacement.
+**Live-TV Control Center 1.0.0.0 is an in-place update of Live-TV Groups.** It keeps the same Jellyfin plugin ID, assembly and stored group/configuration identities so your existing groups, permissions, preferences and native-guide selections can be reused. Add the new stable repository URL above, then update the existing plugin to 1.0.0.0 and restart Jellyfin. Remove the old `jellyfin-plugin-livetv-groups` repository afterward to avoid competing update sources; do not install a second plugin copy. This new catalog starts at 1.0.0.0; older 0.x packages are not required to update an existing installation. Back up your plugin configuration and data before a manual replacement.
 
 If you set a custom **Display name**, that preference stays in place. Clear it under **Dashboard → Plugins → Live-TV Control Center** if you want the new default name to appear in the channel and web menu.
 ## Upgrading
