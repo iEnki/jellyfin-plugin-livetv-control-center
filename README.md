@@ -1,3 +1,5 @@
+![Live-TV Control Center banner](assets/Live-TV_Control_Center_Banner.png)
+
 # Live-TV Control Center for Jellyfin
 
 Make Jellyfin's **original TV Guide** easier to use on Android TV and Fire TV: show the channels in one of your groups instead of scrolling through the entire lineup. The familiar channel-and-program timeline remains Jellyfin's own guide. Choose a group on the TV or from the plugin's web page; switch back to all channels whenever you want.
