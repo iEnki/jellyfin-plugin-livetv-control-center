@@ -196,17 +196,17 @@ Group visibility alone does not restrict original Live TV. For server-wide chann
 
 ## Central channel access
 
-Administrators can create named channel rules such as **Adult**, **Sports subscriptions** or **Children's TV**, independently of personal or central group ownership. This feature is **disabled by default**. Installing the update does not add restrictions until an administrator enables and saves them.
+Administrators can create named channel rules such as **Not suitable for children**, **Sports subscriptions** or **Children's TV**, independently of personal or central group ownership. This feature is **disabled by default**. Installing the update does not add restrictions until an administrator enables and saves them.
 
 A blocked channel is unavailable to that user in channel selection, existing groups, the plugin EPG, ordinary Jellyfin Live TV, native TV listings, playlists, direct item/playback requests and associated recordings. Users cannot bypass a rule by creating a personal group or using another allowed group. Existing Jellyfin Live TV, playback, parental and library permissions still apply: these rules restrict access and never grant missing rights.
 
-### Example: restrict adult channels
+### Example: hide unsuitable channels from children
 
 1. Open **Dashboard → Plugins → Live-TV Groups → Channel access**, or select **Channel access** on the groups page as an administrator.
 2. Check **Enable central channel access** and select **New rule**.
-3. Enter **Adult** under **Rule name**.
-4. Keep **Only selected users**, the default policy, and check the ordinary users who may access these channels. Administrators retain management access.
-5. Search by channel name, number or source; optionally filter by **Source**. Select channels individually or use **Select filtered channels**. Bulk selection includes all matching results, even when only the first 500 are displayed.
+3. Enter **Not suitable for children** under **Rule name**.
+4. Choose **Everyone except selected users** and check each child's Jellyfin user account. Those users are blocked from the selected channels; other eligible household members keep access. Add new child accounts to this rule when you create them.
+5. Search by channel name, number or source; optionally filter by **Source**. Select channels you do not want children to see individually or use **Select filtered channels**. Bulk selection includes all matching results, even when only the first 500 are displayed.
 6. Select **Apply rule to draft**. This changes the draft only.
 7. Choose a user under **User preview** and review allowed/blocked channels, denial reasons, affected users and active playback. Select **Preview changes** again after editing the draft.
 8. Select **Save channel access** to apply the rules. Refresh or reopen clients to remove stale listings.
@@ -220,7 +220,7 @@ The same administration screen works in both group modes. **Edit** changes a rul
 | **Only selected users** | Allowed by this rule; all other ordinary users are blocked. | Blocked until explicitly selected. |
 | **Everyone except selected users** | Blocked by this rule; other eligible users are allowed. | Allowed unless another rule or Jellyfin permission blocks them. |
 
-If several rules cover a channel, **any denial takes precedence**. Administrators are exempt from channel-rule denials for management, but their existing Jellyfin permissions still apply. New channels not covered by a rule are immediately visible subject to Jellyfin permissions; there is no automatic adult-channel classification. Review newly imported channels and add them to the appropriate rules.
+If several rules cover a channel, **any denial takes precedence**. Administrators are exempt from channel-rule denials for management, but their existing Jellyfin permissions still apply. New channels not covered by a rule are immediately visible subject to Jellyfin permissions; the plugin does not automatically decide which channels are suitable for children. Review newly imported channels and add any unsuitable ones to the rule.
 
 Hidden channel references and their positions remain stored in existing groups. Users can edit the channels they are allowed to see without deleting hidden entries. Counts and guides display only accessible channels. Granting access again restores those entries in their saved order.
 
