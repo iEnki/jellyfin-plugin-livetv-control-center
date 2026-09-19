@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.LiveTvGroups.Services;
 
-/// <summary>Handles explicit native guide-folder visits without relying on provider cache execution.</summary>
+/// <summary>Handles authenticated TV group and guide-folder visits without relying on provider cache execution.</summary>
 public sealed class NativeGuideActionService(GroupService groups, IServiceProvider services,
     ILogger<NativeGuideActionService> logger) : IDisposable
 {
@@ -39,8 +39,16 @@ public sealed class NativeGuideActionService(GroupService groups, IServiceProvid
         var pluginId = GroupsChannel.GetInternalId(library);
         var parent = library.GetItemById(parentId);
         if (parent is not Folder || parent.ChannelId != pluginId
-            || (requestedChannel is not null && requestedChannel != pluginId)
-            || !NativeGuideActionRoute.TryParse(parent.ExternalId, out var groupId)) return null;
+            || (requestedChannel is not null && requestedChannel != pluginId)) return null;
+        // The group's existing folder ID must stay stable for playlists and saved app items.
+        // Opening it on Android TV now performs the same validated action as its nested guide folder.
+        Guid? groupId;
+        var directGroup = !NativeGuideActionRoute.TryParse(parent.ExternalId, out groupId);
+        if (directGroup)
+        {
+            if (!GroupsChannel.TryParseGroupFolderId(parent.ExternalId, out var selectedGroup)) return null;
+            groupId = selectedGroup;
+        }
         var user = services.GetRequiredService<IUserManager>().GetUserById(userId);
         if (user is null || user.HasPermission(PermissionKind.IsDisabled) || !user.HasPermission(PermissionKind.EnableLiveTvAccess)) return null;
         var channelList = await services.GetRequiredService<IChannelManager>().GetChannelsInternalAsync(new ChannelQuery { UserId = userId }).ConfigureAwait(false);
@@ -62,7 +70,7 @@ public sealed class NativeGuideActionService(GroupService groups, IServiceProvid
             var key = (userId, device);
             if (groupId is not null && _recent.TryGetValue(key, out var previous) && previous.GroupId == groupId
                 && DateTimeOffset.UtcNow - previous.At < TimeSpan.FromSeconds(3) && scopes.Get(userId, device) == groupId)
-                return new(groupId, group?.Name, previous.Sent);
+                return new(groupId, group?.Name, previous.Sent, directGroup);
 
             if (groupId is null) { scopes.Clear(userId, device); _recent.Remove(key); }
             else scopes.Set(user, device, groupId.Value);
@@ -97,7 +105,7 @@ public sealed class NativeGuideActionService(GroupService groups, IServiceProvid
                 if (_recent.Count >= 256) _recent.Remove(_recent.MinBy(p => p.Value.At).Key);
                 _recent[key] = (groupId.Value, DateTimeOffset.UtcNow, sent);
             }
-            return new(groupId, group?.Name, sent);
+            return new(groupId, group?.Name, sent, directGroup);
         }
         finally { _gate.Release(); }
     }
@@ -109,4 +117,4 @@ public sealed class NativeGuideActionService(GroupService groups, IServiceProvid
             && PlayerService.IsAndroidTv(session);
 }
 
-public sealed record NativeGuideActionResult(Guid? GroupId, string? GroupName, bool NavigationCommandSent);
+public sealed record NativeGuideActionResult(Guid? GroupId, string? GroupName, bool NavigationCommandSent, bool DirectGroupEntry);

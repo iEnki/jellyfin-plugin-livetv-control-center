@@ -431,12 +431,12 @@ This version provides start/switch actions, not a separate pause/volume/stop rem
 
 Using only the TV remote:
 
-1. Open **Live-TV Control Center → your created group → Native TV guide** (**Natives Fernsehprogramm** in German).
-2. The plugin selects that group's permitted channels for this authenticated user and TV, then sends the normal **DisplayContent** navigation to Jellyfin's original **Live TV** view.
-3. Select **TV Guide** there. This is Jellyfin's real channel/time timeline, with the selected group's original channels. If navigation is unavailable, open **Live TV → TV Guide** manually; the group selection is retained.
+1. In **beta 1.1.0.0**, open **Live-TV Control Center → your created group**. Selecting the group immediately applies its permitted channels to this user and TV and requests navigation to Jellyfin's original **Live TV** view. In stable 1.0.0.0, select **Native TV guide** (**Natives Fernsehprogramm**) inside the group as an additional step.
+2. Select **TV Guide** (**Fernsehprogramm**) in Live TV to see Jellyfin's real channel/time timeline with only that group's original channels. The stock TV app does not expose a direct timeline jump through the server command, so this final selection may still be needed.
+3. If automatic navigation is unavailable, open **Live TV → TV Guide** manually; the group selection is retained. The nested **Native TV guide** action remains available to retry.
 4. To restore the ordinary channel list, open **Live-TV Control Center → All channels (native guide)** (**Alle Sender (natives Fernsehprogramm)**).
 
-The old program-folder screen is now explicitly named **Program list (fallback)** / **Programmliste (Fallback)**. Opening a group or browsing this fallback does not activate a native scope. A request filter handles the explicit native action even when provider contents are cached; background channel refreshes never select groups or navigate the TV.
+The browsable **Program list (fallback)** / **Programmliste (Fallback)** remains available. In the beta, the authenticated TV's group response hides direct grouped-channel tiles that may fail to play; internal channel items remain for playlists and other clients. Background channel refreshes and browsing the fallback do not select groups or navigate the TV.
 
 Alternatively, on the plugin's web/mobile page, select one **Group** or **All visible groups**, and your own-user TV under **Play on**, then **Use group on TV** / **Gruppe am TV verwenden**. Open the normal TV Guide on that TV. **All channels on TV** / **Alle Sender am TV** resets even a remembered offline target. Merely choosing a group on the web page does not change the TV scope.
 
@@ -470,9 +470,8 @@ Apps with channel support can browse:
 ```text
 Channels / My Media
 └── Live-TV Control Center
-    └── Group
-        ├── Channel
-        ├── Native TV guide (original Live TV → TV Guide)
+    └── Group (beta: selects native guide scope and opens Live TV)
+        ├── Native TV guide (retry; original Live TV → TV Guide)
         └── Program list (fallback)
             └── Day
                 └── Channel

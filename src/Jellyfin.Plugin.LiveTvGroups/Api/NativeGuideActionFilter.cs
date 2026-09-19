@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Linq;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.LiveTvGroups.Services;
 using MediaBrowser.Model.Dto;
@@ -11,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.LiveTvGroups.Api;
 
-/// <summary>Activates only explicit native guide-folder visits on the original TV client, including cached provider results.</summary>
+/// <summary>Activates authenticated group or native guide-folder visits on the original TV client, including cached provider results.</summary>
 public sealed class NativeGuideActionFilter(NativeGuideActionService actions, ILogger<NativeGuideActionFilter> logger)
     : IAsyncActionFilter, IOrderedFilter
 {
@@ -41,7 +42,18 @@ public sealed class NativeGuideActionFilter(NativeGuideActionService actions, IL
             Guid? channel = isChannels && context.ActionArguments.TryGetValue("channelId", out var requestedChannel)
                 && requestedChannel is Guid channelId ? channelId : null;
             var applied = await actions.OpenAsync(context.HttpContext, parentId, channel).ConfigureAwait(false);
-            if (applied is null || items.Items.Count != 1) return;
+            if (applied is null) return;
+            if (applied.DirectGroupEntry)
+            {
+                // The provider keeps media children for playlist synchronization. The authenticated
+                // TV response shows only the guide choices if navigation was not rendered.
+                result.Value = new QueryResult<BaseItemDto>(items.Items.Where(item => item.IsFolder == true).ToArray())
+                {
+                    TotalRecordCount = Math.Min(items.TotalRecordCount, 2),
+                    StartIndex = items.StartIndex
+                };
+            }
+            if (applied.DirectGroupEntry || items.Items.Count != 1) return;
             var language = context.HttpContext.Request.Headers.AcceptLanguage.ToString();
             var hint = items.Items[0];
             hint.Name = applied.GroupId is null ? PluginLocalization.Text("All channels selected for this TV", language)

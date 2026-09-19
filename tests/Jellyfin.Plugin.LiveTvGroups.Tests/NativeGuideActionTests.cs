@@ -74,6 +74,21 @@ public class NativeGuideActionTests
         Assert.Equal(f.User.Id, f.Command.ControllingUserId);
     }
 
+    [Theory]
+    [InlineData("Android TV")]
+    [InlineData("Jellyfin for Android TV")]
+    public async Task SelectingGroupFolderImmediatelyActivatesNativeGuide(string client)
+    {
+        using var f=new Fixture(client);
+        f.ActionFolder.ExternalId=GroupsChannel.GetFolderExternalId(f.GroupId);
+        var result=await f.Actions.OpenAsync(f.Http,f.ActionFolder.Id,f.PluginId);
+        Assert.NotNull(result); Assert.True(result.NavigationCommandSent);
+        Assert.Equal(f.GroupId,f.Scopes.Get(f.User.Id,"tv"));
+        Assert.Equal(GeneralCommandType.DisplayContent,f.Command!.Name);
+        Assert.Equal(f.View.Id.ToString("N"),f.Command.Arguments["ItemId"]);
+        Assert.Equal(1,f.Sends);
+    }
+
     [Fact]
     public async Task RepeatedCachedReadsDebounceButResetAndNewGroupDoNot()
     {
@@ -120,7 +135,7 @@ public class NativeGuideActionTests
     [InlineData("other-client")]
     [InlineData("anonymous")]
     [InlineData("folder-source")]
-    [InlineData("ordinary-folder")]
+    [InlineData("malformed-group-folder")]
     [InlineData("channel-visibility")]
     [InlineData("deleted-group")]
     [InlineData("disabled")]
@@ -136,7 +151,7 @@ public class NativeGuideActionTests
             case "other-client": f.SetPrincipal("Fake Fire TV"); break;
             case "anonymous": f.Http.User=new(); break;
             case "folder-source": f.ActionFolder.ChannelId=Guid.NewGuid(); break;
-            case "ordinary-folder": f.ActionFolder.ExternalId=GroupsChannel.GetFolderExternalId(f.GroupId); break;
+            case "malformed-group-folder": f.ActionFolder.ExternalId="ltvgroup_not-a-guid"; break;
             case "channel-visibility": f.ChannelVisible=false; break;
             case "deleted-group": f.Access.Store.Update(f.User.Id,d=>{d.Groups.Clear();return true;}); break;
             case "disabled": f.User.SetPermission(PermissionKind.IsDisabled,true); break;
@@ -167,14 +182,42 @@ public class NativeGuideActionTests
     }
 
     [Theory]
-    [InlineData("Items","GetItems")]
-    [InlineData("Items","GetItemsByUserIdLegacy")]
-    [InlineData("Channels","GetChannelItems")]
-    public async Task PerRequestFilterActivatesSuccessfulNativeReads(string controller,string action)
+    [InlineData("Items","GetItems",false)]
+    [InlineData("Items","GetItems",true)]
+    [InlineData("Items","GetItemsByUserIdLegacy",false)]
+    [InlineData("Items","GetItemsByUserIdLegacy",true)]
+    [InlineData("Channels","GetChannelItems",false)]
+    [InlineData("Channels","GetChannelItems",true)]
+    public async Task PerRequestFilterActivatesSuccessfulNativeReads(string controller,string action,bool directGroup)
     {
-        using var f=new Fixture(); var response=await Invoke(f,controller,action);
+        using var f=new Fixture();
+        if(directGroup) f.ActionFolder.ExternalId=GroupsChannel.GetFolderExternalId(f.GroupId);
+        var response=await Invoke(f,controller,action);
         Assert.Equal(f.GroupId,f.Scopes.Get(f.User.Id,"tv")); Assert.Equal(1,f.Sends);
-        Assert.Contains("News",Assert.Single(response.Items).Name,StringComparison.Ordinal);
+        if(directGroup) Assert.Equal("Help",Assert.Single(response.Items).Name);
+        else Assert.Contains("News",Assert.Single(response.Items).Name,StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DirectGroupResponseKeepsGuideChoicesButHidesUnplayableMedia()
+    {
+        using var f=new Fixture();
+        f.ActionFolder.ExternalId=GroupsChannel.GetFolderExternalId(f.GroupId);
+        var direct=await Invoke(f,"Items","GetItems","group-children");
+        Assert.Equal(2,direct.TotalRecordCount);
+        Assert.All(direct.Items,item=>Assert.True(item.IsFolder));
+        Assert.DoesNotContain(direct.Items,item=>item.Name=="Broken channel");
+        Assert.Equal(f.GroupId,f.Scopes.Get(f.User.Id,"tv"));
+
+        f.ActionFolder.ExternalId=NativeGuideActionRoute.GroupId(f.GroupId);
+        var nested=await Invoke(f,"Items","GetItems","group-children");
+        Assert.Equal(3,nested.Items.Count);
+
+        f.ActionFolder.ExternalId=GroupsChannel.GetFolderExternalId(f.GroupId);
+        var mediaPage=await Invoke(f,"Items","GetItems","only-media");
+        Assert.Empty(mediaPage.Items);
+        Assert.Equal(2,mediaPage.TotalRecordCount);
+        Assert.Equal(2,mediaPage.StartIndex);
     }
 
     [Theory]
@@ -202,14 +245,23 @@ public class NativeGuideActionTests
         if(reason=="search") args["searchTerm"]="guide";
         if(reason=="latest") args["filters"]=new[] {MediaBrowser.Model.Querying.ItemFilter.IsUnplayed};
         if(reason=="foreign-user") args["userId"]=f.Access.Bob.Id;
-        var response=new QueryResult<BaseItemDto>([new() {Id=Guid.NewGuid(),Name="Help"}]); var calls=0;
+        var response=reason=="group-children"
+            ? new QueryResult<BaseItemDto>([
+                new() {Id=Guid.NewGuid(),Name="Native guide",IsFolder=true},
+                new() {Id=Guid.NewGuid(),Name="Program list",IsFolder=true},
+                new() {Id=Guid.NewGuid(),Name="Broken channel",IsFolder=false}])
+            : reason=="only-media"
+                ? new QueryResult<BaseItemDto>([new() {Id=Guid.NewGuid(),Name="Broken channel",IsFolder=false}]) {StartIndex=2,TotalRecordCount=3}
+                : new QueryResult<BaseItemDto>([new() {Id=Guid.NewGuid(),Name="Help",IsFolder=true}]);
+        var calls=0;
+        var output=new OkObjectResult(response);
         var filter=new NativeGuideActionFilter(f.Actions,NullLogger<NativeGuideActionFilter>.Instance);
         await filter.OnActionExecutionAsync(new(ctx,[],args,new object()),()=>
         {
             calls++; if(reason=="core-exception") throw new InvalidOperationException("Core failure");
-            return Task.FromResult(new ActionExecutedContext(ctx,[],new object()) {Result=reason=="core-failure" ? new StatusCodeResult(503) : new OkObjectResult(response)});
+            return Task.FromResult(new ActionExecutedContext(ctx,[],new object()) {Result=reason=="core-failure" ? new StatusCodeResult(503) : output});
         });
-        Assert.Equal(1,calls); return response;
+        Assert.Equal(1,calls); return Assert.IsType<QueryResult<BaseItemDto>>(output.Value);
     }
 
     [NativeApiFact]
@@ -238,9 +290,10 @@ public class NativeGuideActionTests
                 app.Use(async(http,next)=>{http.User=f.Http.User;await next();}); app.UseRouting(); app.UseAuthorization(); app.UseEndpoints(e=>e.MapControllers());
             })).StartAsync();
             var client=host.GetTestClient(); var scopes=host.Services.GetRequiredService<NativeGuideService>();
+            foreach(var externalId in new[] {NativeGuideActionRoute.GroupId(f.GroupId),GroupsChannel.GetFolderExternalId(f.GroupId)})
             foreach(var route in new[] {"/Items?parentId="+f.ActionFolder.Id,"/Users/"+f.User.Id+"/Items?parentId="+f.ActionFolder.Id,"/Channels/"+f.PluginId+"/Items?folderId="+f.ActionFolder.Id})
             {
-                f.ActionFolder.ExternalId=NativeGuideActionRoute.GroupId(f.GroupId); scopes.Clear(f.User.Id,"tv");
+                f.ActionFolder.ExternalId=externalId; scopes.Clear(f.User.Id,"tv");
                 var read=await client.GetAsync(route); Assert.Equal(HttpStatusCode.OK,read.StatusCode);
                 Assert.Equal(f.GroupId,scopes.Get(f.User.Id,"tv"));
                 foreach(var guideRoute in new[] {"/LiveTv/Channels","/LiveTv/Channels?limit=1","/LiveTv/Channels?startIndex=0","/LiveTv/Channels?startIndex=0&limit=1"})
@@ -252,7 +305,7 @@ public class NativeGuideActionTests
                 f.ActionFolder.ExternalId=NativeGuideActionRoute.AllChannelsId;
                 Assert.Equal(HttpStatusCode.OK,(await client.GetAsync(route)).StatusCode); Assert.Null(scopes.Get(f.User.Id,"tv"));
             }
-            Assert.Equal(6,f.Sends);
+            Assert.Equal(12,f.Sends);
         }
         finally {AssemblyLoadContext.Default.Resolving-=Resolve;}
     }

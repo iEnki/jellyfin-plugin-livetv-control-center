@@ -68,7 +68,7 @@ public class GroupsChannel : IChannel, IHasCacheKey
     public string Description => T("Grouped Live TV channels.");
 
     /// <inheritdoc />
-    public string DataVersion => "9"; // Invalidates cached channel-access and guide folders while preserving existing channel/playback item IDs.
+    public string DataVersion => "10"; // Refreshes group folders for direct TV-guide selection without changing channel/playback item IDs.
 
     /// <inheritdoc />
     public string HomePageUrl => "https://github.com/iEnki/jellyfin-plugin-livetv-control-center";
@@ -149,8 +149,7 @@ public class GroupsChannel : IChannel, IHasCacheKey
         }
         else
         {
-            var group = query.FolderId.StartsWith(GroupPrefix, StringComparison.Ordinal)
-                && Guid.TryParse(query.FolderId[GroupPrefix.Length..], out var groupId)
+            var group = TryParseGroupFolderId(query.FolderId, out var groupId)
                     ? groups.FirstOrDefault(g => g.Id == groupId)
                     : null;
 
@@ -225,6 +224,15 @@ public class GroupsChannel : IChannel, IHasCacheKey
     /// <param name="groupId">Group id.</param>
     /// <returns>The external id.</returns>
     public static string GetFolderExternalId(Guid groupId) => GroupPrefix + groupId.ToString("N", CultureInfo.InvariantCulture);
+
+    /// <summary>Recognizes a group folder without accepting arbitrary or malformed provider items.</summary>
+    public static bool TryParseGroupFolderId(string? externalId, out Guid groupId)
+    {
+        groupId = Guid.Empty;
+        return externalId?.StartsWith(GroupPrefix, StringComparison.Ordinal) == true
+            && Guid.TryParseExact(externalId[GroupPrefix.Length..], "N", out groupId)
+            && groupId != Guid.Empty;
+    }
 
     /// <summary>
     /// Gets the external id of a channel inside a group. It is unique per group because Jellyfin deletes
