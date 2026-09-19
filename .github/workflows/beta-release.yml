@@ -1,6 +1,6 @@
 name: Beta release
 
-# Push beta with an increased numeric project version to publish an installable test build.
+# After each stable release, beta builds increase only the fourth numeric version field.
 # It creates a GitHub pre-release and adds the build to manifest-beta.json on the "beta-channel" release.
 # The public manifest.json is not changed.
 on:
@@ -54,7 +54,14 @@ jobs:
           informational_version="$(dotnet msbuild src/Jellyfin.Plugin.LiveTvGroups -getProperty:InformationalVersion)"
           [[ "$informational_version" == *-beta* ]] || { echo 'Expected a beta build marker.' >&2; exit 1; }
           git show origin/main:manifest.json > stable-manifest.json
-          jq -e --arg v "$version" '($v | split(".") | map(tonumber)) > (.[0].versions | map(.version | split(".") | map(tonumber)) | max)' stable-manifest.json >/dev/null || { echo 'Beta must be newer than the latest stable version.' >&2; exit 1; }
+          jq -e --arg v "$version" '
+            ($v | split(".") | map(tonumber)) as $candidate
+            | (.[0].versions | map(.version | split(".") | map(tonumber)) | max) as $stable
+            | ($candidate[0:3] == $stable[0:3]) and ($candidate[3] > $stable[3])
+          ' stable-manifest.json >/dev/null || {
+            echo 'Beta must keep the latest stable major.minor.patch and increase only the fourth version field.' >&2
+            exit 1
+          }
           if gh release view beta-channel >/dev/null 2>&1; then
             gh release download beta-channel --pattern manifest-beta.json --dir "$RUNNER_TEMP"
             jq -e --arg v "$version" '($v | split(".") | map(tonumber)) > (.[0].versions | map(.version | split(".") | map(tonumber)) | max)' "$RUNNER_TEMP/manifest-beta.json" >/dev/null || { echo 'Increase the numeric version for each beta.' >&2; exit 1; }

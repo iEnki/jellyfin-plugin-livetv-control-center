@@ -12,7 +12,7 @@ Make Jellyfin's **original TV Guide** easier to use on Android TV and Fire TV: s
 - **Family-friendly channel access:** Administrators can block selected channels for children's accounts across the plugin and ordinary Jellyfin Live TV. [Central channel access](#central-channel-access).
 - **Other ways to browse:** Keep group folders and program lists in supported native apps; optionally create group playlists. [Native app support](#native-apps-and-program-lists).
 
-**Stable version: 1.0.0.0** · **Jellyfin: minimum 12.0 (12.1 confirmed)** · **Plugin ABI: 12.0.0.0** · **License: GPL-3.0**
+**Stable version: 1.1.0.0** · **Jellyfin: minimum 12.0 (12.1 confirmed)** · **Plugin ABI: 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its web guide is separate from Jellyfin's original Live TV guide; the native TV filter changes which channels the original guide shows on the selected TV.
 
@@ -147,11 +147,11 @@ To test features before their stable release, add this separate repository under
 https://github.com/iEnki/jellyfin-plugin-livetv-control-center/releases/download/beta-channel/manifest-beta.json
 ```
 
-Development for future betas happens on the [beta branch](https://github.com/iEnki/jellyfin-plugin-livetv-control-center/tree/beta). The beta catalog currently starts with stable 1.0.0.0; a beta is published only after that branch receives a higher four-part version and a `-beta` build marker.
+Development for future betas happens on the [beta branch](https://github.com/iEnki/jellyfin-plugin-livetv-control-center/tree/beta). Jellyfin requires four-part versions. After stable 1.1.0.0, use 1.1.0.1-beta, 1.1.0.2-beta, and so on: only the fourth number advances during beta testing. The next stable version must be numerically higher than the highest beta, for example 1.1.1.0, so Jellyfin offers the upgrade automatically.
 
 Install or update **Live-TV Control Center** from the plugin catalog and restart Jellyfin. Beta builds use the same plugin identity and preserve existing settings and groups. The beta catalog includes stable versions as well as newer beta versions; the development catalog can also receive beta builds.
 
-Jellyfin compares four-part numeric versions. Beta updates and a later stable release need higher version numbers to be offered as updates. Removing the beta repository stops future beta offers; it does not downgrade an already installed beta. To return to stable immediately, follow manual installation and preserve plugin data/configuration.
+Jellyfin compares four-part numeric versions. The already tested 1.1.0.0-beta and stable 1.1.0.0 share that numeric version, so Jellyfin may not offer the stable package as an automatic update; their TV-guide behavior is the same. Future beta/stable cycles use the fourth-number scheme above to avoid this. Removing the beta repository stops future beta offers; it does not downgrade an installed beta. To return to stable immediately, follow manual installation and preserve plugin data/configuration.
 
 ### Manual installation
 
@@ -427,16 +427,16 @@ This version provides start/switch actions, not a separate pause/volume/stop rem
 
 ## Native TV guide filtering
 
-**Available in stable 1.0.0.0 for Jellyfin 12.0 and 12.1 / .NET 10.** Install through the [stable repository](#stable-plugin-repository). No additional service, subscription or custom TV app is required.
+**Available in stable 1.1.0.0 for Jellyfin 12.0 and 12.1 / .NET 10.** Install through the [stable repository](#stable-plugin-repository). No additional service, subscription or custom TV app is required.
 
 Using only the TV remote:
 
-1. In **beta 1.1.0.0**, open **Live-TV Control Center → your created group**. Selecting the group immediately applies its permitted channels to this user and TV and requests navigation to Jellyfin's original **Live TV** view. In stable 1.0.0.0, select **Native TV guide** (**Natives Fernsehprogramm**) inside the group as an additional step.
+1. Open **Live-TV Control Center → your created group**. Selecting the group immediately applies its permitted channels to this user and TV and requests navigation to Jellyfin's original **Live TV** view.
 2. Select **TV Guide** (**Fernsehprogramm**) in Live TV to see Jellyfin's real channel/time timeline with only that group's original channels. The stock TV app does not expose a direct timeline jump through the server command, so this final selection may still be needed.
 3. If automatic navigation is unavailable, open **Live TV → TV Guide** manually; the group selection is retained. The nested **Native TV guide** action remains available to retry.
 4. To restore the ordinary channel list, open **Live-TV Control Center → All channels (native guide)** (**Alle Sender (natives Fernsehprogramm)**).
 
-The browsable **Program list (fallback)** / **Programmliste (Fallback)** remains available. In the beta, the authenticated TV's group response hides direct grouped-channel tiles that may fail to play; internal channel items remain for playlists and other clients. Background channel refreshes and browsing the fallback do not select groups or navigate the TV.
+The browsable **Program list (fallback)** / **Programmliste (Fallback)** remains available. The authenticated TV's group response hides direct grouped-channel tiles that may fail to play; internal channel items remain for playlists and other clients. Background channel refreshes and browsing the fallback do not select groups or navigate the TV.
 
 Alternatively, on the plugin's web/mobile page, select one **Group** or **All visible groups**, and your own-user TV under **Play on**, then **Use group on TV** / **Gruppe am TV verwenden**. Open the normal TV Guide on that TV. **All channels on TV** / **Alle Sender am TV** resets even a remembered offline target. Merely choosing a group on the web page does not change the TV scope.
 
@@ -470,7 +470,7 @@ Apps with channel support can browse:
 ```text
 Channels / My Media
 └── Live-TV Control Center
-    └── Group (beta: selects native guide scope and opens Live TV)
+    └── Group (selects native guide scope and opens Live TV)
         ├── Native TV guide (retry; original Live TV → TV Guide)
         └── Program list (fallback)
             └── Day
