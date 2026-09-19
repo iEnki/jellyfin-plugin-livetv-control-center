@@ -2,7 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../..');
-const imageFile = 'Live-TV_Logo.png';
+const imageFile = 'Live-TV_Control_Center_Logo.png';
 function metadata() {
     const catalog = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'))[0];
     const project = fs.readFileSync(path.join(root, 'src/Jellyfin.Plugin.LiveTvGroups/Jellyfin.Plugin.LiveTvGroups.csproj'), 'utf8');
@@ -13,7 +13,7 @@ function metadata() {
     const development = /<InformationalVersion>[^<]*-dev[.<]/.test(project);
     const beta = /<InformationalVersion>[^<]*-beta[.<]/.test(project);
     return {
-        category: catalog.category, changelog: beta ? '[BETA] Live-TV Groups beta build.' : development ? '[DEV] Live-TV Groups development build.' : 'Live-TV Groups '+version+'. See the GitHub release notes for details.',
+        category: catalog.category, changelog: beta ? '[BETA] '+catalog.name+' beta build.' : development ? '[DEV] '+catalog.name+' development build.' : catalog.name+' '+version+'. See the GitHub release notes for details.',
         description: catalog.description, guid: catalog.guid, name: catalog.name,
         overview: catalog.overview, owner: catalog.owner, targetAbi: catalog.versions[0].targetAbi,
         version, status: 'Active', autoUpdate: true, imagePath: imageFile, assemblies: ['Jellyfin.Plugin.LiveTvGroups.dll']

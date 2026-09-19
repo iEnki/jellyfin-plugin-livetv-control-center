@@ -45,9 +45,9 @@ jobs:
         run: node .github/scripts/write-dev-meta.cjs out
       - uses: actions/upload-artifact@v4
         with:
-          name: live-tv-groups-dev
+          name: live-tv-control-center-dev
           path: |
             out/Jellyfin.Plugin.LiveTvGroups.dll
             out/meta.json
-            out/Live-TV_Logo.png
+            out/Live-TV_Control_Center_Logo.png
           if-no-files-found: error

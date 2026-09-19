@@ -11,6 +11,8 @@ test('manual package retains plugin identity, actual version and automatic futur
     const before = fs.readFileSync(catalogPath, 'utf8');
     const result = metadata();
     assert.equal(result.guid, JSON.parse(before)[0].guid);
+    assert.equal(result.guid, '7b3792b4-b988-4ec5-b9e5-1a952a652b83');
+    assert.equal(result.name, 'Live-TV Control Center');
     assert.equal(result.targetAbi, '12.0.0.0');
     const project = fs.readFileSync(path.join(__dirname, '../../src/Jellyfin.Plugin.LiveTvGroups/Jellyfin.Plugin.LiveTvGroups.csproj'), 'utf8');
     const expectedVersion = project.match(/<Version>([^<]+)<\/Version>/)[1];
@@ -20,13 +22,13 @@ test('manual package retains plugin identity, actual version and automatic futur
     else assert.ok(!/^\[(BETA|DEV)\]/.test(result.changelog));
     assert.equal(result.autoUpdate, true);
     assert.equal(result.status, 'Active');
-    assert.equal(result.imagePath, 'Live-TV_Logo.png');
+    assert.equal(result.imagePath, 'Live-TV_Control_Center_Logo.png');
     assert.deepEqual(result.assemblies, ['Jellyfin.Plugin.LiveTvGroups.dll']);
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ltvg-package-'));
     try {
         writeMetadata(directory);
         const bundledLogo = path.join(directory, result.imagePath);
-        const sourceLogo = path.join(__dirname, '../../assets/Live-TV_Logo.png');
+        const sourceLogo = path.join(__dirname, '../../assets/Live-TV_Control_Center_Logo.png');
         assert.deepEqual(fs.readFileSync(bundledLogo), fs.readFileSync(sourceLogo));
         assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory, 'meta.json'), 'utf8')), result);
         assert.equal(fs.readFileSync(catalogPath, 'utf8'), before);

@@ -21,7 +21,7 @@ env:
 
 jobs:
   beta-release:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.event.created == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -84,7 +84,7 @@ jobs:
           dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release \
             -p:Version=${{ steps.version.outputs.version }} --output out
           node .github/scripts/write-dev-meta.cjs out
-          zip -j "live-tv-groups_${{ steps.version.outputs.version }}-beta.zip" out/Jellyfin.Plugin.LiveTvGroups.dll out/meta.json out/Live-TV_Logo.png
+          zip -j "live-tv-control-center_${{ steps.version.outputs.version }}-beta.zip" out/Jellyfin.Plugin.LiveTvGroups.dll out/meta.json out/Live-TV_Control_Center_Logo.png
 
       - name: Release notes
         run: |
@@ -97,15 +97,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" "live-tv-groups_${{ steps.version.outputs.version }}-beta.zip" \
-            --prerelease --target "${{ github.sha }}" --title "Live-TV Groups ${{ steps.version.outputs.tag }} (BETA)" --notes-file release-notes.md
+          gh release create "${{ steps.version.outputs.tag }}" "live-tv-control-center_${{ steps.version.outputs.version }}-beta.zip" \
+            --prerelease --target "${{ github.sha }}" --title "Live-TV Control Center ${{ steps.version.outputs.tag }} (BETA)" --notes-file release-notes.md
 
       - name: Update manifest-beta.json
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${{ steps.version.outputs.version }}"
-          zip="live-tv-groups_${version}-beta.zip"
+          zip="live-tv-control-center_${version}-beta.zip"
           jq -n --arg v "$version" --arg abi "$TARGET_ABI" \
              --arg url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ steps.version.outputs.tag }}/${zip}" \
              --arg sum "$(md5sum "$zip" | cut -d' ' -f1)" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \

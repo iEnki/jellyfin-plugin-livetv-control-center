@@ -8,5 +8,5 @@
   "devDependencies": {
     "playwright": "1.62.1"
   },
-  "name": "jellyfin-plugin-livetv-groups"
+  "name": "jellyfin-plugin-livetv-control-center"
 }

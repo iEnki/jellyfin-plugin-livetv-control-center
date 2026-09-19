@@ -11,7 +11,7 @@ function fixture(){return {access:{Mode:'personal',CanManage:true,IsAdministrato
 const channels=[{Id:a,Name:'RTL Crime',ChannelNumber:'127'},{Id:b,Name:'Investigation',ChannelNumber:'7'},{Id:c,Name:'Sport',ChannelNumber:'58'}];
 function localizationScript(){return 'window.LiveTvGroupsTranslations='+fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Localization/strings.json'),'utf8')+';\n'+fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web/localization.js'),'utf8');}
 let fixtures=new Map();
-const shell=`<!doctype html><html><head><meta charset="utf-8"><title>Jellyfin groups regression</title><link rel="stylesheet" href="/LiveTvGroups/client.css"><style>body{background:#101010;color:#eee;font:16px Arial;margin:0}header{padding:20px}.page{padding:20px}.hide{display:none}</style></head><body><header><a href="#/list?parentId=${root}&serverId=server">Live-TV Gruppen</a> <a href="#/livetv">Live TV</a> <a href="#/userpluginsettings.html?pageUrl=/LiveTvGroups/page.html">Plugin Pages</a></header><div class="page homePage hide"><div id="homeTab"><div class="homeSectionsContainer"><div class="verticalSection"><h2>My Media</h2><div class="itemsContainer" id="my-media">
+const shell=`<!doctype html><html><head><meta charset="utf-8"><title>Jellyfin groups regression</title><link rel="stylesheet" href="/LiveTvGroups/client.css"><style>body{background:#101010;color:#eee;font:16px Arial;margin:0}header{padding:20px}.page{padding:20px}.hide{display:none}</style></head><body><header><a href="#/list?parentId=${root}&serverId=server">Live-TV Control Center</a> <a href="#/livetv">Live TV</a> <a href="#/userpluginsettings.html?pageUrl=/LiveTvGroups/page.html">Plugin Pages</a></header><div class="page homePage hide"><div id="homeTab"><div class="homeSectionsContainer"><div class="verticalSection"><h2>My Media</h2><div class="itemsContainer" id="my-media">
 <div class="card" id="home-live"><a href="#/livetv?serverId=server">Live TV</a></div>
 <div class="card" id="home-groups"><a href="#/list?parentId=${root}&serverId=server">Groups</a></div>
 <div class="card" id="home-recordings"><a href="#/livetv?tab=3&serverId=server">Recordings</a></div>
@@ -220,7 +220,7 @@ test('refresh reloads mode and visible group permissions on an already open page
 
 test('English Jellyfin language localizes the guide, management and remote playback',async t=>{
  const {page,f}=await open(t,{width:1440,height:1000},null,'en-US');
- assert.equal(await page.getByRole('heading',{name:'Live-TV Groups',exact:true}).count(),1);
+ assert.equal(await page.getByRole('heading',{name:'Live-TV Control Center',exact:true}).count(),1);
  await page.getByLabel('View',{exact:true}).selectOption('channels');
  await page.getByRole('button',{name:'Choose channels',exact:true}).click();
  await page.getByPlaceholder('Search channels…').waitFor();
@@ -244,7 +244,7 @@ test('custom display name is escaped and user content is not translated',async t
 
 test('unsupported display languages fall back to English',async t=>{
  const {page}=await open(t,{width:390,height:844},null,'fr-FR');
- await page.getByRole('heading',{name:'Live-TV Groups',exact:true}).waitFor();
+ await page.getByRole('heading',{name:'Live-TV Control Center',exact:true}).waitFor();
  await page.getByRole('button',{name:'Settings',exact:true}).click();
  await page.getByRole('heading',{name:'Group settings',exact:true}).waitFor();
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
@@ -258,7 +258,7 @@ test('administrator can save a custom display name and restore the automatic def
  await page.getByLabel('Display name',{exact:true}).fill('Family TV');
  await page.getByRole('button',{name:'Save',exact:true}).click();
  await page.waitForFunction(()=>window.dashboardConfiguration?.DisplayName==='Family TV');
- assert.equal(await page.getByLabel('Display name',{exact:true}).getAttribute('placeholder'),'Live-TV Groups');
+ assert.equal(await page.getByLabel('Display name',{exact:true}).getAttribute('placeholder'),'Live-TV Control Center');
  await page.getByLabel('Display name',{exact:true}).fill('');
  await page.getByRole('button',{name:'Save',exact:true}).click();
  await page.waitForFunction(()=>window.dashboardConfiguration?.DisplayName===null);
@@ -268,12 +268,12 @@ test('administrator can save a custom display name and restore the automatic def
 test('changing Jellyfin display language refreshes the plugin without changing group data',async t=>{
  const {page,f}=await open(t);
  await page.evaluate(()=>document.documentElement.lang='en-US');
- await page.getByRole('heading',{name:'Live-TV Groups',exact:true}).waitFor();
+ await page.getByRole('heading',{name:'Live-TV Control Center',exact:true}).waitFor();
  await page.getByLabel('View',{exact:true}).selectOption('channels');
  await page.getByRole('button',{name:'Choose channels',exact:true}).waitFor();
  assert.equal(f.groups[0].Name,'Crime');
  await page.evaluate(()=>document.documentElement.lang='de-DE');
- await page.getByRole('heading',{name:'Live-TV Gruppen',exact:true}).waitFor();
+ await page.getByRole('heading',{name:'Live-TV Control Center',exact:true}).waitFor();
  await page.getByLabel('Ansicht',{exact:true}).waitFor();
 });
 

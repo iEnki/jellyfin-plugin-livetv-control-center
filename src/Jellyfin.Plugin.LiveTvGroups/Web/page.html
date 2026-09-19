@@ -1,5 +1,5 @@
 <div id="ltvg-entry" class="padded-top">
-    <h1>Live-TV Groups</h1>
+    <h1>Live-TV Control Center</h1>
     <p role="status">Opening groups…</p>
     <button type="button" class="raised emby-button" hidden>Try again</button>
 </div>
@@ -12,7 +12,7 @@
     function open() {
         button.hidden = true;
         ApiClient.getJSON(ApiClient.getUrl('LiveTvGroups/Entry')).then(function (entry) {
-            if (!root.isConnected) return;root.querySelector('h1').textContent=entry.DisplayName || t('Live-TV Groups');
+            if (!root.isConnected) return;root.querySelector('h1').textContent=entry.DisplayName || t('Live-TV Control Center');
             if (!entry.ChannelId) throw new Error(t("Groups are unavailable. Check the plugin settings."));
             window.location.hash = '#/list?parentId=' + encodeURIComponent(entry.ChannelId) + '&serverId=' + encodeURIComponent(ApiClient.serverId()) + '&liveTvGroups=1';
         }).catch(function (error) {

@@ -59,7 +59,7 @@ public class WebInjectionService : IHostedService
     {
         if (Plugin.Instance?.Configuration.EnableWebIntegration != true)
         {
-            _logger.LogInformation("Live-TV Groups web integration is disabled");
+            _logger.LogInformation("Live-TV Control Center web integration is disabled");
             return Task.CompletedTask;
         }
 
@@ -74,7 +74,7 @@ public class WebInjectionService : IHostedService
             if (assembly is null)
             {
                 _status.Error = "File Transformation is not installed.";
-                _logger.LogWarning("File Transformation plugin not found; Live-TV Groups web integration is not available");
+                _logger.LogWarning("File Transformation plugin not found; Live-TV Control Center web integration is not available");
                 return Task.CompletedTask;
             }
 
@@ -100,12 +100,12 @@ public class WebInjectionService : IHostedService
             register.Invoke(null, [parse.Invoke(null, [json])]);
             _status.Registered = true;
             _status.Error = null;
-            _logger.LogInformation("Live-TV Groups web integration registered");
+            _logger.LogInformation("Live-TV Control Center web integration registered");
         }
         catch (Exception ex)
         {
             _status.Error = ex.InnerException?.Message ?? ex.Message;
-            _logger.LogError(ex, "Failed to register Live-TV Groups web integration");
+            _logger.LogError(ex, "Failed to register Live-TV Control Center web integration");
         }
 
         return Task.CompletedTask;

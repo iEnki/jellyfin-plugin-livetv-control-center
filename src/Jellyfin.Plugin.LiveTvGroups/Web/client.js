@@ -1,10 +1,10 @@
-/* Live-TV Groups: independent user page for Jellyfin Web 12.0. */
+/* Live-TV Control Center: independent user page for Jellyfin Web 12.0. */
 (function () {
     'use strict';
     if (window.__liveTvGroupsLoaded) return;
     window.__liveTvGroupsLoaded = true;
     const t = key => window.LiveTvGroupsI18n.t(key);
-    const displayName = () => entry?.DisplayName || t('Live-TV Groups');
+    const displayName = () => entry?.DisplayName || t('Live-TV Control Center');
     const PAGE = 'ltvg-page', MODAL = 'ltvg-modal';
     const views = { programs:'Programs', guide:'TV guide', channels:'Channels', manage:'Manage groups' };
     let entryRequest = 0;
@@ -57,7 +57,7 @@
     function styles() {
         if (document.getElementById('ltvg-styles')) return;
         const link = document.createElement('link'); link.id = 'ltvg-styles'; link.rel = 'stylesheet';
-        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '0.4.0.0'));
+        link.href = client().getUrl('LiveTvGroups/client.css?v=' + encodeURIComponent(entry?.Version || '1.0.0.0'));
         document.head.appendChild(link);
     }
     function ownRoute() {

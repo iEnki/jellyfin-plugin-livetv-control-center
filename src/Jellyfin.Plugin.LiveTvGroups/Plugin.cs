@@ -9,7 +9,7 @@ using MediaBrowser.Model.Serialization;
 namespace Jellyfin.Plugin.LiveTvGroups;
 
 /// <summary>
-/// Live-TV Groups plugin entry point.
+/// Live-TV Control Center plugin entry point.
 /// </summary>
 public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
@@ -35,10 +35,10 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public static Plugin? Instance { get; private set; }
 
     /// <inheritdoc />
-    public override string Name => "Live-TV Groups";
+    public override string Name => "Live-TV Control Center";
 
     /// <inheritdoc />
-    public override string Description => "Organize Live TV into personal or centrally managed groups with a guide and TV remote playback.";
+    public override string Description => "Show personal or shared channel groups in the original TV guide, with a web EPG and TV remote playback.";
 
     /// <inheritdoc />
     public override Guid Id => Guid.Parse(PluginId);

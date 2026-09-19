@@ -2,14 +2,14 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Live-TV Groups</title>
+    <title>Live-TV Control Center</title>
 </head>
 <body>
     <div id="LiveTvGroupsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
-                <h2>Live-TV Groups</h2>
-                <p>Choose personal groups per user or central groups managed by administrators. Configure central user access under <b>Live-TV Groups → Manage groups → User access</b>.</p><p>Users need Live TV access and permission to access the plugin channel under Dashboard → Users → Access → Channels. Sign in again after changing permissions.</p>
+                <h2>Live-TV Control Center</h2>
+                <p>Choose personal groups per user or central groups managed by administrators. Configure central user access under <b>Live-TV Control Center → Manage groups → User access</b>.</p><p>Users need Live TV access and permission to access the plugin channel under Dashboard → Users → Access → Channels. Sign in again after changing permissions.</p>
 
                 <div class="verticalSection">
                     <h3>Web integration status</h3>
@@ -118,7 +118,7 @@
                     loadStatus();
                     administrationLoaded = false; page.querySelector('#GroupMode').disabled = true; updateImport();
                     Promise.all([ApiClient.getPluginConfiguration(pluginId), ApiClient.getJSON(ApiClient.getUrl('LiveTvGroups/Administration'))]).then(function (results) {
-                        var config = results[0]; page.querySelector('#DisplayName').value = config.DisplayName || '';page.querySelector('#DisplayName').placeholder=t('Live-TV Groups'); administrationLoaded = true;
+                        var config = results[0]; page.querySelector('#DisplayName').value = config.DisplayName || '';page.querySelector('#DisplayName').placeholder=t('Live-TV Control Center'); administrationLoaded = true;
                         page.querySelector('#GroupMode').value = results[1].Configuration.Mode;
                         page.querySelector('#GroupMode').disabled = false; updateImport();
                         page.querySelector('#AppGuideTimeZone').value = config.AppGuideTimeZone || 'Europe/Vienna';

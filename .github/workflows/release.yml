@@ -73,7 +73,7 @@ jobs:
           dotnet publish src/Jellyfin.Plugin.LiveTvGroups --configuration Release \
             -p:Version=${{ steps.version.outputs.version }} --output out
           node .github/scripts/write-dev-meta.cjs out
-          zip -j "live-tv-groups_${{ steps.version.outputs.version }}.zip" out/Jellyfin.Plugin.LiveTvGroups.dll out/meta.json out/Live-TV_Logo.png
+          zip -j "live-tv-control-center_${{ steps.version.outputs.version }}.zip" out/Jellyfin.Plugin.LiveTvGroups.dll out/meta.json out/Live-TV_Control_Center_Logo.png
 
       - name: Extract changelog
         run: |
@@ -86,14 +86,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" "live-tv-groups_${{ steps.version.outputs.version }}.zip" \
-            --title "Live-TV Groups ${GITHUB_REF_NAME}" --notes-file release-notes.md
+          gh release create "${GITHUB_REF_NAME}" "live-tv-control-center_${{ steps.version.outputs.version }}.zip" \
+            --title "Live-TV Control Center ${GITHUB_REF_NAME}" --notes-file release-notes.md
 
       - name: Update manifest.json
         run: |
           git checkout main
           version="${{ steps.version.outputs.version }}"
-          zip="live-tv-groups_${version}.zip"
+          zip="live-tv-control-center_${version}.zip"
           checksum="$(md5sum "$zip" | cut -d' ' -f1)"
           url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${zip}"
           timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"

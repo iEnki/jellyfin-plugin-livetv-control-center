@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.0.0.0
+
+- Rename the plugin and new repository to **Live-TV Control Center**, with the original Jellyfin TV Guide group filter prominent in the catalog and README. Release stable 1.0.0.0 for Jellyfin 12 / net10.0.
+- Preserve the existing plugin GUID, assembly, channel provider identity and stored data, so users of Live-TV Groups 0.4.x can update their installation without losing groups, access rules, preferences or per-device native-guide selections. Existing custom display names remain user-controlled.
+- Continue the tested native Android TV / Fire TV timeline filtering, visible-group union, reset to all channels, web EPG, remote playback, native folders and central channel access without a runtime behavior change.
+- Publish from the new stable repository and establish a beta branch/catalog for future test versions.
 ## 0.4.0.0
 
 - Promote the owner-accepted native TV guide and playback features from beta to stable. Update normally from stable or beta catalogs while preserving groups, permissions, preferences and per-user/device guide selections. Target Jellyfin 12 / net10.0.

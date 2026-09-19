@@ -25,7 +25,7 @@ public sealed class ChannelDisplayNameService(IServiceProvider services, IHostAp
                 await UpdateDisplayName(stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
-            catch (Exception ex) { logger.LogWarning(ex, "Could not update the Live-TV Groups display name; retrying."); }
+            catch (Exception ex) { logger.LogWarning(ex, "Could not update the Live-TV Control Center display name; retrying."); }
             await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken).ConfigureAwait(false);
         }
     }

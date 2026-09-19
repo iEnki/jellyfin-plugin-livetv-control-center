@@ -1,4 +1,4 @@
-# Live-TV Groups for Jellyfin
+# Live-TV Control Center for Jellyfin
 
 Make Jellyfin's **original TV Guide** easier to use on Android TV and Fire TV: show the channels in one of your groups instead of scrolling through the entire lineup. The familiar channel-and-program timeline remains Jellyfin's own guide. Choose a group on the TV or from the plugin's web page; switch back to all channels whenever you want.
 
@@ -10,7 +10,7 @@ Make Jellyfin's **original TV Guide** easier to use on Android TV and Fire TV: s
 - **Family-friendly channel access:** Administrators can block selected channels for children's accounts across the plugin and ordinary Jellyfin Live TV. [Central channel access](#central-channel-access).
 - **Other ways to browse:** Keep group folders and program lists in supported native apps; optionally create group playlists. [Native app support](#native-apps-and-program-lists).
 
-**Stable version: 0.4.0.0** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
+**Stable version: 1.0.0.0** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its web guide is separate from Jellyfin's original Live TV guide; the native TV filter changes which channels the original guide shows on the selected TV.
 
@@ -41,7 +41,7 @@ The plugin uses Jellyfin's existing channels and EPG data. Its web guide is sepa
 
 ## Screenshots and preview
 
-Explore the independent groups page in Jellyfin Web. These screenshots show the English interface; custom group names and imported channel/program information keep their original language. Click any image to view it at full resolution.
+Explore the independent groups page in Jellyfin Web. These screenshots were captured before the rename, so some still show the former Live-TV Groups label; the layout and functions are the same. Custom group names and imported channel/program information keep their original language. Click any image to view it at full resolution.
 
 ### Grouped TV guide
 
@@ -120,7 +120,7 @@ The interface supports English and German. This documentation uses the English l
 1. Open **Dashboard → Plugins → Repositories** and add a repository using this URL:
 
    ```text
-   https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/latest/download/manifest.json
+   https://github.com/iEnki/jellyfin-plugin-livetv-control-center/releases/latest/download/manifest.json
    ```
 
 2. Add the File Transformation repository:
@@ -129,11 +129,11 @@ The interface supports English and German. This documentation uses the English l
    https://www.iamparadox.dev/jellyfin/plugins/manifest.json
    ```
 
-3. Install **Live-TV Groups** and a **File Transformation** version compatible with your Jellyfin server.
+3. Install **Live-TV Control Center** and a **File Transformation** version compatible with your Jellyfin server.
 4. Restart Jellyfin.
-5. Open **Dashboard → Plugins → Live-TV Groups**. Verify web integration is enabled and check the integration status.
-6. Grant intended users access to the **Live-TV Groups** channel; see [User permissions](#user-permissions).
-7. Reload Jellyfin Web or close/reopen the web-based mobile client. Open **Live-TV Groups** under **My Media** or the client's channel/library section.
+5. Open **Dashboard → Plugins → Live-TV Control Center**. Verify web integration is enabled and check the integration status.
+6. Grant intended users access to the **Live-TV Control Center** channel; see [User permissions](#user-permissions).
+7. Reload Jellyfin Web or close/reopen the web-based mobile client. Open **Live-TV Control Center** under **My Media** or the client's channel/library section.
 
 When compatible Plugin Pages is installed and web integration is registered, a user-menu shortcut is registered automatically. The channel/library entry remains available without Plugin Pages.
 
@@ -142,24 +142,29 @@ When compatible Plugin Pages is installed and web integration is registered, a u
 To test features before their stable release, add this separate repository under **Dashboard → Plugins → Repositories**:
 
 ```text
-https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/download/beta-channel/manifest-beta.json
+https://github.com/iEnki/jellyfin-plugin-livetv-control-center/releases/download/beta-channel/manifest-beta.json
 ```
 
-Install or update **Live-TV Groups** from the plugin catalog and restart Jellyfin. Beta builds use the same plugin identity and preserve existing settings and groups. The beta catalog includes stable versions as well as newer beta versions; the existing development repository also receives beta builds.
+Install or update **Live-TV Control Center** from the plugin catalog and restart Jellyfin. Beta builds use the same plugin identity and preserve existing settings and groups. The beta catalog includes stable versions as well as newer beta versions; the development catalog can also receive beta builds.
 
 Jellyfin compares four-part numeric versions. Beta updates and a later stable release need higher version numbers to be offered as updates. Removing the beta repository stops future beta offers; it does not downgrade an already installed beta. To return to stable immediately, follow manual installation and preserve plugin data/configuration.
 
 ### Manual installation
 
-1. Download the plugin ZIP from the [latest release](https://github.com/iEnki/jellyfin-plugin-livetv-groups/releases/latest).
+1. Download the plugin ZIP from the [latest release](https://github.com/iEnki/jellyfin-plugin-livetv-control-center/releases/latest).
 2. Stop Jellyfin and preserve the plugin data/configuration.
 3. Move the older binary installation outside the scanned plugins directory.
-4. Create a folder such as `Live-TV Groups_<version>` inside Jellyfin's plugins directory.
-5. Extract all files from the ZIP into it: `Jellyfin.Plugin.LiveTvGroups.dll`, `meta.json`, and `Live-TV_Logo.png` in builds that include the logo. Keep only one installed binary copy.
+4. Create a folder such as `Live-TV Control Center_<version>` inside Jellyfin's plugins directory.
+5. Extract all files from the ZIP into it: `Jellyfin.Plugin.LiveTvGroups.dll`, `meta.json`, and `Live-TV_Control_Center_Logo.png` in builds that include the logo. Keep only one installed binary copy.
 6. Start Jellyfin and confirm the installed version.
 
-The package contains matching plugin identity/version metadata and automatic update support. Builds with logo support also include `Live-TV_Logo.png`. Add the stable repository to receive subsequent stable updates.
+The package contains matching plugin identity/version metadata and automatic update support. Builds with logo support also include `Live-TV_Control_Center_Logo.png`. Add the stable repository to receive subsequent stable updates.
 
+### Moving from Live-TV Groups 0.4.x
+
+**Live-TV Control Center 1.0.0.0 is an in-place update of Live-TV Groups.** It keeps the same Jellyfin plugin ID, assembly and stored group/configuration identities so your existing groups, permissions, preferences and native-guide selections can be reused. Add the new stable repository URL above, then update the existing plugin to 1.0.0.0 and restart Jellyfin. Remove the old `jellyfin-plugin-livetv-groups` repository afterward to avoid competing update sources; do not install a second plugin copy. Back up your plugin configuration and data before a manual replacement.
+
+If you set a custom **Display name**, that preference stays in place. Clear it under **Dashboard → Plugins → Live-TV Control Center** if you want the new default name to appear in the channel and web menu.
 ## Upgrading
 
 Install updates from the plugin catalog under **Dashboard → Plugins**.
@@ -170,7 +175,7 @@ Reload the browser/mobile web client and fully close/reopen the TV app to clear 
 
 For upgrades from older stable versions, personal groups are preserved and personal mode remains the default. Central mode is an explicit administrator choice.
 
-The previous 0.2.x native filter settings and guide-group selections remain inactive. Version 0.4.0.0 includes the tested native-guide selection per user and TV device. Existing beta selections are preserved; installing the plugin does not automatically filter original Live TV.
+The previous 0.2.x native filter settings and guide-group selections remain inactive. The native-guide selection introduced in 0.4.0.0 remains per user and TV device. Existing selections are preserved; installing the plugin does not automatically filter original Live TV.
 
 ## User permissions
 
@@ -181,7 +186,7 @@ Jellyfin channel access and plugin group visibility are separate permission laye
 An ordinary user needs Live TV access **and** access to the separate plugin channel:
 
 1. Open **Dashboard → Users → affected user → Access**.
-2. Under **Channels**, explicitly allow **Live-TV Groups**, or choose an appropriate all-channels policy.
+2. Under **Channels**, explicitly allow **Live-TV Control Center**, or choose an appropriate all-channels policy.
 3. Save.
 4. Sign the user out and back in.
 
@@ -208,7 +213,7 @@ A blocked channel is unavailable to that user in channel selection, existing gro
 
 ### Example: hide unsuitable channels from children
 
-1. Open **Dashboard → Plugins → Live-TV Groups → Channel access**, or select **Channel access** on the groups page as an administrator.
+1. Open **Dashboard → Plugins → Live-TV Control Center → Channel access**, or select **Channel access** on the groups page as an administrator.
 2. Check **Enable central channel access** and select **New rule**.
 3. Enter **Not suitable for children** under **Rule name**.
 4. Choose **Everyone except selected users** and check each child's Jellyfin user account. Those users are blocked from the selected channels; other eligible household members keep access. Add new child accounts to this rule when you create them.
@@ -246,9 +251,9 @@ After enabling the feature or restarting the server, reopen playback that used a
 
 ## Home screen entry
 
-Administrators can optionally hide the original **Live TV** tile or library button under **My Media**, leaving **Live-TV Groups** as the entry for browsing grouped channels and their program guide.
+Administrators can optionally hide the original **Live TV** tile or library button under **My Media**, leaving **Live-TV Control Center** as the entry for browsing grouped channels and their program guide.
 
-1. Open **Dashboard → Plugins → Live-TV Groups**.
+1. Open **Dashboard → Plugins → Live-TV Control Center**.
 2. Enable **Hide the original Live TV entry on the web home screen** and save.
 3. Reload Jellyfin Web or reopen web-based mobile clients.
 
@@ -264,28 +269,28 @@ The shared channel/library entry has one name for the server. With no custom nam
 
 To choose your own name:
 
-1. Open **Dashboard → Plugins → Live-TV Groups**.
+1. Open **Dashboard → Plugins → Live-TV Control Center**.
 2. Enter **Display name**, for example **Family TV**. Leave it empty to restore the translated default.
 3. Save. The channel/library name updates within approximately 30 seconds.
 4. Reload browser/mobile clients or refresh the TV app. Restart Jellyfin to update the optional Plugin Pages menu shortcut.
 
-A custom name is shared by all users and appears in the channel/library entry, web page title and optional menu shortcut. The plugin catalog and dashboard plugin name remain **Live-TV Groups**. Renaming preserves the channel identity, user permissions, groups and playlist mappings. The maximum length is 100 characters.
+A custom name is shared by all users and appears in the channel/library entry, web page title and optional menu shortcut. The plugin catalog and dashboard plugin name remain **Live-TV Control Center**. Renaming preserves the channel identity, user permissions, groups and playlist mappings. The maximum length is 100 characters.
 
 ## Quick start
 
 ### Personal groups
 
-1. Open **Live-TV Groups → Manage groups**.
+1. Open **Live-TV Control Center → Manage groups**.
 2. Select **New group**, enter a name and save.
 3. Select **Choose channels**, select/search for channels, and save.
 4. Open **TV guide** to view the timeline.
 
 ### Shared groups for users
 
-1. As administrator, open **Dashboard → Plugins → Live-TV Groups**.
+1. As administrator, open **Dashboard → Plugins → Live-TV Control Center**.
 2. Under **Group administration**, select **Central groups managed by admins**.
 3. Optionally check **Copy my personal groups into central groups** to copy your existing personal groups.
-4. Save, then open **Live-TV Groups → Manage groups**.
+4. Save, then open **Live-TV Control Center → Manage groups**.
 5. Create/edit central groups and configure **User access** per group.
 6. Ensure intended users have Jellyfin access to the plugin channel.
 
@@ -297,7 +302,7 @@ Use your phone as a remote to start and switch Live TV channels on your TV. The 
 
 1. Open Jellyfin on Fire TV with the internal player enabled.
 2. Use the same Jellyfin account on phone and TV for the simplest setup.
-3. On the phone, open **Live-TV Groups → TV guide**.
+3. On the phone, open **Live-TV Control Center → TV guide**.
 4. Refresh devices and choose the TV under **Play on**.
 5. Tap a channel number/logo to start it on the TV. The phone keeps the guide open while the TV plays.
 6. To switch channels, browse your groups and tap another channel number/logo. Playback changes on the selected TV; the guide remains open on your phone.
@@ -418,14 +423,14 @@ This version provides start/switch actions, not a separate pause/volume/stop rem
 
 ## Native TV guide filtering
 
-**Available in stable 0.4.0.0, targeting Jellyfin 12 / .NET 10.** Install through the [stable repository](#stable-plugin-repository). No additional service, subscription or custom TV app is required.
+**Available in stable 1.0.0.0, targeting Jellyfin 12 / .NET 10.** Install through the [stable repository](#stable-plugin-repository). No additional service, subscription or custom TV app is required.
 
 Using only the TV remote:
 
-1. Open **Live-TV Groups → your created group → Native TV guide** (**Natives Fernsehprogramm** in German).
+1. Open **Live-TV Control Center → your created group → Native TV guide** (**Natives Fernsehprogramm** in German).
 2. The plugin selects that group's permitted channels for this authenticated user and TV, then sends the normal **DisplayContent** navigation to Jellyfin's original **Live TV** view.
 3. Select **TV Guide** there. This is Jellyfin's real channel/time timeline, with the selected group's original channels. If navigation is unavailable, open **Live TV → TV Guide** manually; the group selection is retained.
-4. To restore the ordinary channel list, open **Live-TV Groups → All channels (native guide)** (**Alle Sender (natives Fernsehprogramm)**).
+4. To restore the ordinary channel list, open **Live-TV Control Center → All channels (native guide)** (**Alle Sender (natives Fernsehprogramm)**).
 
 The old program-folder screen is now explicitly named **Program list (fallback)** / **Programmliste (Fallback)**. Opening a group or browsing this fallback does not activate a native scope. A request filter handles the explicit native action even when provider contents are cached; background channel refreshes never select groups or navigate the TV.
 
@@ -460,7 +465,7 @@ Apps with channel support can browse:
 
 ```text
 Channels / My Media
-└── Live-TV Groups
+└── Live-TV Control Center
     └── Group
         ├── Channel
         ├── Native TV guide (original Live TV → TV Guide)
@@ -490,7 +495,7 @@ Each visible group is mirrored as **Live-TV: Group name** for its relevant user.
 - Mode/central group/access-policy changes schedule user synchronization.
 - Removes obsolete mirrors for deleted or no-longer-visible groups.
 - Turning the feature off removes plugin-created mirrors.
-- Manual task: **Synchronize Live-TV Groups playlists**.
+- Manual task: **Synchronize Live-TV Control Center playlists**.
 
 Playlist mappings remain per user even when the collection is central. Client playback capabilities still apply; Wholphin is an intended playlist-based entry use case.
 
@@ -498,7 +503,7 @@ Playlist mappings remain per user even when the collection is central. Client pl
 
 ### Administrator settings
 
-Location: **Dashboard → Plugins → Live-TV Groups**.
+Location: **Dashboard → Plugins → Live-TV Control Center**.
 
 | Setting | Default | Effect |
 | --- | --- | --- |
@@ -550,7 +555,7 @@ If a tuner rescan/M3U re-import changes channel IDs, ordinary group references c
 
 | Symptom | Action |
 | --- | --- |
-| Ordinary user cannot find Live-TV Groups in My Media | Allow the plugin channel under **Users → Access → Channels**, save and sign out/in. Ordinary Live TV access alone is insufficient. Also check personal home/library visibility. |
+| Ordinary user cannot find Live-TV Control Center in My Media | Allow the plugin channel under **Users → Access → Channels**, save and sign out/in. Ordinary Live TV access alone is insufficient. Also check personal home/library visibility. |
 | Channel cards appear instead of EPG | Select **TV guide** or its direct button. **Channels** is a separate, possibly remembered view. |
 | No groups for a user | Personal mode may have no groups for that account. In central mode check group policy and Jellyfin rights; refresh after changes. |
 | Native folders appear instead of custom web UI | Check File Transformation, web integration/status, restart and browser reload/cache. Plugin Pages alone does not inject the interface. |
@@ -572,10 +577,10 @@ For an issue report, include server/plugin/client versions, mode, affected accou
 
 ## Support
 
-If you encounter a problem, open an issue in the [GitHub issue tracker](https://github.com/iEnki/jellyfin-plugin-livetv-groups/issues). Include the information listed above and remove passwords, access tokens and other private information from logs.
+If you encounter a problem, open an issue in the [GitHub issue tracker](https://github.com/iEnki/jellyfin-plugin-livetv-control-center/issues). Include the information listed above and remove passwords, access tokens and other private information from logs.
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## License
 
-Live-TV Groups is distributed under the [GNU General Public License v3.0](LICENSE).
+Live-TV Control Center is distributed under the [GNU General Public License v3.0](LICENSE).

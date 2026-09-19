@@ -1,12 +1,12 @@
 [
   {
     "guid": "7b3792b4-b988-4ec5-b9e5-1a952a652b83",
-    "name": "Live-TV Groups",
-    "description": "Organize Live TV into personal or centrally administered channel groups with per-user access rules, an independent program guide, Fire TV / Android TV remote playback, native app folders, and optional playlists.",
-    "overview": "Live TV groups, program guide and TV remote playback",
+    "name": "Live-TV Control Center",
+    "description": "Show personal or shared channel groups in the original Jellyfin Android TV / Fire TV guide, with a web EPG, remote playback, channel access rules and native app folders.",
+    "overview": "Your channel groups in the original TV guide, plus web EPG and remote playback",
     "owner": "iEnki",
     "category": "Live TV",
-    "imageUrl": "https://raw.githubusercontent.com/iEnki/jellyfin-plugin-livetv-groups/v0.3.3.0/assets/Live-TV_Logo.png",
+    "imageUrl": "https://raw.githubusercontent.com/iEnki/jellyfin-plugin-livetv-control-center/main/assets/Live-TV_Control_Center_Logo.png",
     "versions": [
       {
         "version": "0.4.0.0",

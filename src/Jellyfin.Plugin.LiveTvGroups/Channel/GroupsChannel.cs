@@ -71,7 +71,7 @@ public class GroupsChannel : IChannel, IHasCacheKey
     public string DataVersion => "9"; // Invalidates cached channel-access and guide folders while preserving existing channel/playback item IDs.
 
     /// <inheritdoc />
-    public string HomePageUrl => "https://github.com/iEnki/jellyfin-plugin-livetv-groups";
+    public string HomePageUrl => "https://github.com/iEnki/jellyfin-plugin-livetv-control-center";
 
     /// <inheritdoc />
     public ChannelParentalRating ParentalRating => ChannelParentalRating.GeneralAudience;

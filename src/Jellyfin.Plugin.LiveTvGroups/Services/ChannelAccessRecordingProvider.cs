@@ -16,7 +16,7 @@ namespace Jellyfin.Plugin.LiveTvGroups.Services;
 public class ChannelAccessRecordingProvider(ChannelAccessService access, GroupStore store, IServiceProvider services)
     : ICustomMetadataProvider<Video>, ICustomMetadataProvider<Movie>, ICustomMetadataProvider<Episode>, IHasOrder
 {
-    public string Name => "Live-TV Groups channel access";
+    public string Name => "Live-TV Control Center channel access";
     public int Order => int.MaxValue;
     public Task<ItemUpdateType> FetchAsync(Video item, MetadataRefreshOptions options, CancellationToken cancellationToken) => Fetch(item, cancellationToken);
     public Task<ItemUpdateType> FetchAsync(Movie item, MetadataRefreshOptions options, CancellationToken cancellationToken) => Fetch(item, cancellationToken);

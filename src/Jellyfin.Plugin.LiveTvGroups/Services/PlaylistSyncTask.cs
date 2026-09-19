@@ -27,7 +27,7 @@ public class PlaylistSyncTask : IScheduledTask
     }
 
     /// <inheritdoc />
-    public string Name => PluginLocalization.Text("Synchronize Live-TV Groups playlists", PluginLocalization.ServerLanguage(_services));
+    public string Name => PluginLocalization.Text("Synchronize Live-TV Control Center playlists", PluginLocalization.ServerLanguage(_services));
 
     /// <inheritdoc />
     public string Key => "LiveTvGroupsPlaylistSync";

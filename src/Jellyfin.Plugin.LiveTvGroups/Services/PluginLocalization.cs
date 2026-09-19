@@ -42,5 +42,5 @@ public static class PluginLocalization
     }
 
     public static string DisplayName(PluginConfiguration? configuration, string? language)
-        => string.IsNullOrWhiteSpace(configuration?.DisplayName) ? Text("Live-TV Groups", language) : configuration.DisplayName;
+        => string.IsNullOrWhiteSpace(configuration?.DisplayName) ? Text("Live-TV Control Center", language) : configuration.DisplayName;
 }

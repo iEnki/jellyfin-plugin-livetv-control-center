@@ -22,12 +22,12 @@ namespace Jellyfin.Plugin.LiveTvGroups.Tests;
 public class LocalizationTests
 {
     [Theory]
-    [InlineData("de-DE", "Live-TV Gruppen")]
-    [InlineData("de-AT", "Live-TV Gruppen")]
-    [InlineData("en-US", "Live-TV Groups")]
-    [InlineData("en-GB", "Live-TV Groups")]
-    [InlineData("fr-FR", "Live-TV Groups")]
-    [InlineData(null, "Live-TV Groups")]
+    [InlineData("de-DE", "Live-TV Control Center")]
+    [InlineData("de-AT", "Live-TV Control Center")]
+    [InlineData("en-US", "Live-TV Control Center")]
+    [InlineData("en-GB", "Live-TV Control Center")]
+    [InlineData("fr-FR", "Live-TV Control Center")]
+    [InlineData(null, "Live-TV Control Center")]
     public void AutomaticNamesFollowLanguageWithEnglishFallback(string? language, string expected)
         => Assert.Equal(expected, PluginLocalization.DisplayName(new PluginConfiguration(), language));
 
@@ -39,7 +39,7 @@ public class LocalizationTests
         Assert.Equal("Family TV", PluginLocalization.DisplayName(configuration, "en-US"));
         configuration.DisplayName = "   ";
         Assert.Null(configuration.DisplayName);
-        Assert.Equal("Live-TV Gruppen", PluginLocalization.DisplayName(configuration, "de-DE"));
+        Assert.Equal("Live-TV Control Center", PluginLocalization.DisplayName(configuration, "de-DE"));
         Assert.Throws<ArgumentException>(() => configuration.DisplayName = new string('x', 101));
         Assert.Throws<ArgumentException>(() => configuration.DisplayName = "Family\nTV");
     }
@@ -73,7 +73,7 @@ public class LocalizationTests
         using var services = new ServiceCollection().AddSingleton(library).BuildServiceProvider();
         var service = new ChannelDisplayNameService(services, InterfaceStub.Create<IHostApplicationLifetime>((m,a)=>null), NullLogger<ChannelDisplayNameService>.Instance);
         await service.UpdateDisplayName(CancellationToken.None);
-        Assert.Equal("Live-TV Groups", channel.Name);Assert.Equal(1,writes);
+        Assert.Equal("Live-TV Control Center", channel.Name);Assert.Equal(1,writes);
         await service.UpdateDisplayName(CancellationToken.None);Assert.Equal(1,writes);
     }
     [Theory]
@@ -101,7 +101,7 @@ public class LocalizationTests
         if (hasChannelAccess) Assert.Equal(id,json.GetProperty("ChannelId").GetGuid());
         else Assert.Equal(System.Text.Json.JsonValueKind.Null,json.GetProperty("ChannelId").ValueKind);
         Assert.False(json.GetProperty("HideOriginalLiveTvHomeEntry").GetBoolean());
-        Assert.Equal("Live-TV Gruppen",json.GetProperty("DisplayName").GetString());
+        Assert.Equal("Live-TV Control Center",json.GetProperty("DisplayName").GetString());
     }
 
     [Fact]

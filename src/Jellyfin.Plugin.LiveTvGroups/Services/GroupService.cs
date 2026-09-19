@@ -64,7 +64,7 @@ public class GroupService
     public T Update<T>(User user, Func<UserGroups, T> change)
     {
         if (user.HasPermission(PermissionKind.IsDisabled) || !user.HasPermission(PermissionKind.EnableLiveTvAccess))
-        { throw new UnauthorizedAccessException("Kein Zugriff auf Live-TV Gruppen."); }
+        { throw new UnauthorizedAccessException("Kein Zugriff auf Live-TV Control Center."); }
         return _store.UpdateGroups(user.Id, user.HasPermission(PermissionKind.IsAdministrator), change);
     }
 
