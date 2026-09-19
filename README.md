@@ -145,6 +145,8 @@ To test features before their stable release, add this separate repository under
 https://github.com/iEnki/jellyfin-plugin-livetv-control-center/releases/download/beta-channel/manifest-beta.json
 ```
 
+Development for future betas happens on the [beta branch](https://github.com/iEnki/jellyfin-plugin-livetv-control-center/tree/beta). The beta catalog currently starts with stable 1.0.0.0; a beta is published only after that branch receives a higher four-part version and a `-beta` build marker.
+
 Install or update **Live-TV Control Center** from the plugin catalog and restart Jellyfin. Beta builds use the same plugin identity and preserve existing settings and groups. The beta catalog includes stable versions as well as newer beta versions; the development catalog can also receive beta builds.
 
 Jellyfin compares four-part numeric versions. Beta updates and a later stable release need higher version numbers to be offered as updates. Removing the beta repository stops future beta offers; it does not downgrade an already installed beta. To return to stable immediately, follow manual installation and preserve plugin data/configuration.
