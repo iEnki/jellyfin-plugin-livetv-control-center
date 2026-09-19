@@ -10,7 +10,7 @@ Make Jellyfin's **original TV Guide** easier to use on Android TV and Fire TV: s
 - **Family-friendly channel access:** Administrators can block selected channels for children's accounts across the plugin and ordinary Jellyfin Live TV. [Central channel access](#central-channel-access).
 - **Other ways to browse:** Keep group folders and program lists in supported native apps; optionally create group playlists. [Native app support](#native-apps-and-program-lists).
 
-**Stable version: 1.0.0.0** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
+**Stable version: 1.0.0.0** · **Jellyfin: minimum 12.0 (12.1 confirmed)** · **Plugin ABI: 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its web guide is separate from Jellyfin's original Live TV guide; the native TV filter changes which channels the original guide shows on the selected TV.
 
@@ -100,7 +100,7 @@ Configure working Live TV in Jellyfin before using the plugin. For program infor
 
 | Component/client | Function |
 | --- | --- |
-| Jellyfin 12.0 server | Target server version; plugin ABI is 12.0.0.0. |
+| Jellyfin server | Requires at least 12.0; the plugin owner also uses it successfully on 12.1. The package ABI remains 12.0.0.0. |
 | Jellyfin Web on desktop/mobile | Independent groups page, timeline guide, group management and remote target selection. |
 | Mobile clients loading the server's Jellyfin Web interface | Same web integration when the injected page script is loaded. Fully native clients do not automatically receive this UI. |
 | Official Jellyfin Android TV app, including Fire TV | Group folders, native timeline group filtering, program-list fallback and remote playback target with the app in the foreground and its internal player enabled. |
@@ -425,7 +425,7 @@ This version provides start/switch actions, not a separate pause/volume/stop rem
 
 ## Native TV guide filtering
 
-**Available in stable 1.0.0.0, targeting Jellyfin 12 / .NET 10.** Install through the [stable repository](#stable-plugin-repository). No additional service, subscription or custom TV app is required.
+**Available in stable 1.0.0.0 for Jellyfin 12.0 and 12.1 / .NET 10.** Install through the [stable repository](#stable-plugin-repository). No additional service, subscription or custom TV app is required.
 
 Using only the TV remote:
 
