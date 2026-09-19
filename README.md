@@ -1,12 +1,18 @@
 # Live-TV Groups for Jellyfin
 
-Live-TV Groups goes beyond browsing provider-defined IPTV categories: users can manually create and order personal channel groups independently of the underlying M3U or Xtream categories. Administrators can optionally provide shared groups with per-group user access, and centrally restrict individual channels regardless of whether users create their own groups. The plugin combines this flexible organization with an independent program guide (EPG), remote playback on Jellyfin Android TV / Fire TV, grouped folders for native apps, and optional playlists.
+Make Jellyfin's **original TV Guide** easier to use on Android TV and Fire TV: show the channels in one of your groups instead of scrolling through the entire lineup. The familiar channel-and-program timeline remains Jellyfin's own guide. Choose a group on the TV or from the plugin's web page; switch back to all channels whenever you want.
 
-Use channel groups to keep a large TV lineup easy to browse: collect channels by topic, language or household preference and view their schedules together. With a supported web-based Jellyfin phone app or mobile browser, your phone also becomes a TV guide and remote for Jellyfin Android TV / Fire TV. Browse programs on the phone, start a channel on the TV and switch channels without closing the guide.
+## Main features
+
+- **Native TV Guide with your groups:** Filter the official Jellyfin Android TV / Fire TV guide to one group. From the web page, you can also show the combined channels from **All visible groups**. The selection applies only to that user and TV. [How native guide filtering works](#native-tv-guide-filtering).
+- **Your own channel groups:** Create and order personal groups independently of provider categories, or let administrators manage shared groups with user access rules. [Groups and permissions](#personal-and-central-groups).
+- **Web EPG and phone remote:** Browse a grouped program timeline in Jellyfin Web or a web-based mobile client, then start or switch channels on a selected Fire TV / Android TV device. [Phone setup](#phone-as-tv-guide-and-remote).
+- **Family-friendly channel access:** Administrators can block selected channels for children's accounts across the plugin and ordinary Jellyfin Live TV. [Central channel access](#central-channel-access).
+- **Other ways to browse:** Keep group folders and program lists in supported native apps; optionally create group playlists. [Native app support](#native-apps-and-program-lists).
 
 **Stable version: 0.4.0.0** · **Server target: Jellyfin 12.0 / ABI 12.0.0.0** · **License: GPL-3.0**
 
-The plugin uses Jellyfin's existing channels and EPG data. Its groups page works independently of the original Jellyfin Live TV views.
+The plugin uses Jellyfin's existing channels and EPG data. Its web guide is separate from Jellyfin's original Live TV guide; the native TV filter changes which channels the original guide shows on the selected TV.
 
 ## Contents
 
