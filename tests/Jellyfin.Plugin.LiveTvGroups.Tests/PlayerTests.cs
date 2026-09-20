@@ -51,6 +51,23 @@ public class PlayerTests
         Assert.Single(f.Commands);
     }
 
+    [Theory]
+    [InlineData("Wholphin")]
+    [InlineData("Wholphin (Debug)")]
+    public void WholphinCanSetGuideOnlyWithOwnActiveRemoteSession(string client)
+    {
+        using var f = new Fixture(); var target = f.Target(client: client);
+        Assert.False(f.Players.CanSetNativeGuide(f.User, target.DeviceId));
+        target.Capabilities = new ClientCapabilities { SupportsMediaControl = true };
+        target.SessionControllers = [Controller(true, true)];
+        Assert.Equal(target.DeviceId, Assert.Single(f.Players.GetPlayers(f.User)).DeviceId);
+        Assert.True(f.Players.CanSetNativeGuide(f.User, target.DeviceId));
+        target.UserId = f.Other.Id;
+        Assert.False(f.Players.CanSetNativeGuide(f.User, target.DeviceId));
+        target.UserId = f.User.Id; target.SessionControllers = [];
+        Assert.False(f.Players.CanSetNativeGuide(f.User, target.DeviceId));
+    }
+
     [Fact]
     public void AndroidTvWithoutRemoteFlagIsDiscoveredButUnconnectedAndOtherUsersAreNot()
     {

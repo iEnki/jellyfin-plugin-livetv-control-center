@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Beta: Allow an authenticated Wholphin device to use a per-user/device native guide scope selected from the plugin web/mobile page. Wholphin's own Live TV guide then receives only the selected group's channels (or all visible groups); reset restores ordinary channels. Wholphin guide navigation remains manual.
+- Keep official Android TV / Fire TV navigation and remote playback behavior unchanged. Add Wholphin-specific guidance and regression coverage.
+
 ## 1.1.0.0
 
 - Selecting a group in the official Android TV / Fire TV app immediately applies that group's native guide scope and opens the ordinary Live TV view. The separate Native TV guide action remains available to retry.

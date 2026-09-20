@@ -27,7 +27,7 @@ public class NativeGuideChannelFilter(NativeGuideService scopes, IUserManager us
         if (descriptor?.ControllerTypeInfo.FullName != "Jellyfin.Api.Controllers.LiveTvController"
             || descriptor.ActionName != "GetLiveTvChannels"
             || principal.Identity?.IsAuthenticated != true
-            || !PlayerService.IsAndroidTvClient(principal.FindFirst("Jellyfin-Client")?.Value)
+            || !PlayerService.IsNativeGuideClient(principal.FindFirst("Jellyfin-Client")?.Value)
             || !string.Equals(principal.FindFirst("Jellyfin-IsApiKey")?.Value, "False", StringComparison.OrdinalIgnoreCase)
             || string.IsNullOrWhiteSpace(device)
             || !Guid.TryParse(principal.FindFirst("Jellyfin-UserId")?.Value, out var userId) || userId == Guid.Empty

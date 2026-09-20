@@ -45,11 +45,11 @@ public class PlayerService
     public PlayerDto? FindPlayer(User user, string deviceId)
         => GetPlayers(user).FirstOrDefault(p => string.Equals(p.DeviceId, deviceId, StringComparison.Ordinal));
 
-    /// <summary>Guide scopes initially support only official TV sessions signed into the caller's own user.</summary>
+    /// <summary>Guide scopes require a supported TV client signed into the caller's own user.</summary>
     public bool CanSetNativeGuide(User user, string deviceId)
     {
         RequirePlaybackAccess(user);
-        return EligibleSessions(user).Any(s => s.UserId == user.Id && IsAndroidTv(s)
+        return EligibleSessions(user).Any(s => s.UserId == user.Id && IsNativeGuideClient(s.Client)
             && string.Equals(s.DeviceId, deviceId, StringComparison.Ordinal));
     }
 
@@ -157,6 +157,11 @@ public class PlayerService
             || string.Equals(client, "Jellyfin Android TV", StringComparison.OrdinalIgnoreCase)
             || string.Equals(client, "Jellyfin for Android TV", StringComparison.OrdinalIgnoreCase)
             || string.Equals(client, "Jellyfin for Android TV (debug)", StringComparison.OrdinalIgnoreCase);
+
+    internal static bool IsNativeGuideClient(string? client)
+        => IsAndroidTvClient(client)
+            || string.Equals(client, "Wholphin", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(client, "Wholphin (Debug)", StringComparison.OrdinalIgnoreCase);
 
     private static void RequirePlaybackAccess(User user)
     {

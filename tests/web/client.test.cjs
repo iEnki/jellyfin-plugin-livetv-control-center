@@ -530,6 +530,21 @@ for (const clientName of ['Android TV','Jellyfin for Android TV']) test('officia
  assert.equal(await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).isDisabled(),true);
  });
 
+ test('Wholphin target can apply and reset a group with an honest guide hint',async t=>{
+ const {page,f}=await open(t);f.players[0].Client='Wholphin';
+ await page.getByRole('button',{name:'Geräte aktualisieren',exact:true}).click();
+ await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');
+ await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ await page.locator('.ltvg-player-hint').getByText(/Wholphin am TV geöffnet lassen/).waitFor();
+ const apply=page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true});
+ assert.equal(await apply.isDisabled(),false);
+ await apply.click();await page.getByRole('status').filter({hasText:'Gruppe am TV aktiviert.'}).waitFor();
+ assert.equal(f.nativeScopes['living-tv'],crime);assert.equal(f.remotePlays.length,0);
+ await page.getByRole('button',{name:'Alle Sender am TV',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Alle Sender am TV wiederhergestellt'}).waitFor();
+ assert.equal(f.nativeScopes['living-tv'],undefined);
+ });
+
  test('English all-visible group activation sends an explicit union and localized confirmation',async t=>{
  const {page,f}=await open(t,{width:1440,height:1000},null,'en-US');await page.getByLabel('Play on',{exact:true}).selectOption('living-tv');await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
  await page.getByLabel('Group',{exact:true}).selectOption('all');await page.getByRole('button',{name:'Use group on TV',exact:true}).click();

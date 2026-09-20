@@ -106,6 +106,7 @@ Configure working Live TV in Jellyfin before using the plugin. For program infor
 | Jellyfin Web on desktop/mobile | Independent groups page, timeline guide, group management and remote target selection. |
 | Mobile clients loading the server's Jellyfin Web interface | Same web integration when the injected page script is loaded. Fully native clients do not automatically receive this UI. |
 | Official Jellyfin Android TV app, including Fire TV | Group folders, native timeline group filtering, program-list fallback and remote playback target with the app in the foreground and its internal player enabled. |
+| Wholphin (beta) | Filter Wholphin's own Live TV guide from the plugin web/mobile page; open the guide manually in Wholphin after applying a group. |
 | Other apps with channel support | Group folders and native program lists, subject to the client's channel capabilities. |
 | Playlist-based apps | Optional mirrored group playlists, subject to the client's support for these media items. |
 | File Transformation plugin | Required for injecting the independent web interface. |
@@ -440,6 +441,8 @@ The browsable **Program list (fallback)** / **Programmliste (Fallback)** remains
 
 Alternatively, on the plugin's web/mobile page, select one **Group** or **All visible groups**, and your own-user TV under **Play on**, then **Use group on TV** / **Gruppe am TV verwenden**. Open the normal TV Guide on that TV. **All channels on TV** / **Alle Sender am TV** resets even a remembered offline target. Merely choosing a group on the web page does not change the TV scope.
 
+**Wholphin beta:** Keep Wholphin open on the TV, signed in as the same Jellyfin user. Select Wholphin as the target on the plugin web/mobile page, apply a group, then open **Live TV → TV Guide** in Wholphin. Its own timeline uses the selected original channel IDs and programs. To restore the full guide, choose **All channels on TV** and reopen the guide. Wholphin does not accept the plugin's `DisplayContent` navigation command, so selection from inside Wholphin and an automatic guide jump are not available. If the guide was already open, leave and reopen it to refresh its channel list. This behavior needs confirmation on a physical Wholphin device before stable release.
+
 The selection persists across server restarts until changed, reset or invalidated. A different user, TV/device or non-TV client remains unaffected. Another user's TV cannot receive your group even when remote playback permissions allow controlling it. **All visible groups** applies the union of currently permitted channels from every group visible on your groups page. Groups hidden in **Group settings → Visible groups** and denied shared groups are excluded. A sender appearing in several groups is included once. The active union follows later group, visibility and permission changes on the next native guide reload. **All channels on TV** removes either mode and restores every ordinarily permitted channel, including channels outside groups. If no visible accessible group channels remain, the union is invalidated and ordinary authorized Live TV is retained.
 
 The plugin filters only the normal `LiveTvController.GetLiveTvChannels` response, using authenticated user/device/client claims and current `GroupService` access/resolved original channel IDs. It intersects `QueryResult<BaseItemDto>` before pagination, including requests with omitted pagination parameters. Original sorting, IDs, DTOs and playback are preserved. `/LiveTv/Programs` is unchanged: the stock TV client requests programs for the returned `channelIds`. No virtual channels, TV-provider service or modified Android TV client are used. The native **channel list** is also filtered for that user/device.
@@ -453,12 +456,12 @@ This release also fixes recognition of actual official client names **Android TV
 
 ### Native guide API
 
-All endpoints require an authenticated non-API-key user with Live TV access. There is no caller-supplied UserId. For an official TV client's current authenticated device, use `GET`, `PUT` or `DELETE /LiveTvGroups/NativeGuide`. For an own-user target selected from the existing player list, use:
+All endpoints require an authenticated non-API-key user with Live TV access. There is no caller-supplied UserId. For a supported TV guide client's current authenticated device, use `GET`, `PUT` or `DELETE /LiveTvGroups/NativeGuide`. For an own-user target selected from the existing player list, use:
 
 | Method | Endpoint | Result |
 | --- | --- | --- |
 | GET | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | `{ DeviceId, GroupId, AllVisibleGroups, Enabled }`; invalid selection is removed. |
-| PUT | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | Body `{ "GroupId": "<group UUID>" }` for one group, or `{ "AllVisibleGroups": true }` for the current visible-group union; requires an eligible active official TV session signed into the caller's user. |
+| PUT | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | Body `{ "GroupId": "<group UUID>" }` for one group, or `{ "AllVisibleGroups": true }` for the current visible-group union; requires an eligible active official Android TV or Wholphin session signed into the caller's user. |
 | DELETE | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | Remove only the caller's device selection, including offline devices. |
 
 PUT/DELETE return 204 on success. Mixed/missing selections return 400. Invalid/empty selections return 404; unavailable or other-user targets return 409. Device IDs are Jellyfin device IDs, not device names or session IDs. Data is stored in the existing per-user JSON file under `NativeGuideScopes` (single group) or `NativeGuideVisibleGroupDevices` (visible union); the modes are mutually exclusive per device. Legacy `ActiveGuideGroupId` and web preferences cannot enable it. See [stable release plan and validation notes](docs/stable-release-0.4.0.0.md).

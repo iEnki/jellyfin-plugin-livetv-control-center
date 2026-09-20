@@ -70,11 +70,11 @@ public class NativeGuideController(NativeGuideService scopes, PlayerService play
         {
             if (currentDevice)
             {
-                if (!PlayerService.IsAndroidTvClient(User.FindFirst("Jellyfin-Client")?.Value))
-                    return BadRequest("Only the official Android TV / Fire TV client can scope its current device.");
+                if (!PlayerService.IsNativeGuideClient(User.FindFirst("Jellyfin-Client")?.Value))
+                    return BadRequest("Only a supported TV guide client can scope its current device.");
             }
             else if (!players.CanSetNativeGuide(user, device))
-                return Conflict("Open the official Jellyfin Android TV app on the target and sign in as the same user.");
+                return Conflict("Open a supported TV guide app on the target and sign in as the same user.");
             if (request.AllVisibleGroups) scopes.SetVisibleGroups(user, device);
             else scopes.Set(user, device, request.GroupId);
             return NoContent();

@@ -118,8 +118,14 @@
         const target = players.find(p => p.DeviceId === prefs.PreferredTargetDeviceId);
         const apply = page().querySelector('[data-action="native-guide-apply"]');
         const reset = page().querySelector('[data-action="native-guide-reset"]');
+        const client = target?.Client?.toLowerCase();
+        const wholphin = client === 'wholphin' || client === 'wholphin (debug)';
         if (apply) apply.disabled = playerBusy || playbackBusy || (state.group === 'all' && !visible().length)
-            || !['android tv','jellyfin android tv','jellyfin for android tv','jellyfin for android tv (debug)'].includes(target?.Client?.toLowerCase());
+            || !['android tv','jellyfin android tv','jellyfin for android tv','jellyfin for android tv (debug)','wholphin','wholphin (debug)'].includes(client);
+        const hint = page().querySelector('.ltvg-player-hint');
+        if (hint) hint.textContent = wholphin
+            ? t("Keep Wholphin open on the TV. Open Live TV → TV Guide there after applying a group.")
+            : t("Jellyfin must be open in the foreground on the TV with the internal player.");
         if (reset) reset.disabled = playerBusy || playbackBusy || !prefs.PreferredTargetDeviceId;
     }
     async function refreshPlayers() {

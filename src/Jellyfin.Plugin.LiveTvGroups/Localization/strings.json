@@ -40,6 +40,7 @@
     "Group applied on the TV. Reopen Live TV / TV Guide.": "Gruppe am TV aktiviert. Live-TV / Fernsehprogramm erneut öffnen.",
     "Could not update the native TV guide.": "Natives Fernsehprogramm konnte nicht aktualisiert werden.",
     "Jellyfin must be open in the foreground on the TV with the internal player.": "Am TV muss Jellyfin im Vordergrund mit internem Player geöffnet sein.",
+    "Keep Wholphin open on the TV. Open Live TV → TV Guide there after applying a group.": "Wholphin am TV geöffnet lassen. Nach der Gruppenauswahl dort Live-TV → Fernsehprogramm öffnen.",
     "Try again": "Erneut versuchen",
     "No visible groups. Check your group settings or contact an administrator.": "Keine sichtbaren Gruppen. Prüfe deine Gruppeneinstellungen oder wende dich an den Administrator.",
     "New group": "Neue Gruppe",

@@ -218,7 +218,9 @@ public class NativeGuideTests
     [InlineData("Android TV")]
     [InlineData("Jellyfin for Android TV")]
     [InlineData("Jellyfin for Android TV (debug)")]
-    public async Task OfficialClientAliasesActivateAndFilterNativeGuide(string client)
+    [InlineData("Wholphin")]
+    [InlineData("Wholphin (Debug)")]
+    public async Task SupportedTvClientsActivateAndFilterNativeGuide(string client)
     {
         using var f = new AccessFixture(); var service = new NativeGuideService(f.Store, f.Groups); var group = Group(f);
         var api = new NativeGuideController(service, null!, f.UserManager, NullLogger<NativeGuideController>.Instance)
@@ -242,6 +244,9 @@ public class NativeGuideTests
     [InlineData("other-tv", "Jellyfin Android TV", "False", "GetLiveTvChannels")]
     [InlineData("tv", "Jellyfin Web", "False", "GetLiveTvChannels")]
     [InlineData("tv", "Fire TV", "False", "GetLiveTvChannels")]
+    [InlineData("tv", "Wholphin Web", "False", "GetLiveTvChannels")]
+    [InlineData("tv", "Wholphin", "True", "GetLiveTvChannels")]
+    [InlineData("tv", "Wholphin", "False", "GetLiveTvPrograms")]
     [InlineData("tv", "Jellyfin Android TV", "True", "GetLiveTvChannels")]
     [InlineData("tv", "Jellyfin Android TV", "", "GetLiveTvChannels")]
     [InlineData("", "Jellyfin Android TV", "False", "GetLiveTvChannels")]
