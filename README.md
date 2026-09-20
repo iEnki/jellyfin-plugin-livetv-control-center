@@ -43,56 +43,95 @@ The plugin uses Jellyfin's existing channels and EPG data. Its web guide is sepa
 
 ## Screenshots and preview
 
-Explore the independent groups page in Jellyfin Web. These screenshots were captured before the rename, so some still show the former Live-TV Groups label; the layout and functions are the same. Custom group names and imported channel/program information keep their original language. Click any image to view it at full resolution.
+These screenshots show **Live-TV Control Center 1.1.0.0** in Jellyfin Web. Group names and imported channel and program information come from the server used for the captures. Click an image to view it at full resolution.
 
 ### Grouped TV guide
 
-[![Jellyfin Web TV guide for the Crime group, with channel logos, program times, day navigation and guide zoom](assets/screenshots/tv-guide-epg.png)](assets/screenshots/tv-guide-epg.png)
+[![Timeline TV guide for a selected channel group, showing logos, programs and navigation](assets/screenshots/tv-guide-epg.png)](assets/screenshots/tv-guide-epg.png)
 
-Browse a selected group's EPG on a timeline, jump to another day or time, and adjust the guide zoom. Channel logos start playback on the selected device; program cells open Jellyfin's program details.
+Browse a group's EPG on a timeline, jump to another day or time, and adjust the guide zoom. Channel logos start playback on the selected device; program cells open Jellyfin's program details.
 
 <details>
 <summary>Programs overview</summary>
 
-[![Programs view showing Now playing, Up next and Later for the selected Crime group](assets/screenshots/programs-overview.png)](assets/screenshots/programs-overview.png)
+[![Programs view with Now playing, Up next and Later for the selected group](assets/screenshots/programs-overview.png)](assets/screenshots/programs-overview.png)
 
 See what is on now, what starts next and what airs later across the selected group's channels.
 
 </details>
 
 <details>
+<summary>Channels and group membership</summary>
+
+[![Channel cards for a selected group](assets/screenshots/channels-view.png)](assets/screenshots/channels-view.png)
+
+Browse a group's channels with logos and current program information.
+
+[![Choose channels dialog showing the selected channels in a group](assets/screenshots/channel-selection.png)](assets/screenshots/channel-selection.png)
+
+Choose which channels belong to a group.
+
+[![Controls for reordering channels in a group](assets/screenshots/channel-order.png)](assets/screenshots/channel-order.png)
+
+Set the order in which channels appear.
+
+</details>
+
+<details>
 <summary>Group management</summary>
 
-[![Manage groups view with named channel groups, channel counts, a New group button and rename, delete and reorder controls](assets/screenshots/group-management.png)](assets/screenshots/group-management.png)
+[![Manage groups view with channel counts and rename, delete and reorder controls](assets/screenshots/group-management.png)](assets/screenshots/group-management.png)
 
-Create named channel groups and keep them organized with rename, delete and ordering controls.
+Create named channel groups and keep them organized.
+
+</details>
+
+<details>
+<summary>TV guide and remote playback controls</summary>
+
+[![TV target selector and controls to use the selected group or all channels on the native TV guide](assets/screenshots/native-tv-guide-controls.png)](assets/screenshots/native-tv-guide-controls.png)
+
+Choose a supported TV session, then apply one group or all visible channels to its native guide. The same target can be used for remote playback.
 
 </details>
 
 <details>
 <summary>Personal settings</summary>
 
-[![Group settings dialog with visible groups, default group and view, remembered selection and guide zoom](assets/screenshots/personal-settings.png)](assets/screenshots/personal-settings.png)
+[![Personal settings for visible groups, default group and view, remembered selection and guide zoom](assets/screenshots/personal-settings.png)](assets/screenshots/personal-settings.png)
 
-Choose visible groups, the default group and view, whether to remember your last selection, and the guide zoom.
-
-</details>
-
-<details>
-<summary>Playback device selection</summary>
-
-[![Play on selector expanded with This device, Chrome and Edge Chromium Jellyfin Web sessions](assets/screenshots/playback-device-selection.png)](assets/screenshots/playback-device-selection.png)
-
-Choose where channel playback starts with **Play on**. This capture shows connected Jellyfin Web browser sessions. For Android TV / Fire TV requirements and setup, see [Remote playback](#remote-playback).
+Choose visible groups, the default group and view, whether to remember the last selection, and the guide zoom.
 
 </details>
 
 <details>
 <summary>Group administration</summary>
 
-[![Group administration dialog showing personal groups mode and the option to copy personal groups into central groups](assets/screenshots/group-administration.png)](assets/screenshots/group-administration.png)
+[![Administration dialog for personal and centrally managed groups](assets/screenshots/group-administration.png)](assets/screenshots/group-administration.png)
 
-Administrators can switch between personal and centrally managed groups, optionally copying their personal collection into central groups while preserving both collections.
+Administrators can choose personal or centrally managed groups and optionally copy their personal groups into the central collection.
+
+</details>
+
+<details>
+<summary>Channel access rule editor</summary>
+
+[![Unsaved example Kinder channel access rule with KiKA selected and account names hidden](assets/screenshots/child-channel-rule-example.png)](assets/screenshots/child-channel-rule-example.png)
+
+The rule editor supports named channel selections and user visibility policies. This **Kinder** example was captured as an unsaved draft; account names were hidden for privacy.
+
+</details>
+
+<details>
+<summary>Administrator settings</summary>
+
+[![Plugin settings showing integration status, group administration, TV guide timezone and channel access](assets/screenshots/admin-settings.png)](assets/screenshots/admin-settings.png)
+
+Check web integration status, set the shared display name, choose the group mode and configure the TV app guide timezone.
+
+[![Web and app integration switches, including native app channel and optional playlists](assets/screenshots/web-and-app-integration.png)](assets/screenshots/web-and-app-integration.png)
+
+Control the independent web entry, native app channel and optional playlist mirroring.
 
 </details>
 
