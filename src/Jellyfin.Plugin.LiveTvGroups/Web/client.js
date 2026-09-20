@@ -101,21 +101,27 @@
         if (host) { host.removeAttribute('data-ltvg-host'); host = null; }
         page()?.remove(); guideData = null; lastRoute = '';
     }
+    function singleTargetApp() {
+        return (entry?.JellyfinTvTargetsEnabled !== false) !== (entry?.WholphinTargetsEnabled !== false);
+    }
+    function activeTarget() {
+        return players.find(p => p.DeviceId === prefs?.PreferredTargetDeviceId);
+    }
     function playerOptions() {
         const target = prefs?.PreferredTargetDeviceId || '';
         const available = players.some(p => p.DeviceId === target);
         return ("<option value=\"\">" + t("This device") + "</option>")
-            + (target && !available ? '<option value="'+esc(target)+'">'+esc(prefs.PreferredTargetDeviceName || 'TV')+(t(" · unavailable") + "</option>") : '')
+            + (target && !available && !singleTargetApp() ? '<option value="'+esc(target)+'">'+esc(prefs.PreferredTargetDeviceName || 'TV')+(t(" · unavailable") + "</option>") : '')
             + players.map(p => '<option value="'+esc(p.DeviceId)+'">'+esc(p.Name)+' ('+esc(p.Client)+')</option>').join('');
     }
     function updatePlayers() {
         const selector = page()?.querySelector('[data-control="player"]');
         if (!selector || !prefs) return;
         selector.innerHTML = playerOptions();
-        selector.value = prefs.PreferredTargetDeviceId || '';
+        selector.value = activeTarget()?.DeviceId || (!singleTargetApp() ? prefs.PreferredTargetDeviceId || '' : '');
         selector.disabled = playerBusy || playbackBusy;
         page().querySelector('.ltvg-player-status').textContent = playerMessage;
-        const target = players.find(p => p.DeviceId === prefs.PreferredTargetDeviceId);
+        const target = activeTarget();
         const apply = page().querySelector('[data-action="native-guide-apply"]');
         const reset = page().querySelector('[data-action="native-guide-reset"]');
         const client = target?.Client?.toLowerCase();
@@ -126,7 +132,7 @@
         if (hint) hint.textContent = wholphin
             ? t("Keep Wholphin open on the TV. Open Live TV → TV Guide there after applying a group.")
             : t("Jellyfin must be open in the foreground on the TV with the internal player.");
-        if (reset) reset.disabled = playerBusy || playbackBusy || !prefs.PreferredTargetDeviceId;
+        if (reset) reset.disabled = playerBusy || playbackBusy || !target;
     }
     async function refreshPlayers() {
         const seq = ++playerRequest, expected = userKey;
@@ -134,9 +140,12 @@
             const result = await api('GET','Players');
             if (!active || seq !== playerRequest || expected !== userKey) return;
             players = result.filter(p => p.DeviceId !== client().deviceId());
-            playerMessage = prefs?.PreferredTargetDeviceId && !players.some(p => p.DeviceId === prefs.PreferredTargetDeviceId)
+            playerMessage = prefs?.PreferredTargetDeviceId && !activeTarget()
                 ? t("Target unavailable. Open Jellyfin on the TV and refresh devices.") : '';
             updatePlayers();
+            if (singleTargetApp() && players.length === 1 && !activeTarget()) {
+                await choosePlayer({value:players[0].DeviceId});
+            }
         } catch(e) {
             if (!active || seq !== playerRequest || expected !== userKey) return;
             players = []; playerMessage = t("Could not load devices. ")+e.message; updatePlayers();
@@ -161,6 +170,7 @@
     }
     async function playRemote(channelId) {
         if (playerBusy || playbackBusy) return;
+        if (!activeTarget()) { playerMessage = t("Choose an available TV device."); updatePlayers(); return; }
         const expected = userKey, deviceId = prefs.PreferredTargetDeviceId;
         const targetName = prefs.PreferredTargetDeviceName || 'TV';
         playbackBusy = true; playerMessage = t("Sending playback command…"); updatePlayers();
@@ -176,7 +186,7 @@
         }
     }
     async function nativeGuide(reset) {
-        if (playerBusy || playbackBusy || !prefs.PreferredTargetDeviceId || (!reset && state.group === 'all' && !visible().length)) return;
+        if (playerBusy || playbackBusy || !activeTarget() || (!reset && state.group === 'all' && !visible().length)) return;
         const expected = userKey, deviceId = prefs.PreferredTargetDeviceId, group = state.group;
         playerBusy = true; playerMessage = t("Updating native TV guide…"); updatePlayers();
         page()?.querySelector('.ltvg-error')?.setAttribute('hidden','');

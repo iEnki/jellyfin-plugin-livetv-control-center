@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Beta 1.1.0.2: Add administrator switches for official Jellyfin Android TV / Fire TV and Wholphin target apps. Auto-select a sole eligible TV; with several TVs, preserve the user's last available choice and require a choice when it is unavailable. Block hidden or disconnected targets from web guide playback and scope changes.
 - Beta: Allow an authenticated Wholphin device to use a per-user/device native guide scope selected from the plugin web/mobile page. Wholphin's own Live TV guide then receives only the selected group's channels (or all visible groups); reset restores ordinary channels. Wholphin guide navigation remains manual.
 - Keep official Android TV / Fire TV navigation and remote playback behavior unchanged. Add Wholphin-specific guidance and regression coverage.
 

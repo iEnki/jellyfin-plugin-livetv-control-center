@@ -7,7 +7,7 @@ const {chromium}=require('playwright');
 let browser,server,url;
 const root='11111111111111111111111111111111',crime='22222222222222222222222222222222',sport='33333333333333333333333333333333';
 const a='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',b='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',c='cccccccccccccccccccccccccccccccc';
-function fixture(){return {access:{Mode:'personal',CanManage:true,IsAdministrator:false},adminUsers:[{Id:'user',Name:'Robert',IsAdministrator:true,HasLiveTvAccess:true},{Id:'other',Name:'Normaler Benutzer',IsAdministrator:false,HasLiveTvAccess:true}],policies:{},groups:[{Id:crime,Name:'Crime',ChannelCount:2},{Id:sport,Name:'Sport',ChannelCount:2}],refs:{[crime]:[a,b],[sport]:[a,c]},prefs:{HiddenGroupIds:[],DefaultGroupId:crime,DefaultView:'guide',Zoom:5,RememberLastView:false,LastGroupId:null,LastView:'guide'},players:[{DeviceId:'living-tv',Name:'Wohnzimmer Fire TV',Client:'Jellyfin Android TV',UsesAndroidTvDiscoveryFallback:true}],nativeScopes:{},nativeFailure:false,remotePlays:[],remoteFailure:false,preferenceFailure:false,requests:[],fail:false,delay:false};}
+function fixture(){return {jellyfinTargets:true,wholphinTargets:true,access:{Mode:'personal',CanManage:true,IsAdministrator:false},adminUsers:[{Id:'user',Name:'Robert',IsAdministrator:true,HasLiveTvAccess:true},{Id:'other',Name:'Normaler Benutzer',IsAdministrator:false,HasLiveTvAccess:true}],policies:{},groups:[{Id:crime,Name:'Crime',ChannelCount:2},{Id:sport,Name:'Sport',ChannelCount:2}],refs:{[crime]:[a,b],[sport]:[a,c]},prefs:{HiddenGroupIds:[],DefaultGroupId:crime,DefaultView:'guide',Zoom:5,RememberLastView:false,LastGroupId:null,LastView:'guide'},players:[{DeviceId:'living-tv',Name:'Wohnzimmer Fire TV',Client:'Jellyfin Android TV',UsesAndroidTvDiscoveryFallback:true}],nativeScopes:{},nativeFailure:false,remotePlays:[],remoteFailure:false,preferenceFailure:false,requests:[],fail:false,delay:false};}
 const channels=[{Id:a,Name:'RTL Crime',ChannelNumber:'127'},{Id:b,Name:'Investigation',ChannelNumber:'7'},{Id:c,Name:'Sport',ChannelNumber:'58'}];
 function localizationScript(){return 'window.LiveTvGroupsTranslations='+fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Localization/strings.json'),'utf8')+';\n'+fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web/localization.js'),'utf8');}
 let fixtures=new Map();
@@ -24,7 +24,7 @@ before(async()=>{
  if(u.pathname.endsWith('client.js')||u.pathname.endsWith('channel-access.js')||u.pathname.endsWith('client.css')){res.setHeader('Content-Type',u.pathname.endsWith('.js')?'application/javascript':'text/css');res.end((u.pathname.endsWith('client.js')?localizationScript():'')+fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web',path.basename(u.pathname))));return;}
  if(u.pathname.endsWith('/page.html')){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web/page.html')));return;}
  if(u.pathname==='/dashboard'){
-  const bootstrap='<script>window.ApiClient={getCurrentUserId:()=>"user",accessToken:()=>new URLSearchParams(location.search).get("fixture"),getUrl:p=>"/"+p,getJSON:async p=>{const r=await fetch(p,{headers:{Authorization:\'MediaBrowser Token="\'+ApiClient.accessToken()+\'"\'}});if(!r.ok)throw Error("Unavailable");return r.json();},getPluginConfiguration:async()=>({AppGuideTimeZone:"Europe/Vienna",EnableWebIntegration:true,EnableAppChannel:true,EnablePlaylistSync:false,HideOriginalLiveTvHomeEntry:'+JSON.stringify(f?.hideHome===true)+'}),updatePluginConfiguration:async (pluginId,config)=>{window.dashboardConfiguration=config;return{};}};window.Dashboard={showLoadingMsg:()=>{},hideLoadingMsg:()=>{},alert:message=>{window.dashboardError=message;},processPluginConfigurationUpdateResult:()=>{window.dashboardSaved=true;}};window.addEventListener("load",()=>document.querySelector("#LiveTvGroupsConfigPage").dispatchEvent(new Event("pageshow")));</script>';
+  const bootstrap='<script>window.ApiClient={getCurrentUserId:()=>"user",accessToken:()=>new URLSearchParams(location.search).get("fixture"),getUrl:p=>"/"+p,getJSON:async p=>{const r=await fetch(p,{headers:{Authorization:\'MediaBrowser Token="\'+ApiClient.accessToken()+\'"\'}});if(!r.ok)throw Error("Unavailable");return r.json();},getPluginConfiguration:async()=>({AppGuideTimeZone:"Europe/Vienna",EnableWebIntegration:true,EnableAppChannel:true,EnablePlaylistSync:false,HideOriginalLiveTvHomeEntry:'+JSON.stringify(f?.hideHome===true)+',EnableJellyfinTvTargets:'+JSON.stringify(f?.jellyfinTargets!==false)+',EnableWholphinTargets:'+JSON.stringify(f?.wholphinTargets!==false)+'}),updatePluginConfiguration:async (pluginId,config)=>{window.dashboardConfiguration=config;return{};}};window.Dashboard={showLoadingMsg:()=>{},hideLoadingMsg:()=>{},alert:message=>{window.dashboardError=message;},processPluginConfigurationUpdateResult:()=>{window.dashboardSaved=true;}};window.addEventListener("load",()=>document.querySelector("#LiveTvGroupsConfigPage").dispatchEvent(new Event("pageshow")));</script>';
   res.setHeader('Content-Type','text/html');res.end(fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Configuration/configPage.html'),'utf8').replace('<html>','<html lang="'+(u.searchParams.get('language')||'de-DE')+'">').replace('</head>',bootstrap+'</head>'));return;
  }
  if(u.pathname==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(shell.replace('<html>','<html lang="'+(u.searchParams.get('language')||'de-DE')+'">')); return;}
@@ -46,11 +46,12 @@ before(async()=>{
  }
  const policy=u.pathname.match(/^\/LiveTvGroups\/Administration\/Groups\/([^/]+)\/Access$/);
  if(policy){if(!f.access.IsAdministrator){send({},403);return;}f.policies[policy[1]]=body;send(null,204);return;}
- if(u.pathname.endsWith('/Entry')){const value={ChannelId:f.channelAccess===false?null:root,Version:'0.3.2.2',DisplayName:f.displayName,HideOriginalLiveTvHomeEntry:f.hideHome===true&&f.channelAccess!==false};if(f.entryDelay)await new Promise(r=>setTimeout(r,f.entryDelay));send(value,f.entryStatus||200);return;}
- if(u.pathname==='/LiveTvGroups/Players'){send(f.players);return;}
+ if(u.pathname.endsWith('/Entry')){const value={ChannelId:f.channelAccess===false?null:root,Version:'0.3.2.2',DisplayName:f.displayName,HideOriginalLiveTvHomeEntry:f.hideHome===true&&f.channelAccess!==false,JellyfinTvTargetsEnabled:f.jellyfinTargets,WholphinTargetsEnabled:f.wholphinTargets};if(f.entryDelay)await new Promise(r=>setTimeout(r,f.entryDelay));send(value,f.entryStatus||200);return;}
+ if(u.pathname==='/LiveTvGroups/Players'){send(f.players.filter(p=>f.jellyfinTargets&&f.wholphinTargets || f.jellyfinTargets&&/^android tv$|^jellyfin (android tv|for android tv)/i.test(p.Client) || f.wholphinTargets&&/^wholphin(?: \(debug\))?$/i.test(p.Client)));return;}
  if(u.pathname==='/LiveTvGroups/Players/Preference'){
   if(f.preferenceFailure){send('Preference unavailable',500);return;}
-  const target=f.players.find(p=>p.DeviceId===body.DeviceId);
+  const target=f.players.find(p=>p.DeviceId===body.DeviceId && (f.jellyfinTargets&&f.wholphinTargets || f.jellyfinTargets&&/^android tv$|^jellyfin (android tv|for android tv)/i.test(p.Client) || f.wholphinTargets&&/^wholphin(?: \(debug\))?$/i.test(p.Client)));
+  if(body.DeviceId && !target){send('Target unavailable or not allowed',409);return;}
   f.prefs.PreferredTargetDeviceId=body.DeviceId;
   f.prefs.PreferredTargetDeviceName=target?.Name||null;send(null,204);return;
  }
@@ -117,7 +118,7 @@ test('remote target persists after reload; sender click sends TV command and kee
  assert.ok(!f.requests.some(r=>r.includes('/Sessions')));
 });
 
-test('offline remembered TV stays selected; failed remote play never falls back to phone',async t=>{
+test('offline remembered TV stays visible but cannot play or fall back to phone',async t=>{
  const {page,f}=await open(t);
  await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');
  await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
@@ -126,14 +127,14 @@ test('offline remembered TV stays selected; failed remote play never falls back 
  assert.equal(await page.getByLabel('Abspielen auf',{exact:true}).inputValue(),'living-tv');
  assert.match(await page.getByLabel('Abspielen auf',{exact:true}).locator('option:checked').innerText(),/nicht verfügbar/);
  f.remoteFailure=true;await page.locator('[data-action="play"]').first().click();
- await page.locator('.ltvg-error:not([hidden])').waitFor();
- assert.ok(!page.url().includes('#/details'));assert.equal(f.remotePlays.length,1);
+ await page.getByRole('status').filter({hasText:'Bitte ein verfügbares TV-Gerät auswählen.'}).waitFor();
+ assert.ok(!page.url().includes('#/details'));assert.equal(f.remotePlays.length,0);
  assert.equal(await page.locator('#ltvg-page').count(),1);
  await page.getByLabel('Abspielen auf',{exact:true}).selectOption('');
  await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
  assert.equal(f.prefs.PreferredTargetDeviceId,null);
  await page.locator('[data-action="play"]').first().click();await page.waitForURL(/#\/details\?/);
- assert.equal(f.remotePlays.length,1);
+ assert.equal(f.remotePlays.length,0);
 });
 
 test('target preference save failure restores previous device',async t=>{
@@ -454,7 +455,7 @@ test('missing rule references can be repaired; disabling keeps rules after previ
  await dialog.getByRole('button',{name:'Save channel access',exact:true}).click();await dialog.waitFor({state:'detached'});assert.equal(f.savedChannelAccess.Enabled,false);assert.equal(f.savedChannelAccess.Rules[0].Name,'Adult');assert.deepEqual(f.savedChannelAccess.Rules[0].Channels.map(c=>c.ItemId),[a]);
 });
 
-test('native TV group apply and offline all-channels reset leave web guide and playback intact',async t=>{
+test('native TV group apply disables offline guide changes while preserving web playback',async t=>{
  const {page,f}=await open(t,{width:390,height:844});
  assert.equal(await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).isDisabled(),true);
  await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');
@@ -469,9 +470,8 @@ test('native TV group apply and offline all-channels reset leave web guide and p
  assert.equal(await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).isDisabled(),false);
  f.players=[];await page.getByRole('button',{name:'Geräte aktualisieren',exact:true}).click();
  await page.getByRole('status').filter({hasText:'Zielgerät nicht verfügbar'}).waitFor();
- await page.getByRole('button',{name:'Alle Sender am TV',exact:true}).click();
- await page.getByRole('status').filter({hasText:'Alle Sender am TV wiederhergestellt'}).waitFor();
- assert.equal(f.nativeScopes['living-tv'],undefined);assert.equal(f.remotePlays.length,0);
+ assert.equal(await page.getByRole('button',{name:'Alle Sender am TV',exact:true}).isDisabled(),true);
+ assert.equal(f.nativeScopes['living-tv'],crime);assert.equal(f.remotePlays.length,0);
 });
 
 test('failed native scope update is visible and does not change guide or playback',async t=>{
@@ -500,7 +500,7 @@ for (const clientName of ['Android TV','Jellyfin for Android TV']) test('officia
 });
 
 
- test('all visible groups can be applied to the TV, replaced by a single group and reset offline',async t=>{
+ test('all visible groups can be applied to the TV and offline reset stays disabled',async t=>{
  const {page,f}=await open(t,{width:390,height:844});f.prefs.HiddenGroupIds=[sport];await page.reload();
  await page.getByLabel('Abspielen auf',{exact:true}).selectOption('living-tv');
  await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
@@ -517,8 +517,8 @@ for (const clientName of ['Android TV','Jellyfin for Android TV']) test('officia
  await page.getByRole('status').filter({hasText:'Alle sichtbaren Gruppen am TV aktiviert'}).waitFor();
  f.players=[];await page.getByRole('button',{name:'Geräte aktualisieren',exact:true}).click();
  await page.getByRole('status').filter({hasText:'Zielgerät nicht verfügbar'}).waitFor();assert.equal(await apply.isDisabled(),true);
- await page.getByRole('button',{name:'Alle Sender am TV',exact:true}).click();
- await page.getByRole('status').filter({hasText:'Alle Sender am TV wiederhergestellt'}).waitFor();assert.equal(f.nativeScopes['living-tv'],undefined);
+ assert.equal(await page.getByRole('button',{name:'Alle Sender am TV',exact:true}).isDisabled(),true);
+ assert.deepEqual(f.nativeScopes['living-tv'],{AllVisibleGroups:true});
  });
 
  test('all-visible native guide action is disabled with no visible groups and failures preserve the prior scope',async t=>{
@@ -550,3 +550,65 @@ for (const clientName of ['Android TV','Jellyfin for Android TV']) test('officia
  await page.getByLabel('Group',{exact:true}).selectOption('all');await page.getByRole('button',{name:'Use group on TV',exact:true}).click();
  await page.getByRole('status').filter({hasText:'All visible groups applied on the TV.'}).waitFor();assert.deepEqual(f.nativeScopes['living-tv'],{AllVisibleGroups:true});
  });
+
+
+test('administrator can choose TV target apps and cannot disable both',async t=>{
+ const {page,f}=await open(t,{width:1440,height:1000},null,'en-US');f.access.IsAdministrator=true;
+ await page.goto(page.url().replace('/?','/dashboard?').split('#')[0]);await page.locator('#GroupMode:not([disabled])').waitFor();
+ const jellyfin=page.getByLabel('Jellyfin Android TV / Fire TV',{exact:true}),wholphin=page.getByLabel('Wholphin',{exact:true});
+ assert.equal(await jellyfin.isChecked(),true);assert.equal(await wholphin.isChecked(),true);
+ await jellyfin.uncheck();await wholphin.uncheck();await page.getByRole('button',{name:'Save',exact:true}).click();
+ await page.waitForFunction(()=>window.dashboardError==='Enable at least one TV target app.');
+ assert.equal(await page.evaluate(()=>window.dashboardConfiguration),undefined);
+ await wholphin.check();await page.getByRole('button',{name:'Save',exact:true}).click();
+ await page.waitForFunction(()=>window.dashboardConfiguration?.EnableWholphinTargets===true);
+ assert.equal(await page.evaluate(()=>window.dashboardConfiguration.EnableJellyfinTvTargets),false);
+});
+
+test('single enabled Wholphin TV is selected automatically and official app is hidden',async t=>{
+ const {page,f}=await open(t);f.jellyfinTargets=false;f.players.push({DeviceId:'bedroom-tv',Name:'Schlafzimmer Wholphin',Client:'Wholphin',UsesAndroidTvDiscoveryFallback:false});
+ await page.reload();await page.waitForFunction(()=>document.querySelector('[data-control="player"]')?.value==='bedroom-tv');
+ assert.equal(f.prefs.PreferredTargetDeviceId,'bedroom-tv');
+ assert.equal(await page.getByLabel('Abspielen auf',{exact:true}).locator('option').count(),2);
+ await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Gruppe am TV aktiviert.'}).waitFor();
+ assert.equal(f.nativeScopes['bedroom-tv'],crime);
+});
+
+test('multiple Wholphin TVs keep selection visible and remember an available device',async t=>{
+ const {page,f}=await open(t);f.jellyfinTargets=false;
+ f.players=[{DeviceId:'living-wholphin',Name:'Wohnzimmer',Client:'Wholphin'},{DeviceId:'bedroom-wholphin',Name:'Schlafzimmer',Client:'Wholphin'}];
+ await page.reload();await page.locator('option[value="bedroom-wholphin"]').waitFor({state:'attached'});
+ const selector=page.getByLabel('Abspielen auf',{exact:true});assert.equal(await selector.inputValue(),'');
+ assert.equal(await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).isDisabled(),true);
+ await selector.selectOption('bedroom-wholphin');await page.waitForFunction(()=>!document.querySelector('[data-control="player"]').disabled);
+ assert.equal(f.prefs.PreferredTargetDeviceId,'bedroom-wholphin');
+ await page.reload();await page.locator('option[value="living-wholphin"]').waitFor({state:'attached'});assert.equal(await selector.inputValue(),'bedroom-wholphin');
+ f.players=f.players.filter(p=>p.DeviceId!=='bedroom-wholphin');await page.getByRole('button',{name:'Geräte aktualisieren',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('[data-control="player"]')?.value==='living-wholphin');
+ assert.equal(f.prefs.PreferredTargetDeviceId,'living-wholphin');
+});
+
+test('multiple TVs require choice when remembered device is hidden or unavailable',async t=>{
+ const {page,f}=await open(t);f.jellyfinTargets=false;
+ f.prefs.PreferredTargetDeviceId='living-tv';f.prefs.PreferredTargetDeviceName='Wohnzimmer Fire TV';
+ f.players=[f.players[0],{DeviceId:'wholphin-one',Name:'Schlafzimmer',Client:'Wholphin'},{DeviceId:'wholphin-two',Name:'Wohnzimmer',Client:'Wholphin'}];
+ await page.reload();await page.locator('option[value="wholphin-two"]').waitFor({state:'attached'});
+ assert.equal(await page.getByLabel('Abspielen auf',{exact:true}).inputValue(),'');
+ assert.equal(await page.locator('option[value="living-tv"]').count(),0);
+ assert.equal(await page.getByRole('button',{name:'Gruppe am TV verwenden',exact:true}).isDisabled(),true);
+ assert.equal(await page.getByRole('button',{name:'Alle Sender am TV',exact:true}).isDisabled(),true);
+ await page.locator('[data-action="play"]').first().click();
+ await page.getByRole('status').filter({hasText:'Bitte ein verfügbares TV-Gerät auswählen.'}).waitFor();
+ assert.equal(f.remotePlays.length,0);assert.equal(f.nativeScopes['living-tv'],undefined);
+});
+
+test('official-only settings hide Wholphin while both apps retain the existing selector',async t=>{
+ const {page,f}=await open(t);f.players.push({DeviceId:'bedroom-tv',Name:'Schlafzimmer',Client:'Wholphin'});
+ await page.getByRole('button',{name:'Geräte aktualisieren',exact:true}).click();
+ await page.locator('option[value="bedroom-tv"]').waitFor({state:'attached'});
+ assert.equal(await page.getByLabel('Abspielen auf',{exact:true}).inputValue(),'');
+ f.wholphinTargets=false;await page.reload();await page.locator('option[value="living-tv"]').waitFor({state:'attached'});
+ assert.equal(await page.locator('option[value="bedroom-tv"]').count(),0);
+ await page.waitForFunction(()=>document.querySelector('[data-control="player"]')?.value==='living-tv');
+});

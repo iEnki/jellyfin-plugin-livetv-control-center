@@ -46,4 +46,9 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public bool EnablePlaylistSync { get; set; }
 
+    /// <summary>Show official Android TV / Fire TV sessions as web guide targets.</summary>
+    public bool EnableJellyfinTvTargets { get; set; } = true;
+
+    /// <summary>Show Wholphin sessions as web guide targets.</summary>
+    public bool EnableWholphinTargets { get; set; } = true;
 }

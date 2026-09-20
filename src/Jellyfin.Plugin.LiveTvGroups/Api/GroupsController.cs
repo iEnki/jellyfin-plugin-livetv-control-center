@@ -389,6 +389,8 @@ public class GroupsController : Controller
         {
             ChannelId = channel?.Id,
             HideOriginalLiveTvHomeEntry = configuration?.ShouldHideOriginalLiveTvHomeEntry(channel is not null) == true,
+            JellyfinTvTargetsEnabled = configuration?.EnableJellyfinTvTargets != false,
+            WholphinTargetsEnabled = configuration?.EnableWholphinTargets != false,
             DisplayName = PluginLocalization.DisplayName(configuration, language),
             Version = typeof(Plugin).Assembly.GetName().Version?.ToString()
         });
