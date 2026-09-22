@@ -26,7 +26,7 @@ public static class IndexTransformer
     public const string FileNamePattern = "index.html";
 
     // index.html is served from /web/, so a relative path works with any configured base URL.
-    private static readonly string ScriptTag = $"<script src=\"../LiveTvGroups/client.js?v={typeof(Plugin).Assembly.GetName().Version}\" defer></script>";
+    private static readonly string ScriptTag = $"<script src=\"../LiveTvGroups/client.js?version={typeof(Plugin).Assembly.GetName().Version}\" defer></script>";
 
     /// <summary>
     /// Transforms index.html.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Beta 1.1.0.8: Restore the independent web EPG when a reverse proxy returns a cached 504 for the old versioned client script URL. Use a new version parameter for the injected script; native TV folders and guide filtering are unchanged.
+
 - Beta 1.1.0.7: Give **All channels** a dedicated EPG-reset image and created groups a separate grouped-channel folder image. Existing custom group images remain unchanged, and the channel data version refreshes cached TV tiles.
 
 - Beta 1.1.0.6: Add built-in Primary artwork for the Live-TV Control Center, native-guide actions, confirmation folders and the fallback program list so Jellyfin TV and Wholphin show recognizable tiles.

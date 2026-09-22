@@ -16,7 +16,8 @@ public class IndexTransformerTests
         var twice = Transform(once);
 
         Assert.Equal(once, twice);
-        Assert.EndsWith("defer></script></body></html>", once, System.StringComparison.Ordinal);
+        Assert.Contains("defer></script>", once, System.StringComparison.Ordinal);
+        Assert.EndsWith("</script></body></html>", once, System.StringComparison.Ordinal);
     }
 
     [Theory]
@@ -28,7 +29,11 @@ public class IndexTransformerTests
 
     [Fact]
     public void CacheKeyTracksTheInstalledPluginVersion()
-        => Assert.Contains("client.js?v=" + typeof(Plugin).Assembly.GetName().Version, Transform("<html><body></body></html>"), System.StringComparison.Ordinal);
+    {
+        var transformed = Transform("<html><body></body></html>");
+        var version = typeof(Plugin).Assembly.GetName().Version;
+        Assert.Contains("client.js?version=" + version, transformed, System.StringComparison.Ordinal);
+    }
 
     [Fact]
     public void UsesSharedIndexHtmlKey()

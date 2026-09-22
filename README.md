@@ -584,7 +584,7 @@ If a tuner rescan/M3U re-import changes channel IDs, ordinary group references c
 | Ordinary user cannot find Live-TV Control Center in My Media | Allow the plugin channel under **Users → Access → Channels**, save and sign out/in. Ordinary Live TV access alone is insufficient. Also check personal home/library visibility. |
 | Channel cards appear instead of EPG | Select **TV guide** or its direct button. **Channels** is a separate, possibly remembered view. |
 | No groups for a user | Personal mode may have no groups for that account. In central mode check group policy and Jellyfin rights; refresh after changes. |
-| Native folders appear instead of custom web UI | Check File Transformation, web integration/status, restart and browser reload/cache. Plugin Pages alone does not inject the interface. |
+| Native folders appear instead of custom web UI | Check File Transformation and web integration/status, then reload the browser. If `/LiveTvGroups/client.js?version=…` fails in browser developer tools, check the reverse proxy/cache; Plugin Pages alone does not inject the interface. |
 | Channels have no programs | Check imported EPG, channel mapping, selected time/date and ordinary Jellyfin Live TV. |
 | Saved channel missing | Check user/parental rights, tuner availability and rescan matching; correct unresolved references through channel selection. |
 | Channel blocked unexpectedly | Open **Channel access**, preview the affected user and check all applicable rules and Jellyfin permissions. Any denial wins. |
