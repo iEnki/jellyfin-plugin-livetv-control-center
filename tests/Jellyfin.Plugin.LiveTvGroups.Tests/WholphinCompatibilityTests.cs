@@ -41,7 +41,7 @@ public class WholphinCompatibilityTests
 
         var rewrittenRoot = Assert.Single(views.Items);
         Assert.Equal(BaseItemKind.CollectionFolder, rewrittenRoot.Type);
-        Assert.Equal(CollectionType.unknown, rewrittenRoot.CollectionType);
+        Assert.Equal(CollectionType.folders, rewrittenRoot.CollectionType);
         Assert.True(rewrittenRoot.IsFolder);
 
         var group = new BaseItemDto { Id = Guid.NewGuid(), Name = "Crime", Type = BaseItemKind.ChannelFolderItem, IsFolder = true };

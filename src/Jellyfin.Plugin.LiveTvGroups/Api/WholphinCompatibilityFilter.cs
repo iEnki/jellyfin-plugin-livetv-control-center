@@ -153,25 +153,24 @@ public sealed class WholphinCompatibilityFilter : IAsyncActionFilter, IOrderedFi
             return;
         }
 
-        MakeFolder(plugin, BaseItemKind.CollectionFolder);
+        // Wholphin shows only supported collection types in its navigation drawer.
+        MakeFolder(plugin, BaseItemKind.CollectionFolder, CollectionType.folders);
     }
 
     private static void RewriteFolders(IReadOnlyList<BaseItemDto> items)
     {
         foreach (var item in items.Where(item => item.IsFolder == true))
         {
-            MakeFolder(item, BaseItemKind.Folder);
+            // Folders would make Wholphin request includeItemTypes=Folder, but
+            // the underlying objects are ChannelFolderItem until this filter runs.
+            MakeFolder(item, BaseItemKind.Folder, CollectionType.unknown);
         }
     }
 
-    private static void MakeFolder(BaseItemDto item, BaseItemKind kind)
+    private static void MakeFolder(BaseItemDto item, BaseItemKind kind, CollectionType collectionType)
     {
         item.Type = kind;
-        // Wholphin maps CollectionType.folders to includeItemTypes=Folder. The
-        // underlying Jellyfin items are still ChannelFolderItem objects until
-        // this result filter runs, so that request would remove them too early.
-        // Its supported neutral collection type keeps the child query unfiltered.
-        item.CollectionType = CollectionType.unknown;
+        item.CollectionType = collectionType;
         item.IsFolder = true;
     }
 }

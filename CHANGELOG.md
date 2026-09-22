@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Beta 1.1.0.4: Keep Live-TV Control Center visible in Wholphin's navigation by advertising the root as a supported Folders collection, while child group entries retain the neutral collection type required to avoid premature server filtering.
+
 - Beta 1.1.0.3: Make Live-TV Control Center and its group entries browsable in Wholphin by presenting them as standard folders only to that client. Selecting a group or All channels now updates the authenticated Wholphin device scope from the TV; the user then opens Live TV → TV Guide manually.
 - Require the matching active Wholphin session, retain current group and channel permission validation, hide the unsupported channel entry when Wholphin targets are disabled, and never send Wholphin a DisplayContent command.
 
