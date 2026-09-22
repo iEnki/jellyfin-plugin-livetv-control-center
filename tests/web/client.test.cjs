@@ -7,7 +7,7 @@ const {chromium}=require('playwright');
 let browser,server,url;
 const root='11111111111111111111111111111111',crime='22222222222222222222222222222222',sport='33333333333333333333333333333333';
 const a='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',b='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',c='cccccccccccccccccccccccccccccccc';
-function fixture(){return {jellyfinTargets:true,wholphinTargets:true,access:{Mode:'personal',CanManage:true,IsAdministrator:false},adminUsers:[{Id:'user',Name:'Robert',IsAdministrator:true,HasLiveTvAccess:true},{Id:'other',Name:'Normaler Benutzer',IsAdministrator:false,HasLiveTvAccess:true}],policies:{},groups:[{Id:crime,Name:'Crime',ChannelCount:2},{Id:sport,Name:'Sport',ChannelCount:2}],refs:{[crime]:[a,b],[sport]:[a,c]},prefs:{HiddenGroupIds:[],DefaultGroupId:crime,DefaultView:'guide',Zoom:5,RememberLastView:false,LastGroupId:null,LastView:'guide'},players:[{DeviceId:'living-tv',Name:'Wohnzimmer Fire TV',Client:'Jellyfin Android TV',UsesAndroidTvDiscoveryFallback:true}],nativeScopes:{},nativeFailure:false,remotePlays:[],remoteFailure:false,preferenceFailure:false,requests:[],fail:false,delay:false};}
+function fixture(){return {jellyfinTargets:true,wholphinTargets:true,access:{Mode:'personal',CanManage:true,IsAdministrator:false},adminUsers:[{Id:'user',Name:'Robert',IsAdministrator:true,HasLiveTvAccess:true},{Id:'other',Name:'Normaler Benutzer',IsAdministrator:false,HasLiveTvAccess:true}],policies:{},groups:[{Id:crime,Name:'Crime',ChannelCount:2,HasCustomImage:false,ArtworkRevision:0},{Id:sport,Name:'Sport',ChannelCount:2,HasCustomImage:false,ArtworkRevision:0}],refs:{[crime]:[a,b],[sport]:[a,c]},prefs:{HiddenGroupIds:[],DefaultGroupId:crime,DefaultView:'guide',Zoom:5,RememberLastView:false,LastGroupId:null,LastView:'guide'},players:[{DeviceId:'living-tv',Name:'Wohnzimmer Fire TV',Client:'Jellyfin Android TV',UsesAndroidTvDiscoveryFallback:true}],nativeScopes:{},nativeFailure:false,remotePlays:[],remoteFailure:false,preferenceFailure:false,requests:[],fail:false,delay:false};}
 const channels=[{Id:a,Name:'RTL Crime',ChannelNumber:'127'},{Id:b,Name:'Investigation',ChannelNumber:'7'},{Id:c,Name:'Sport',ChannelNumber:'58'}];
 function localizationScript(){return 'window.LiveTvGroupsTranslations='+fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Localization/strings.json'),'utf8')+';\n'+fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web/localization.js'),'utf8');}
 let fixtures=new Map();
@@ -19,7 +19,7 @@ const shell=`<!doctype html><html><head><meta charset="utf-8"><title>Jellyfin gr
 window.ApiClient={accessToken:()=>new URLSearchParams(location.search).get('fixture'),getCurrentUserId:()=> 'user',serverId:()=> 'server',deviceId:()=> 'device',getUrl:(p,q)=> '/'+p+(q?'?'+new URLSearchParams(q):''),getScaledImageUrl:()=>'',getJSON:async u=>{const r=await fetch(u,{headers:{Authorization:'MediaBrowser Token="'+new URLSearchParams(location.search).get('fixture')+'"'}});return r.json();},ajax:async()=>[]};
 function native(){document.querySelector('.homePage').classList.toggle('hide',!location.hash.startsWith('#/home'));const own=location.hash.includes('parentId=${root}');document.querySelector('.libraryPage').classList.toggle('hide',location.hash.startsWith('#/details')||location.hash.startsWith('#/home'));const target=document.querySelector('.native-content');target.textContent=location.hash.startsWith('#/details')?'Details':own?'Original group folder':'Original Live TV: all 432 channels';if(location.hash.startsWith('#/livetv'))fetch('/LiveTv/Channels');if(location.hash.startsWith('#/userpluginsettings'))fetch('/LiveTvGroups/page.html').then(r=>r.text()).then(html=>target.append(document.createRange().createContextualFragment(html)));document.dispatchEvent(new Event('viewshow'));}window.addEventListener('hashchange',native);native();</script><script src="/LiveTvGroups/client.js"></script></body></html>`;
 before(async()=>{
- server=http.createServer(async(req,res)=>{const key=(req.headers.authorization||'').match(/Token="([^"]+)"/)?.[1];const fixtureId=new URL(req.url,'http://local').searchParams.get('fixture');const f=fixtures.get(key||fixtureId);const u=new URL(req.url,'http://local');const send=(value,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(status===204?'':JSON.stringify(value));};
+ server=http.createServer(async(req,res)=>{const u=new URL(req.url,'http://local');const key=(req.headers.authorization||'').match(/Token="([^"]+)"/)?.[1];const fixtureId=u.searchParams.get('fixture');const f=fixtures.get(key||fixtureId||u.searchParams.get('api_key'));const send=(value,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(status===204?'':JSON.stringify(value));};
  if(u.pathname.endsWith('localization.js')){res.setHeader('Content-Type','application/javascript');res.end(localizationScript());return;}
  if(u.pathname.endsWith('client.js')||u.pathname.endsWith('channel-access.js')||u.pathname.endsWith('client.css')){res.setHeader('Content-Type',u.pathname.endsWith('.js')?'application/javascript':'text/css');res.end((u.pathname.endsWith('client.js')?localizationScript():'')+fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web',path.basename(u.pathname))));return;}
  if(u.pathname.endsWith('/page.html')){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(fs.readFileSync(path.join(__dirname,'../../src/Jellyfin.Plugin.LiveTvGroups/Web/page.html')));return;}
@@ -29,7 +29,7 @@ before(async()=>{
  }
  if(u.pathname==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(shell.replace('<html>','<html lang="'+(u.searchParams.get('language')||'de-DE')+'">')); return;}
  if(u.pathname==='/LiveTv/Channels'){send({Items:Array.from({length:432},(_,i)=>({Id:i}))});return;}
- if(!f){send({},401);return;}f.requests.push(req.method+' '+u.pathname);let data='';for await(const chunk of req)data+=chunk;const body=data?JSON.parse(data):null;
+ if(!f){send({},401);return;}f.requests.push(req.method+' '+u.pathname);let data='';for await(const chunk of req)data+=chunk;const body=data?(req.headers['content-type']||'').startsWith('application/json')?JSON.parse(data):data:null;
  if(u.pathname==='/LiveTvGroups/Access'){send(f.access);return;}
  if(u.pathname.startsWith('/LiveTvGroups/Administration/ChannelAccess')){
   if(!f.access.IsAdministrator){send({},403);return;}
@@ -61,7 +61,9 @@ before(async()=>{
  if(remote){f.remotePlays.push({deviceId:decodeURIComponent(remote[1]),channelId:remote[2]});send(f.remoteFailure?'TV unavailable':null,f.remoteFailure?409:204);return;}
  if(u.pathname.endsWith('/Preferences')){if(req.method==='PUT'){f.prefs=body;send(null,204);}else send(f.prefs);return;}
  if(u.pathname.endsWith('/AvailableChannels')){send({Items:channels});return;}
- if(u.pathname==='/LiveTvGroups/Groups'){if(req.method==='POST'){const g={Id:'44444444444444444444444444444444',Name:body.Name,ChannelCount:0};f.groups.push(g);f.refs[g.Id]=[];send(g);}else send(f.groups);return;}
+ if(u.pathname==='/LiveTvGroups/Groups'){if(req.method==='POST'){const g={Id:'44444444444444444444444444444444',Name:body.Name,ChannelCount:0,HasCustomImage:false,ArtworkRevision:0};f.groups.push(g);f.refs[g.Id]=[];send(g);}else send(f.groups);return;}
+ const artwork=u.pathname.match(new RegExp('^/LiveTvGroups/Groups/([^/]+)/Image$'));
+ if(artwork){const g=f.groups.find(group=>group.Id===artwork[1]);if(!g){send({},404);return;}if(req.method==='GET'){res.writeHead(200,{'Content-Type':'image/png'});res.end(fs.readFileSync(path.join(__dirname,'../../assets/Live-TV_EPG.png')));return;}if(req.method==='PUT'){g.HasCustomImage=true;g.ArtworkRevision++;f.imageUpload={type:req.headers['content-type'],bytes:Buffer.byteLength(data)};send(g);return;}g.HasCustomImage=false;g.ArtworkRevision++;f.imageReset=true;send(null,204);return;}
  const match=u.pathname.match(/\/Groups\/([^/]+)(?:\/(Channels|Order))?$/);
  if(match){const gid=match[1],g=f.groups.find(g=>g.Id===gid);if(req.method==='DELETE'){f.groups=f.groups.filter(g=>g.Id!==gid);send(null,204);}else if(match[2]==='Channels'){if(req.method==='GET'){send(f.channelSelectionFailure?'Group selection unavailable':{Items:(f.refs[gid]||[]).map(id=>channels.find(c=>c.Id===id)).filter(Boolean)},f.channelSelectionFailure?500:200);}else{f.refs[gid]=body;g.ChannelCount=body.length;send(null,204);}}else if(g){g.Name=body.Name;send(null,204);}else send({},404);return;}
  const ids=[...new Set(u.searchParams.getAll('groupIds').flatMap(g=>f.refs[g]||[]))],scope=ids.map(id=>channels.find(c=>c.Id===id)).filter(Boolean);
@@ -80,6 +82,28 @@ test('latest group wins delayed requests, failure can be retried',async t=>{cons
 test('mobile scroll keeps program labels readable; date navigation works',async t=>{const {page}=await open(t,{width:390,height:844});await page.locator('.ltvg-guide-scroll').evaluate(e=>e.scrollLeft=600);await page.waitForTimeout(50);const visible=await page.locator('.ltvg-guide-caption').first().evaluate(e=>{const c=e.getBoundingClientRect(),p=e.closest('.ltvg-guide-scroll').getBoundingClientRect();return c.left>=p.left&&c.left<p.right&&c.width>80;});assert.equal(visible,true);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.getByRole('button',{name:'Heute Abend',exact:true}).click();await page.waitForFunction(()=>document.querySelector('[data-control="time"]')?.value==='18:00');await page.getByRole('button',{name:'Jetzt',exact:true}).click();await page.locator('.ltvg-guide-prog').first().waitFor();assert.ok(!page.url().includes('start='));});
 test('create, select senders, rename, reorder and delete group',async t=>{const {page,f}=await open(t);await page.getByRole('button',{name:'Gruppen verwalten',exact:true}).click();await page.getByRole('button',{name:'Neue Gruppe',exact:true}).click();await page.getByLabel('Name',{exact:true}).fill('Test');await page.getByRole('button',{name:'Speichern',exact:true}).click();await page.getByRole('button',{name:'Sender auswählen',exact:true}).click();await page.locator('.ltvg-picker input[value="'+a+'"]').check();await page.locator('.ltvg-picker input[value="'+c+'"]').check();await page.getByRole('button',{name:'Speichern',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.ltvg-channel-card').length===2);await page.getByRole('button',{name:'Reihenfolge ändern'}).click();await page.getByRole('button',{name:'Sender nach oben'}).nth(1).click();await page.waitForFunction(()=>document.querySelector('.ltvg-channel-card').dataset.id===''+ 'cccccccccccccccccccccccccccccccc');assert.equal(f.refs['44444444444444444444444444444444'][0],c);await page.getByRole('button',{name:'Gruppen verwalten',exact:true}).click();const card=page.locator('.ltvg-group-card').filter({hasText:'Test'});await card.getByRole('button',{name:'Umbenennen'}).click();await page.getByLabel('Name',{exact:true}).fill('Renamed');await page.getByRole('button',{name:'Speichern',exact:true}).click();await page.locator('.ltvg-group-card').filter({hasText:'Renamed'}).getByRole('button',{name:'Löschen',exact:true}).click();await page.locator('#ltvg-modal').getByRole('button',{name:'Löschen',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.ltvg-group-card').length===2);assert.equal(f.groups.length,2);});
 
+test('group artwork can be previewed, uploaded and reset with localized controls',async t=>{
+ const {page,f}=await open(t);
+ await page.getByRole('button',{name:'Gruppen verwalten',exact:true}).click();
+ const card=page.locator('.ltvg-group-card').filter({hasText:'Crime'});
+ await card.locator('.ltvg-group-image').waitFor();
+ assert.match(await card.locator('.ltvg-group-image').getAttribute('src'),/revision=0/);
+ assert.equal(await card.getByRole('button',{name:'Standardbild verwenden'}).isDisabled(),true);
+ await card.getByRole('button',{name:'Bild ändern'}).click();
+ const input=page.getByLabel('Bild auswählen');
+ await input.setInputFiles(path.join(__dirname,'../../assets/Live-TV_EPG.png'));
+ assert.match(await page.locator('.ltvg-image-preview').getAttribute('src'),/^blob:/);
+ await page.getByRole('button',{name:'Hochladen',exact:true}).click();
+ await page.locator('#ltvg-modal').waitFor({state:'detached'});
+ await page.waitForFunction(()=>document.querySelector('.ltvg-group-card .ltvg-group-image')?.src.includes('revision=1'));
+ assert.equal(f.imageUpload.type,'image/png');
+ assert.ok(f.imageUpload.bytes>0);
+ assert.equal(await card.getByRole('button',{name:'Standardbild verwenden'}).isDisabled(),false);
+ await card.getByRole('button',{name:'Standardbild verwenden'}).click();
+ await page.waitForFunction(()=>document.querySelector('.ltvg-group-card .ltvg-group-image')?.src.includes('revision=2'));
+ assert.equal(f.imageReset,true);
+ assert.equal(f.groups[0].HasCustomImage,false);
+});
 test('calendar navigation crosses DST correctly; programs use current time after future guide',async t=>{
  const {page,f}=await open(t,{width:1440,height:1000},'2026-10-24T16:00:00Z');
  await page.getByRole('button',{name:'Heute Abend',exact:true}).click();

@@ -10,6 +10,7 @@ using Jellyfin.Plugin.LiveTvGroups.Services;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -35,7 +36,7 @@ public class WholphinCompatibilityTests
         var library = Library();
         var filter = Filter(library, true);
         var http = Http("Wholphin");
-        var root = new BaseItemDto { Id = _pluginId, Name = "Live-TV Control Center", Type = BaseItemKind.Channel };
+        var root = new BaseItemDto { Id = _pluginId, Name = "Live-TV Control Center", Type = BaseItemKind.Channel, ImageTags = new Dictionary<ImageType, string> { [ImageType.Primary] = "root-tag" } };
         var views = await Invoke(filter, http, typeof(Jellyfin.Api.Controllers.UserViewsController), viewsAction,
             new() { ["userId"] = _userId }, new([root]));
 
@@ -43,13 +44,15 @@ public class WholphinCompatibilityTests
         Assert.Equal(BaseItemKind.CollectionFolder, rewrittenRoot.Type);
         Assert.Equal(CollectionType.folders, rewrittenRoot.CollectionType);
         Assert.True(rewrittenRoot.IsFolder);
+        Assert.Equal("root-tag", rewrittenRoot.ImageTags[ImageType.Primary]);
 
-        var group = new BaseItemDto { Id = Guid.NewGuid(), Name = "Crime", Type = BaseItemKind.ChannelFolderItem, IsFolder = true };
+        var group = new BaseItemDto { Id = Guid.NewGuid(), Name = "Crime", Type = BaseItemKind.ChannelFolderItem, IsFolder = true, ImageTags = new Dictionary<ImageType, string> { [ImageType.Primary] = "group-tag" } };
         var children = await Invoke(filter, http, typeof(Jellyfin.Api.Controllers.ItemsController), "GetItems",
             new() { ["userId"] = _userId, ["parentId"] = _pluginId }, new([group]));
         var rewrittenGroup = Assert.Single(children.Items);
         Assert.Equal(BaseItemKind.Folder, rewrittenGroup.Type);
         Assert.Equal(CollectionType.unknown, rewrittenGroup.CollectionType);
+        Assert.Equal("group-tag", rewrittenGroup.ImageTags[ImageType.Primary]);
     }
 
     [Fact]

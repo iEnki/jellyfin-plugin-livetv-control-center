@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,8 +15,10 @@ using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Channels;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.MediaInfo;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jellyfin.Plugin.LiveTvGroups.Channel;
 
@@ -36,6 +39,7 @@ public class GroupsChannel : IChannel, IHasCacheKey
     private readonly GroupService _groups;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<GroupsChannel> _logger;
+    private GroupArtworkService? _artwork;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GroupsChannel"/> class.
@@ -56,6 +60,9 @@ public class GroupsChannel : IChannel, IHasCacheKey
 
     private IUserManager UserManager => _serviceProvider.GetRequiredService<IUserManager>();
 
+    private GroupArtworkService Artwork => _artwork ??= _serviceProvider.GetService<GroupArtworkService>()
+        ?? new GroupArtworkService(_groups.Store, _serviceProvider, NullLogger<GroupArtworkService>.Instance);
+
     /// <inheritdoc />
     public string Name => ChannelName;
 
@@ -68,7 +75,7 @@ public class GroupsChannel : IChannel, IHasCacheKey
     public string Description => T("Grouped Live TV channels.");
 
     /// <inheritdoc />
-    public string DataVersion => "10"; // Refreshes group folders for direct TV-guide selection without changing channel/playback item IDs.
+    public string DataVersion => "11"; // Refreshes group folders for direct TV-guide selection without changing channel/playback item IDs.
 
     /// <inheritdoc />
     public string HomePageUrl => "https://github.com/iEnki/jellyfin-plugin-livetv-control-center";
@@ -131,15 +138,15 @@ public class GroupsChannel : IChannel, IHasCacheKey
 
         if (string.IsNullOrEmpty(query.FolderId))
         {
-            items = [Folder(NativeGuideActionRoute.AllChannelsId, T("All channels (native guide)"))];
-            items.AddRange(groups.Select(g => Folder(GetFolderExternalId(g.Id), g.Name)));
+            items = [Folder(NativeGuideActionRoute.AllChannelsId, T("All channels (native guide)"), Artwork.EpgPath)];
+            items.AddRange(groups.Select(g => Folder(GetFolderExternalId(g.Id), g.Name, Artwork.GetGroupImage(user.Id, _groups.Shared, g.Id))));
         }
         else if (NativeGuideActionRoute.TryParse(query.FolderId, out var nativeGroup))
         {
             // Providers also run from background refreshes and caches. Only the HTTP action filter
             // may activate the authenticated device scope or send navigation commands.
             if (nativeGroup is not null && !groups.Any(g => g.Id == nativeGroup)) return new ChannelItemResult();
-            var help = Folder(NativeGuideActionRoute.HelpId(nativeGroup), T("Open Live TV → TV Guide"));
+            var help = Folder(NativeGuideActionRoute.HelpId(nativeGroup), T("Open Live TV → TV Guide"), Artwork.EpgPath);
             help.Overview = T("The native TV guide opens in ordinary Live TV. Select TV Guide there. Reopen the app if its old channel list remains cached.");
             items = [help];
         }
@@ -158,9 +165,9 @@ public class GroupsChannel : IChannel, IHasCacheKey
                 return new ChannelItemResult();
             }
 
-            var epg = Folder(AppGuideService.GetRootId(group.Id), T("Program list (fallback)"));
+            var epg = Folder(AppGuideService.GetRootId(group.Id), T("Program list (fallback)"), Artwork.ProgramListPath);
             epg.IndexNumber = 1; epg.Overview = T("Program data for this group, organized by day and channel. Original Live TV remains unchanged.");
-            var native = Folder(NativeGuideActionRoute.GroupId(group.Id), T("Native TV guide"));
+            var native = Folder(NativeGuideActionRoute.GroupId(group.Id), T("Native TV guide"), Artwork.EpgPath);
             native.IndexNumber = 0;
             native.Overview = T("Open the original Jellyfin TV guide using only this group's channels on this TV.");
             items = [native, epg];
@@ -183,8 +190,16 @@ public class GroupsChannel : IChannel, IHasCacheKey
         return new ChannelItemResult { Items = items, TotalRecordCount = items.Count };
     }
 
-    private static ChannelItemInfo Folder(string id, string name)
-        => new() { Id = id, Name = name, Type = ChannelItemType.Folder, FolderType = ChannelFolderType.Container };
+    private static ChannelItemInfo Folder(string id, string name, string imagePath)
+        => new()
+        {
+            Id = id,
+            Name = name,
+            Type = ChannelItemType.Folder,
+            FolderType = ChannelFolderType.Container,
+            ImageUrl = imagePath,
+            DateModified = File.GetLastWriteTimeUtc(imagePath)
+        };
 
     /// <summary>
     /// Gets a local logo file for a live TV channel. Channel items get their image only once, when they are created,
@@ -246,9 +261,11 @@ public class GroupsChannel : IChannel, IHasCacheKey
 
     /// <inheritdoc />
     public Task<DynamicImageResponse> GetChannelImage(ImageType type, CancellationToken cancellationToken)
-        => Task.FromResult(new DynamicImageResponse { HasImage = false });
+        => Task.FromResult(type == ImageType.Primary
+            ? new DynamicImageResponse { HasImage = true, Path = Artwork.RootLogoPath, Protocol = MediaProtocol.File, Format = MediaBrowser.Model.Drawing.ImageFormat.Png }
+            : new DynamicImageResponse { HasImage = false });
 
     /// <inheritdoc />
-    public IEnumerable<ImageType> GetSupportedChannelImages() => [];
+    public IEnumerable<ImageType> GetSupportedChannelImages() => [ImageType.Primary];
 
 }

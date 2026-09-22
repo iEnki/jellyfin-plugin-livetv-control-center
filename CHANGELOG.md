@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Beta 1.1.0.6: Add built-in Primary artwork for the Live-TV Control Center, native-guide actions, confirmation folders and the fallback program list so Jellyfin TV and Wholphin show recognizable tiles.
+- Add per-group PNG, JPEG or WebP uploads up to 5 MiB with preview/reset controls, Jellyfin decoder validation, personal/shared permissions, import copying, persistent storage and cache-tag refreshes. Square center-weighted images are recommended for the clients' different card crops.
+- Preserve original channel logos, Wholphin folder conversion, guide filtering and playback behavior.
+
 - Beta 1.1.0.5: Treat Wholphin's authenticated group-folder request as the active device signal even when the client exposes no remote-command controller. Group and All channels selection now update the device guide scope and replace unplayable channel tiles with the guide confirmation.
 
 - Beta 1.1.0.4: Keep Live-TV Control Center visible in Wholphin's navigation by advertising the root as a supported Folders collection, while child group entries retain the neutral collection type required to avoid premature server filtering.

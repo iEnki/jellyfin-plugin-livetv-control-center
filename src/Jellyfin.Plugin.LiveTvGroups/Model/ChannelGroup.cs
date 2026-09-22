@@ -40,6 +40,8 @@ public class UserGroups
 /// </summary>
 public class ChannelGroup
 {
+    /// <summary>Gets or sets the revision of the group's custom artwork.</summary>
+    public int ArtworkRevision { get; set; }
     /// <summary>Gets or sets whether every Live TV user may see this shared group.</summary>
     public bool VisibleToAllUsers { get; set; } = true;
     /// <summary>Gets or sets users allowed when universal access is disabled.</summary>

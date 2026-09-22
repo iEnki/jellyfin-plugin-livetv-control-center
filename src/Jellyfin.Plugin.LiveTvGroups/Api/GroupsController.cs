@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
-using Jellyfin.Data;
+using System.Threading;
+using System.Threading.Tasks;using Jellyfin.Data;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.LiveTvGroups.Model;
@@ -18,6 +19,7 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +40,7 @@ public class GroupsController : Controller
     private readonly IDtoService _dtoService;
     private readonly WebInjectionStatus _injectionStatus;
     private readonly PlaylistSyncService _playlistSync;
+    private readonly GroupArtworkService? _artwork;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GroupsController"/> class.
@@ -47,14 +50,17 @@ public class GroupsController : Controller
     /// <param name="dtoService">DTO service.</param>
     /// <param name="injectionStatus">Web injection status.</param>
     /// <param name="playlistSync">Playlist sync service.</param>
+    /// <param name="artwork">Group artwork service.</param>
     public GroupsController(
         GroupService groups,
         IUserManager userManager,
         IDtoService dtoService,
         WebInjectionStatus injectionStatus,
-        PlaylistSyncService playlistSync)
+        PlaylistSyncService playlistSync,
+        GroupArtworkService? artwork = null)
     {
         _playlistSync = playlistSync;
+        _artwork = artwork;
         _groups = groups;
         _userManager = userManager;
         _dtoService = dtoService;
@@ -175,8 +181,89 @@ public class GroupsController : Controller
             if (doc.Preferences.LastGroupId == groupId) { doc.Preferences.LastGroupId = null; }
             return doc.Groups.RemoveAll(g => g.Id == groupId) > 0;
         });
+        if (removed) { Artwork.DeleteCustomImage(user.Id, _groups.Shared, groupId); }
         QueueGroupSync(user.Id);
         return removed ? NoContent() : NotFound();
+    }
+
+    /// <summary>Gets a group's custom image or the standard image.</summary>
+    [HttpGet("Groups/{groupId}/Image")]
+    [Authorize(Policy = Policies.LiveTvAccess)]
+    public ActionResult GetGroupImage([FromRoute] Guid groupId)
+    {
+        var user = GetUser();
+        if (user is null) { return Unauthorized(); }
+        var group = _groups.GetGroups(user).FirstOrDefault(candidate => candidate.Id == groupId);
+        if (group is null) { return NotFound(); }
+        var path = Artwork.GetGroupImage(user.Id, _groups.Shared, groupId);
+        Response.Headers.CacheControl = "private, max-age=86400";
+        return PhysicalFile(path, GroupArtworkService.GetContentType(path), enableRangeProcessing: false);
+    }
+
+    /// <summary>Replaces a group's custom image.</summary>
+    [HttpPut("Groups/{groupId}/Image")]
+    [Authorize(Policy = Policies.LiveTvAccess)]
+    [RequestSizeLimit(GroupArtworkService.MaxImageBytes)]
+    public async Task<ActionResult<GroupDto>> SetGroupImage([FromRoute] Guid groupId, CancellationToken cancellationToken)
+    {
+        var user = GetUser();
+        if (user is null) { return Unauthorized(); }
+        if (!_groups.CanManage(user)) { return Forbid(); }
+        var shared = _groups.Shared;
+        if (!_groups.GetGroups(user).Any(group => group.Id == groupId)) { return NotFound(); }
+        if (Request.ContentLength > GroupArtworkService.MaxImageBytes)
+        {
+            return StatusCode(StatusCodes.Status413PayloadTooLarge, "The image must not exceed 5 MiB.");
+        }
+
+        string path;
+        try
+        {
+            path = await Artwork.SaveCustomImageAsync(user.Id, shared, groupId, Request.Body, Request.ContentType, cancellationToken).ConfigureAwait(false);
+        }
+        catch (InvalidDataException error)
+        {
+            return BadRequest(error.Message);
+        }
+
+        var updated = _groups.Update(user, document =>
+        {
+            var group = document.Groups.FirstOrDefault(candidate => candidate.Id == groupId);
+            if (group is not null) { group.ArtworkRevision++; }
+            return group;
+        });
+        if (updated is null)
+        {
+            Artwork.DeleteCustomImage(user.Id, shared, groupId);
+            return NotFound();
+        }
+
+        await Artwork.UpdateCachedGroupImageAsync(groupId, path, cancellationToken).ConfigureAwait(false);
+        return Ok(ToDto(updated, user));
+    }
+
+    /// <summary>Restores the standard image for a group.</summary>
+    [HttpDelete("Groups/{groupId}/Image")]
+    [Authorize(Policy = Policies.LiveTvAccess)]
+    public async Task<ActionResult> ResetGroupImage([FromRoute] Guid groupId, CancellationToken cancellationToken)
+    {
+        var user = GetUser();
+        if (user is null) { return Unauthorized(); }
+        if (!_groups.CanManage(user)) { return Forbid(); }
+        var shared = _groups.Shared;
+        if (!_groups.GetGroups(user).Any(group => group.Id == groupId)) { return NotFound(); }
+
+        var found = _groups.Update(user, document =>
+        {
+            var group = document.Groups.FirstOrDefault(candidate => candidate.Id == groupId);
+            if (group is not null) { group.ArtworkRevision++; }
+            return group is not null;
+        });
+        if (!found) { return NotFound(); }
+
+        Artwork.DeleteCustomImage(user.Id, shared, groupId);
+        await Artwork.UpdateCachedGroupImageAsync(groupId, Artwork.EpgPath, cancellationToken).ConfigureAwait(false);
+        return NoContent();
     }
 
     /// <summary>
@@ -539,13 +626,14 @@ public class GroupsController : Controller
     /// <summary>Changes mode, optionally copying admin personal groups without deleting them.</summary>
     [HttpPut("Administration")]
     [Authorize(Policy = Policies.RequiresElevation)]
-    public ActionResult SetAdministration([FromBody, Required] AdministrationRequest request)
+    public async Task<ActionResult> SetAdministration([FromBody, Required] AdministrationRequest request, CancellationToken cancellationToken = default)
     {
         var user = GetUser();
         if (user is null) { return Unauthorized(); }
         if (!user.HasPermission(PermissionKind.IsAdministrator)) { return Forbid(); }
         if (request.Mode is not ("personal" or "shared")) { return BadRequest("Invalid group mode."); }
         if (request.ImportPersonalGroups && request.Mode != "shared") { return BadRequest("Import is only available for central groups."); }
+        var imported = new List<Guid>();
         _groups.Store.UpdateAdministration(config =>
         {
             config.Mode = request.Mode;
@@ -558,10 +646,13 @@ public class GroupsController : Controller
                     copy.AllowedUserIds.Clear();
                     copy.DeniedUserIds.Clear();
                     config.Groups.Add(copy);
+                    imported.Add(copy.Id);
                 }
             }
             return true;
         });
+        if (imported.Count > 0) { Artwork.CopyPersonalToShared(user.Id, imported); }
+        await RefreshVisibleArtworkAsync(cancellationToken).ConfigureAwait(false);
         QueueAllSync();
         return NoContent();
     }
@@ -606,7 +697,25 @@ public class GroupsController : Controller
 
     private GroupDto ToDto(ChannelGroup group, User user) => new(group.Id, group.Name,
         HttpContext.RequestServices.GetService<ChannelAccessService>()?.Configuration.Enabled == true
-            ? _groups.ResolveChannels(user, group, _groups.GetAccessibleChannels(user)).Count : group.Channels.Count);
+            ? _groups.ResolveChannels(user, group, _groups.GetAccessibleChannels(user)).Count : group.Channels.Count,
+        ArtworkOrNull?.HasCustomImage(user.Id, _groups.Shared, group.Id) == true,
+        group.ArtworkRevision);
+
+    private GroupArtworkService Artwork => ArtworkOrNull ?? throw new InvalidOperationException("Artwork service is unavailable.");
+
+    private GroupArtworkService? ArtworkOrNull => _artwork ?? HttpContext?.RequestServices.GetService<GroupArtworkService>();
+
+    private async Task RefreshVisibleArtworkAsync(CancellationToken cancellationToken)
+    {
+        foreach (var candidate in _userManager.GetUsers())
+        {
+            foreach (var group in _groups.GetGroups(candidate))
+            {
+                var path = Artwork.GetGroupImage(candidate.Id, _groups.Shared, group.Id);
+                await Artwork.UpdateCachedGroupImageAsync(group.Id, path, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
 
     private ActionResult ServeResource(string name, string contentType)
     {
@@ -633,7 +742,9 @@ public class GroupsController : Controller
 /// <param name="Id">Group id.</param>
 /// <param name="Name">Group name.</param>
 /// <param name="ChannelCount">Number of stored channels.</param>
-public record GroupDto(Guid Id, string Name, int ChannelCount);
+/// <param name="HasCustomImage">Whether the group uses uploaded artwork.</param>
+/// <param name="ArtworkRevision">Revision used to invalidate image caches.</param>
+public record GroupDto(Guid Id, string Name, int ChannelCount, bool HasCustomImage = false, int ArtworkRevision = 0);
 
 /// <summary>
 /// Program guide of a group.

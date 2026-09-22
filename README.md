@@ -11,6 +11,7 @@ Make Jellyfin's **original TV Guide** easier to use on Android TV and Fire TV: s
 - **Web EPG and phone remote:** Browse a grouped program timeline in Jellyfin Web or a web-based mobile client, then start or switch channels on a selected Fire TV / Android TV device. [Phone setup](#phone-as-tv-guide-and-remote).
 - **Family-friendly channel access:** Administrators can block selected channels for children's accounts across the plugin and ordinary Jellyfin Live TV. [Central channel access](#central-channel-access).
 - **Other ways to browse:** Keep group folders and program lists in supported native apps; optionally create group playlists. [Native app support](#native-apps-and-program-lists).
+- **Recognizable TV folders:** Built-in artwork identifies the control center, native guide actions and fallback program lists. Editors can upload a separate image for each group. [Group artwork](#group-artwork).
 
 **Stable version: 1.1.0.0** · **Jellyfin: minimum 12.0 (12.1 confirmed)** · **Plugin ABI: 12.0.0.0** · **License: GPL-3.0**
 
@@ -30,6 +31,7 @@ The plugin uses Jellyfin's existing channels and EPG data. Its web guide is sepa
 - [Phone as TV guide and remote](#phone-as-tv-guide-and-remote)
 - [Personal and central groups](#personal-and-central-groups)
 - [Creating and editing groups](#creating-and-editing-groups)
+- [Group artwork](#group-artwork)
 - [Views and program guide](#views-and-program-guide)
 - [Remote playback](#remote-playback)
 - [Native TV guide filtering](#native-tv-guide-filtering)
@@ -353,6 +355,14 @@ Deleting a group removes grouping information, not the underlying Jellyfin chann
 
 **All visible groups** is a combined viewing scope. Channel editing requires a specific group. Central mode gives ordinary users read-only group content, playback controls and personal settings.
 
+## Group artwork
+
+Every plugin folder receives a Primary image that Jellyfin and Wholphin can display without client changes. The control center uses the plugin logo, guide actions use the EPG grid, and the fallback program list uses a separate calendar/list symbol. Sender tiles continue to use their original station logos.
+
+Under **Manage groups**, choose **Change image** to upload a PNG, JPEG or WebP file up to 5 MiB. **Use default image** restores the built-in EPG artwork. Square images with the important subject near the center work best because Wholphin usually crops them into wide cards while Jellyfin TV may show taller cards.
+
+Personal group images belong only to that user. In central mode, only administrators may change group images. Importing personal groups into central management copies their images as well. TV apps may keep an old thumbnail briefly; reopen the folder or app if a changed image is still cached.
+
 ## Views and program guide
 
 The selected group applies to all three views. **All visible groups** combines personally visible, authorized groups and removes duplicate channels.
@@ -488,6 +498,8 @@ Channels / My Media
 
 The program-list fallback contains seven local calendar days, channel lists, timing, episode information and descriptions. Day boundaries follow the configured timezone, including daylight-saving changes.
 
+The folder artwork is shared through Jellyfin's normal Primary-image API. The text-free, center-weighted defaults remain recognizable in Wholphin's wide cards and Jellyfin TV's taller cards.
+
 **watch live** starts the current live stream. Selecting a past/future program does not play a recording or catch-up stream.
 
 The stock Fire TV / Android TV client uses browsable folders for this fallback. It does not render the browser timeline inside the native TV app. The browsable folder guide remains independent; users may separately activate the [original native timeline filter](#native-tv-guide-filtering).
@@ -550,12 +562,16 @@ Data is stored in the `users` subdirectory of the plugin's Jellyfin data folder:
 
 ```text
 <plugin data folder>/
-└── users/
-    ├── <user-id-without-hyphens>.json
-    └── administration.json
+├── users/
+│   ├── <user-id-without-hyphens>.json
+│   └── administration.json
+└── artwork/
+    ├── defaults/
+    ├── users/<user-id-without-hyphens>/
+    └── shared/
 ```
 
-Per-user files contain personal groups, ordered channel references, personal preferences, preferred device identity/name and playlist mappings. The central file contains the operating mode, shared groups, group access policies, revisioned channel rules, known source identities and recording assignments. Preserve it along with user files. Channel restrictions also maintain uniquely owned tags and blocked-tag preferences in Jellyfin's database.
+Per-user files contain personal groups, ordered channel references, artwork revisions, personal preferences, preferred device identity/name and playlist mappings. Uploaded group images are stored under `artwork/users` or `artwork/shared`; `artwork/defaults` contains the embedded standard motifs materialized by the plugin. The central file contains the operating mode, shared groups, group access policies, revisioned channel rules, known source identities and recording assignments. Preserve it along with user files. Channel restrictions also maintain uniquely owned tags and blocked-tag preferences in Jellyfin's database.
 
 This data directory is separate from a versioned binary installation directory. Preserve the complete data folder and Jellyfin-managed plugin configuration when upgrading/moving the server. Stop Jellyfin before restoring a backup to prevent ongoing changes from overwriting restored files.
 

@@ -32,6 +32,8 @@
 .ltvg-card-main { display:flex; flex-direction:column; gap:.5em; align-items:flex-start; text-align:left; width:100%; border:0; padding:.5em 0; }
 .ltvg-card-main strong { font-size:1.1em; font-weight:500; }
 .ltvg-card-main span { font-size:.9em; opacity:.7; }
+.ltvg-group-image { width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:.3em; background:rgba(128,128,128,.08); }
+.ltvg-image-preview { width:min(100%,22em); aspect-ratio:1; object-fit:cover; align-self:center; border-radius:.4em; background:rgba(128,128,128,.08); }
 .ltvg-card-tools { display:flex; flex-wrap:wrap; gap:.35em; padding-top:.7em; }
 .ltvg-card-tools .ltvg-btn { font-size:.85em; padding:.35em .5em; }
 .ltvg-channel-grid { grid-template-columns:repeat(auto-fill,minmax(11em,1fr)); }

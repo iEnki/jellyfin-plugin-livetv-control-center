@@ -38,6 +38,7 @@
     const image = (item, height = 160) => item.ImageTags && item.ImageTags.Primary
         ? client().getScaledImageUrl(item.Id, { type:'Primary', maxHeight:height, tag:item.ImageTags.Primary }) : '';
     function logo(item) { const url = image(item); return url ? '<img alt="" loading="lazy" src="'+esc(url)+'">' : '<span class="material-icons" aria-hidden="true">live_tv</span>'; }
+    const groupImageUrl = group => client().getUrl('LiveTvGroups/Groups/'+encodeURIComponent(group.Id)+'/Image', { api_key:client().accessToken(), revision:group.ArtworkRevision || 0 });
     async function api(method, path, body, signal) {
         const response = await fetch(client().getUrl('LiveTvGroups/' + path), {
             method, signal, headers: { Authorization:'MediaBrowser Token="'+client().accessToken()+'"', 'Accept-Language':window.LiveTvGroupsI18n.locale(), 'Content-Type':'application/json' },
@@ -46,6 +47,18 @@
         if (!response.ok) {
             const text = await response.text();
             throw new Error(response.status === 401 ? t("Please sign in again.") : response.status === 403 ? t("No Live TV access.") : t(text) || t("Request failed (HTTP ")+response.status+').');
+        }
+        return response.status === 204 ? null : response.json();
+    }
+    async function imageApi(method, path, body) {
+        const response = await fetch(client().getUrl('LiveTvGroups/' + path), {
+            method,
+            headers: { Authorization:'MediaBrowser Token="'+client().accessToken()+'"', 'Accept-Language':window.LiveTvGroupsI18n.locale(), 'Content-Type':body?.type || 'application/octet-stream' },
+            body
+        });
+        if (!response.ok) {
+            const message = await response.text();
+            throw new Error(response.status === 401 ? t("Please sign in again.") : response.status === 403 ? t("No Live TV access.") : t(message) || t("Request failed (HTTP ")+response.status+').');
         }
         return response.status === 204 ? null : response.json();
     }
@@ -261,13 +274,13 @@
         } catch(e) { if (seq===request) { if (!keep) content(("<p class=\"ltvg-empty\">" + t("Could not load data.") + "</p>")); error(e); } }
     }
     function renderGroups() {
-        content(("<div class=\"ltvg-section-heading\"><h2>" + t("Channel groups") + "</h2>")+button('create',t("New group"),'','ltvg-primary')+'</div>'
+        content('<div class="ltvg-section-heading"><h2>'+t("Channel groups")+'</h2>'+button('create',t("New group"),'','ltvg-primary')+'</div>'
             +'<div class="ltvg-grid" data-list="groups">'+groups.map(g=>'<article class="ltvg-card ltvg-group-card" draggable="true" data-id="'+esc(g.Id)+'">'
-                +button('open','<strong>'+esc(g.Name)+'</strong><span>'+g.ChannelCount+t(" channels")+(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?t(" · Hidden"):'')+'</span>','data-id="'+esc(g.Id)+'"','ltvg-card-main')
-                +'<div class="ltvg-card-tools">'+button('edit-channels',t("Edit channels"),'data-id="'+esc(g.Id)+'"')+button('rename',t("Rename"),'data-id="'+esc(g.Id)+'"')+button('delete',t("Delete"),'data-id="'+esc(g.Id)+'"')
+                +button('open','<img class="ltvg-group-image" alt="" loading="lazy" src="'+esc(groupImageUrl(g))+'"><strong>'+esc(g.Name)+'</strong><span>'+g.ChannelCount+t(" channels")+(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?t(" · Hidden"):'')+'</span>','data-id="'+esc(g.Id)+'"','ltvg-card-main')
+                +'<div class="ltvg-card-tools">'+button('edit-channels',t("Edit channels"),'data-id="'+esc(g.Id)+'"')+button('change-image',t("Change image"),'data-id="'+esc(g.Id)+'"')+button('reset-image',t("Use default image"),'data-id="'+esc(g.Id)+'"'+(g.HasCustomImage?'':' disabled'))+button('rename',t("Rename"),'data-id="'+esc(g.Id)+'"')+button('delete',t("Delete"),'data-id="'+esc(g.Id)+'"')
                 +(access.Mode === 'shared' && access.IsAdministrator ? button('group-access',t("User access"),'data-id="'+esc(g.Id)+'"') : '')
-                +button('group-up','↑','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+(t(" up") + "\""))+button('group-down','↓','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+(t(" down") + "\""))+'</div></article>').join('')+'</div>'
-            +(!groups.length?("<p class=\"ltvg-empty\">" + t("No groups yet.") + "</p>"):''));
+                +button('group-up','↑','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+t(" up")+'"')+button('group-down','↓','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+t(" down")+'"')+'</div></article>').join('')+'</div>'
+            +(!groups.length?'<p class="ltvg-empty">'+t("No groups yet.")+'</p>':''));
         dragSort(page().querySelector('[data-list="groups"]'), async ids=>{ await api('PUT','Groups/Order',ids); await reloadGroups(); });
     }
     function channelCard(channel) {
@@ -370,6 +383,18 @@
         return new Promise(resolve=>{const wrapper=modal(("<h2 id=\"ltvg-dialog-title\">" + t("Delete group") + "</h2><p>" + t("Delete group “"))+esc(name)+(t("”? Channels are retained.") + "</p><div class=\"ltvg-modal-actions\">")+button('cancel',t("Cancel"))+button('confirm',t("Delete"),'','ltvg-danger')+'</div>',()=>resolve(false));
             wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;wrapper.querySelector('[data-action="confirm"]').onclick=()=>{modalCancel=null;closeModal();resolve(true);}; });
     }
+    async function changeGroupImage(groupId) {
+        const group=groups.find(candidate=>id(candidate.Id)===id(groupId));if(!group)return;
+        let objectUrl=null;
+        const wrapper=modal('<h2 id="ltvg-dialog-title">'+t("Change image")+': '+esc(group.Name)+'</h2><form><img class="ltvg-image-preview" alt="" src="'+esc(groupImageUrl(group))+'"><label>'+t("Choose image")+'<input class="ltvg-input" type="file" accept="image/png,image/jpeg,image/webp" required></label><p class="ltvg-hint">'+t("PNG, JPEG or WebP, up to 5 MiB. Square images work best in TV apps.")+'</p><div class="ltvg-modal-actions">'+button('cancel',t("Cancel"))+'<button class="ltvg-btn ltvg-primary" type="submit">'+t("Upload")+'</button></div></form>',()=>{if(objectUrl)URL.revokeObjectURL(objectUrl);});
+        const form=wrapper.querySelector('form'),input=form.querySelector('[type="file"]'),preview=wrapper.querySelector('.ltvg-image-preview');
+        wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;
+        input.onchange=()=>{const file=input.files[0];if(!file)return;if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(file);preview.src=objectUrl;};
+        form.onsubmit=async e=>{e.preventDefault();const file=input.files[0],save=form.querySelector('[type="submit"]');if(!file)return;if(file.size>5*1024*1024){modalError(wrapper,new Error(t("The image must not exceed 5 MiB.")));return;}save.disabled=true;
+            try{await imageApi('PUT','Groups/'+encodeURIComponent(group.Id)+'/Image',file);if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=null;closeModal();await reloadGroups();}
+            catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
+        };
+    }
     async function settings() {
         const wrapper=modal(("<h2 id=\"ltvg-dialog-title\">" + t("Group settings") + "</h2><form><fieldset><legend>" + t("Visible groups") + "</legend>")+groups.map(g=>'<label class="ltvg-picker-row"><input type="checkbox" data-group="'+esc(g.Id)+'"'+(!prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?' checked':'')+'>'+esc(g.Name)+'</label>').join('')+'</fieldset>'
             +("<label>" + t("Default group") + "<select class=\"ltvg-input\" name=\"group\"><option value=\"\">" + t("All visible groups") + "</option>")+groups.map(g=>'<option value="'+esc(g.Id)+'">'+esc(g.Name)+'</option>').join('')+'</select></label>'
@@ -459,8 +484,10 @@
         if(action==='guide'){state.view='guide';state.reorder=false;writeRoute();remember();await render();return;}
         if(action==='administration'){if(access.IsAdministrator)await administration();return;}
         if(action==='group-access'){if(access.IsAdministrator&&access.Mode==='shared')await groupAccess(value);return;}
-        if(!access.CanManage && (['create','rename','delete','edit-channels','manage','reorder'].includes(action)||action.startsWith('group-')||action.startsWith('channel-')))return;
+        if(!access.CanManage && (['create','rename','delete','edit-channels','change-image','reset-image','manage','reorder'].includes(action)||action.startsWith('group-')||action.startsWith('channel-')))return;
         if(action==='create'){const name=await askName(t("New group"));if(name){const created=await api('POST','Groups',{Name:name});state.group=created.Id;state.view='channels';writeRoute();await reloadGroups();}return;}
+        if(action==='change-image'){await changeGroupImage(value);return;}
+        if(action==='reset-image'){await imageApi('DELETE','Groups/'+encodeURIComponent(value)+'/Image');await reloadGroups();return;}
         if(action==='rename'){const group=groups.find(g=>id(g.Id)===id(value)),name=await askName(t("Rename group"),group.Name);if(name){await api('PUT','Groups/'+value,{Name:name});await reloadGroups();}return;}
         if(action==='delete'){const group=groups.find(g=>id(g.Id)===id(value));if(await confirmDelete(group.Name)){await api('DELETE','Groups/'+value);await reloadGroups();}return;}
         if(action==='channel-access'){if(!window.LiveTvGroupsChannelAccess)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=client().getUrl('LiveTvGroups/channel-access.js');script.onload=resolve;script.onerror=()=>reject(new Error(t("Could not load channel access.")));document.head.appendChild(script);});await window.LiveTvGroupsChannelAccess.open();return;}
