@@ -11,7 +11,7 @@ Make Jellyfin's **original TV Guide** easier to use on Android TV and Fire TV: s
 - **Web EPG and phone remote:** Browse a grouped program timeline in Jellyfin Web or a web-based mobile client, then start or switch channels on a selected Fire TV / Android TV device. [Phone setup](#phone-as-tv-guide-and-remote).
 - **Family-friendly channel access:** Administrators can block selected channels for children's accounts across the plugin and ordinary Jellyfin Live TV. [Central channel access](#central-channel-access).
 - **Other ways to browse:** Keep group folders and program lists in supported native apps; optionally create group playlists. [Native app support](#native-apps-and-program-lists).
-- **Recognizable TV folders:** Built-in artwork identifies the control center, native guide actions and fallback program lists. Editors can upload a separate image for each group. [Group artwork](#group-artwork).
+- **Recognizable TV folders:** Built-in artwork distinguishes the control center, created channel groups, the **All channels** reset action, native guide actions and fallback program lists. Editors can upload a separate image for each group. [Group artwork](#group-artwork).
 
 **Stable version: 1.1.0.0** · **Jellyfin: minimum 12.0 (12.1 confirmed)** · **Plugin ABI: 12.0.0.0** · **License: GPL-3.0**
 
@@ -357,9 +357,9 @@ Deleting a group removes grouping information, not the underlying Jellyfin chann
 
 ## Group artwork
 
-Every plugin folder receives a Primary image that Jellyfin and Wholphin can display without client changes. The control center uses the plugin logo, guide actions use the EPG grid, and the fallback program list uses a separate calendar/list symbol. Sender tiles continue to use their original station logos.
+Every plugin folder receives a Primary image that Jellyfin and Wholphin can display without client changes. The control center uses the plugin logo. Created groups use a folder containing several channel tiles, while **All channels** uses an EPG grid with a return arrow to show that this action restores the complete guide. Native guide actions retain the EPG grid, and the fallback program list uses a separate calendar/list symbol. Sender tiles continue to use their original station logos.
 
-Under **Manage groups**, choose **Change image** to upload a PNG, JPEG or WebP file up to 5 MiB. **Use default image** restores the built-in EPG artwork. Square images with the important subject near the center work best because Wholphin usually crops them into wide cards while Jellyfin TV may show taller cards.
+Under **Manage groups**, choose **Change image** to upload a PNG, JPEG or WebP file up to 5 MiB. **Use default image** restores the built-in channel-group artwork. Square images with the important subject near the center work best because Wholphin usually crops them into wide cards while Jellyfin TV may show taller cards.
 
 Personal group images belong only to that user. In central mode, only administrators may change group images. Importing personal groups into central management copies their images as well. TV apps may keep an old thumbnail briefly; reopen the folder or app if a changed image is still cached.
 

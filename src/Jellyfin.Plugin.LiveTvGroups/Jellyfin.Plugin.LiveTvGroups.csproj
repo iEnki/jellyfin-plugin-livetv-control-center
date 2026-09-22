@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Jellyfin.Plugin.LiveTvGroups</RootNamespace>
-    <Version>1.1.0.6</Version>
+    <Version>1.1.0.7</Version>
     <InformationalVersion>$(Version)-beta</InformationalVersion>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>
@@ -36,6 +36,8 @@
     <EmbeddedResource Include="Localization\strings.json" />
     <EmbeddedResource Include="..\..\assets\Live-TV_Control_Center_Logo.png" LogicalName="Jellyfin.Plugin.LiveTvGroups.Artwork.RootLogo.png" />
     <EmbeddedResource Include="..\..\assets\Live-TV_EPG.png" LogicalName="Jellyfin.Plugin.LiveTvGroups.Artwork.Epg.png" />
+    <EmbeddedResource Include="..\..\assets\Live-TV_All_Channels.png" LogicalName="Jellyfin.Plugin.LiveTvGroups.Artwork.AllChannels.png" />
+    <EmbeddedResource Include="..\..\assets\Live-TV_Group.png" LogicalName="Jellyfin.Plugin.LiveTvGroups.Artwork.Group.png" />
     <EmbeddedResource Include="..\..\assets\Live-TV_Program_List.png" LogicalName="Jellyfin.Plugin.LiveTvGroups.Artwork.ProgramList.png" />
   </ItemGroup>
 

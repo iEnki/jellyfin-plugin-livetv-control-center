@@ -63,7 +63,7 @@ before(async()=>{
  if(u.pathname.endsWith('/AvailableChannels')){send({Items:channels});return;}
  if(u.pathname==='/LiveTvGroups/Groups'){if(req.method==='POST'){const g={Id:'44444444444444444444444444444444',Name:body.Name,ChannelCount:0,HasCustomImage:false,ArtworkRevision:0};f.groups.push(g);f.refs[g.Id]=[];send(g);}else send(f.groups);return;}
  const artwork=u.pathname.match(new RegExp('^/LiveTvGroups/Groups/([^/]+)/Image$'));
- if(artwork){const g=f.groups.find(group=>group.Id===artwork[1]);if(!g){send({},404);return;}if(req.method==='GET'){res.writeHead(200,{'Content-Type':'image/png'});res.end(fs.readFileSync(path.join(__dirname,'../../assets/Live-TV_EPG.png')));return;}if(req.method==='PUT'){g.HasCustomImage=true;g.ArtworkRevision++;f.imageUpload={type:req.headers['content-type'],bytes:Buffer.byteLength(data)};send(g);return;}g.HasCustomImage=false;g.ArtworkRevision++;f.imageReset=true;send(null,204);return;}
+ if(artwork){const g=f.groups.find(group=>group.Id===artwork[1]);if(!g){send({},404);return;}if(req.method==='GET'){res.writeHead(200,{'Content-Type':'image/png'});res.end(fs.readFileSync(path.join(__dirname,'../../assets/Live-TV_Group.png')));return;}if(req.method==='PUT'){g.HasCustomImage=true;g.ArtworkRevision++;f.imageUpload={type:req.headers['content-type'],bytes:Buffer.byteLength(data)};send(g);return;}g.HasCustomImage=false;g.ArtworkRevision++;f.imageReset=true;send(null,204);return;}
  const match=u.pathname.match(/\/Groups\/([^/]+)(?:\/(Channels|Order))?$/);
  if(match){const gid=match[1],g=f.groups.find(g=>g.Id===gid);if(req.method==='DELETE'){f.groups=f.groups.filter(g=>g.Id!==gid);send(null,204);}else if(match[2]==='Channels'){if(req.method==='GET'){send(f.channelSelectionFailure?'Group selection unavailable':{Items:(f.refs[gid]||[]).map(id=>channels.find(c=>c.Id===id)).filter(Boolean)},f.channelSelectionFailure?500:200);}else{f.refs[gid]=body;g.ChannelCount=body.length;send(null,204);}}else if(g){g.Name=body.Name;send(null,204);}else send({},404);return;}
  const ids=[...new Set(u.searchParams.getAll('groupIds').flatMap(g=>f.refs[g]||[]))],scope=ids.map(id=>channels.find(c=>c.Id===id)).filter(Boolean);
@@ -91,7 +91,7 @@ test('group artwork can be previewed, uploaded and reset with localized controls
  assert.equal(await card.getByRole('button',{name:'Standardbild verwenden'}).isDisabled(),true);
  await card.getByRole('button',{name:'Bild ändern'}).click();
  const input=page.getByLabel('Bild auswählen');
- await input.setInputFiles(path.join(__dirname,'../../assets/Live-TV_EPG.png'));
+ await input.setInputFiles(path.join(__dirname,'../../assets/Live-TV_Group.png'));
  assert.match(await page.locator('.ltvg-image-preview').getAttribute('src'),/^blob:/);
  await page.getByRole('button',{name:'Hochladen',exact:true}).click();
  await page.locator('#ltvg-modal').waitFor({state:'detached'});

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Beta 1.1.0.7: Give **All channels** a dedicated EPG-reset image and created groups a separate grouped-channel folder image. Existing custom group images remain unchanged, and the channel data version refreshes cached TV tiles.
+
 - Beta 1.1.0.6: Add built-in Primary artwork for the Live-TV Control Center, native-guide actions, confirmation folders and the fallback program list so Jellyfin TV and Wholphin show recognizable tiles.
 - Add per-group PNG, JPEG or WebP uploads up to 5 MiB with preview/reset controls, Jellyfin decoder validation, personal/shared permissions, import copying, persistent storage and cache-tag refreshes. Square center-weighted images are recommended for the clients' different card crops.
 - Preserve original channel logos, Wholphin folder conversion, guide filtering and playback behavior.

@@ -262,7 +262,7 @@ public class GroupsController : Controller
         if (!found) { return NotFound(); }
 
         Artwork.DeleteCustomImage(user.Id, shared, groupId);
-        await Artwork.UpdateCachedGroupImageAsync(groupId, Artwork.EpgPath, cancellationToken).ConfigureAwait(false);
+        await Artwork.UpdateCachedGroupImageAsync(groupId, Artwork.GroupPath, cancellationToken).ConfigureAwait(false);
         return NoContent();
     }
 

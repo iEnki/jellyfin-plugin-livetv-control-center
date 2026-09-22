@@ -75,7 +75,7 @@ public class GroupsChannel : IChannel, IHasCacheKey
     public string Description => T("Grouped Live TV channels.");
 
     /// <inheritdoc />
-    public string DataVersion => "11"; // Refreshes group folders for direct TV-guide selection without changing channel/playback item IDs.
+    public string DataVersion => "12"; // Refreshes existing action and group folders with their distinct artwork.
 
     /// <inheritdoc />
     public string HomePageUrl => "https://github.com/iEnki/jellyfin-plugin-livetv-control-center";
@@ -138,7 +138,7 @@ public class GroupsChannel : IChannel, IHasCacheKey
 
         if (string.IsNullOrEmpty(query.FolderId))
         {
-            items = [Folder(NativeGuideActionRoute.AllChannelsId, T("All channels (native guide)"), Artwork.EpgPath)];
+            items = [Folder(NativeGuideActionRoute.AllChannelsId, T("All channels (native guide)"), Artwork.AllChannelsPath)];
             items.AddRange(groups.Select(g => Folder(GetFolderExternalId(g.Id), g.Name, Artwork.GetGroupImage(user.Id, _groups.Shared, g.Id))));
         }
         else if (NativeGuideActionRoute.TryParse(query.FolderId, out var nativeGroup))

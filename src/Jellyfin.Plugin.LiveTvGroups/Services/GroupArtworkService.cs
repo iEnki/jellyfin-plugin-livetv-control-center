@@ -41,15 +41,21 @@ public sealed class GroupArtworkService
     /// <summary>Gets the plugin logo used by the channel root.</summary>
     public string RootLogoPath => EnsureDefault("root-logo.png", "RootLogo.png");
 
-    /// <summary>Gets the standard native-guide and group image.</summary>
+    /// <summary>Gets the standard native-guide image.</summary>
     public string EpgPath => EnsureDefault("epg.png", "Epg.png");
+
+    /// <summary>Gets the image for restoring all TV guide channels.</summary>
+    public string AllChannelsPath => EnsureDefault("all-channels.png", "AllChannels.png");
+
+    /// <summary>Gets the standard image for a created channel group.</summary>
+    public string GroupPath => EnsureDefault("group.png", "Group.png");
 
     /// <summary>Gets the fallback program-list image.</summary>
     public string ProgramListPath => EnsureDefault("program-list.png", "ProgramList.png");
 
-    /// <summary>Gets a group's custom image or the standard EPG image.</summary>
+    /// <summary>Gets a group's custom image or the standard group image.</summary>
     public string GetGroupImage(Guid userId, bool shared, Guid groupId)
-        => FindCustom(userId, shared, groupId) ?? EpgPath;
+        => FindCustom(userId, shared, groupId) ?? GroupPath;
 
     /// <summary>Gets whether a group has custom artwork.</summary>
     public bool HasCustomImage(Guid userId, bool shared, Guid groupId)

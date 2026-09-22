@@ -31,8 +31,17 @@ public sealed class GroupArtworkTests
         using var fixture = new Fixture();
         Assert.True(File.Exists(fixture.Artwork.RootLogoPath));
         Assert.True(File.Exists(fixture.Artwork.EpgPath));
+        Assert.True(File.Exists(fixture.Artwork.AllChannelsPath));
+        Assert.True(File.Exists(fixture.Artwork.GroupPath));
         Assert.True(File.Exists(fixture.Artwork.ProgramListPath));
-        Assert.NotEqual(fixture.Artwork.EpgPath, fixture.Artwork.ProgramListPath);
+        Assert.Equal(5, new[]
+        {
+            fixture.Artwork.RootLogoPath,
+            fixture.Artwork.EpgPath,
+            fixture.Artwork.AllChannelsPath,
+            fixture.Artwork.GroupPath,
+            fixture.Artwork.ProgramListPath
+        }.Distinct(StringComparer.Ordinal).Count());
 
         var png = await fixture.Artwork.SaveCustomImageAsync(
             fixture.Admin.Id,
@@ -59,7 +68,7 @@ public sealed class GroupArtworkTests
         fixture.Artwork.CopyPersonalToShared(fixture.Admin.Id, [fixture.GroupId]);
         Assert.True(fixture.Artwork.HasCustomImage(fixture.Admin.Id, true, fixture.GroupId));
         Assert.True(fixture.Artwork.DeleteCustomImage(fixture.Admin.Id, false, fixture.GroupId));
-        Assert.Equal(fixture.Artwork.EpgPath, fixture.Artwork.GetGroupImage(fixture.Admin.Id, false, fixture.GroupId));
+        Assert.Equal(fixture.Artwork.GroupPath, fixture.Artwork.GetGroupImage(fixture.Admin.Id, false, fixture.GroupId));
         Assert.False(fixture.Artwork.DeleteCustomImage(fixture.Admin.Id, false, fixture.GroupId));
     }
 
