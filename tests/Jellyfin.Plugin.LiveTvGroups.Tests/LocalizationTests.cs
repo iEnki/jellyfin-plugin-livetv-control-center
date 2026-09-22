@@ -2,6 +2,7 @@ using System;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Data;
 using Jellyfin.Plugin.LiveTvGroups.Api;
 using Jellyfin.Plugin.LiveTvGroups.Channel;
 using Jellyfin.Plugin.LiveTvGroups.Configuration;
@@ -77,11 +78,14 @@ public class LocalizationTests
         await service.UpdateDisplayName(CancellationToken.None);Assert.Equal(1,writes);
     }
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task EntryFindsRenamedChannelByIdentityAndRespectsUserChannelQuery(bool hasChannelAccess)
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public async Task EntryFindsRenamedChannelByIdentityAndRespectsUserChannelQuery(bool hasChannelAccess, bool canRecord)
     {
         var user = new Jellyfin.Database.Implementations.Entities.User("viewer", "test", "test") { Id = Guid.NewGuid() };
+        user.SetPermission(Jellyfin.Database.Implementations.Enums.PermissionKind.EnableLiveTvManagement, canRecord);
         var id = Guid.NewGuid();
         var users = InterfaceStub.Create<MediaBrowser.Controller.Library.IUserManager>((m,a)=>m.Name=="GetUserById" ? user : null);
         var library = InterfaceStub.Create<ILibraryManager>((m,a)=>m.Name=="GetNewItemId" ? id : null);
@@ -100,6 +104,7 @@ public class LocalizationTests
         var json=System.Text.Json.JsonSerializer.SerializeToElement(result.Value);
         if (hasChannelAccess) Assert.Equal(id,json.GetProperty("ChannelId").GetGuid());
         else Assert.Equal(System.Text.Json.JsonValueKind.Null,json.GetProperty("ChannelId").ValueKind);
+        Assert.Equal(canRecord,json.GetProperty("CanRecord").GetBoolean());
         Assert.False(json.GetProperty("HideOriginalLiveTvHomeEntry").GetBoolean());
         Assert.Equal("Live-TV Control Center",json.GetProperty("DisplayName").GetString());
     }

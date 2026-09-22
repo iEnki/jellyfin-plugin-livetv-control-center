@@ -475,6 +475,7 @@ public class GroupsController : Controller
         return Ok(new
         {
             ChannelId = channel?.Id,
+            CanRecord = user.HasPermission(PermissionKind.EnableLiveTvManagement),
             HideOriginalLiveTvHomeEntry = configuration?.ShouldHideOriginalLiveTvHomeEntry(channel is not null) == true,
             JellyfinTvTargetsEnabled = configuration?.EnableJellyfinTvTargets != false,
             WholphinTargetsEnabled = configuration?.EnableWholphinTargets != false,

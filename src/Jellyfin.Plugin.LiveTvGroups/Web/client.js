@@ -50,6 +50,17 @@
         }
         return response.status === 204 ? null : response.json();
     }
+    async function tvApi(method, path, body) {
+        const response = await fetch(client().getUrl('LiveTv/' + path), {
+            method, headers: { Authorization:'MediaBrowser Token="'+client().accessToken()+'"', 'Accept-Language':window.LiveTvGroupsI18n.locale(), 'Content-Type':'application/json' },
+            body:body === undefined ? undefined : JSON.stringify(body)
+        });
+        if (!response.ok) {
+            const message = await response.text();
+            throw new Error(response.status === 403 ? t("Recording permission is required.") : message || t("Request failed (HTTP ")+response.status+')');
+        }
+        return response.status === 204 ? null : response.json();
+    }
     async function imageApi(method, path, body) {
         const response = await fetch(client().getUrl('LiveTvGroups/' + path), {
             method,
@@ -229,6 +240,7 @@
             +button('native-guide-apply',t("Use group on TV"),'disabled')+button('native-guide-reset',t("All channels on TV"),'disabled')
             +'<span class="ltvg-player-status" role="status" aria-live="polite">'+esc(playerMessage)+'</span></div>'
             +("<p class=\"ltvg-player-hint\">" + t("Jellyfin must be open in the foreground on the TV with the internal player.") + "</p>")
+            +'<p class="ltvg-recording-status" role="status" aria-live="polite" hidden></p>'
             +'<div class="ltvg-error" role="alert" hidden><span></span>'+button('refresh',t("Try again"))+'</div>'
             +'<div class="ltvg-content" aria-live="polite"></div>';
         root.querySelector('[data-control="group"]').value = state.group;
@@ -375,6 +387,86 @@
         }});document.body.appendChild(wrapper);wrapper.querySelector('input,select,button')?.focus();return wrapper;
     }
     function modalError(wrapper,e) { const target=wrapper.querySelector('.ltvg-modal-error');target.hidden=false;target.textContent=e.message; }
+    function recordingStatus(message) {
+        const status=page()?.querySelector('.ltvg-recording-status');
+        if(status){status.textContent=message;status.hidden=false;}
+    }
+
+    async function recording(programId) {
+        const expectedUser=userKey;
+        const wrapper=modal('<h2 id="ltvg-dialog-title">'+t("Recording")+'</h2><div class="ltvg-recording-body"><p role="status">'+t("Loading…")+'</p>'+button('close-recording',t("Close"))+'</div>');
+        const body=wrapper.querySelector('.ltvg-recording-body');
+        body.querySelector('[data-action="close-recording"]').onclick=closeModal;
+        try {
+            const program=await tvApi('GET','Programs/'+encodeURIComponent(programId)+'?userId='+encodeURIComponent(client().getCurrentUserId()));
+            if(!wrapper.isConnected || expectedUser!==userKey)return;
+            if(program.Type!=='Program')throw new Error(t("This item is not a TV program."));
+            const singleId=program.TimerId && program.Status!=='Cancelled' ? program.TimerId : null;
+            const seriesId=program.SeriesTimerId || null;
+            const channel=loadedChannels.find(c=>id(c.Id)===id(program.ChannelId));
+            const heading='<h3>'+esc(program.Name)+'</h3><p>'+esc(channel?.Name||program.ChannelName||'')+' · '+esc(dayLabel(program.StartDate))+' '+time(program.StartDate)+' – '+time(program.EndDate)+'</p>'
+                +(program.Overview?'<p>'+esc(program.Overview)+'</p>':'');
+            const details=button('full-details',t("Open Jellyfin details"));
+            if(entry?.CanRecord!==true){
+                body.innerHTML=heading+'<p role="status">'+t("Recording permission is required.")+'</p><div class="ltvg-modal-actions">'+button('close-recording',t("Close"))+details+'</div>';
+            }else{
+                const [defaults,single,series]=await Promise.all([
+                    tvApi('GET','Timers/Defaults?programId='+encodeURIComponent(program.Id)),
+                    singleId?tvApi('GET','Timers/'+encodeURIComponent(singleId)):Promise.resolve(null),
+                    seriesId?tvApi('GET','SeriesTimers/'+encodeURIComponent(seriesId)):Promise.resolve(null)
+                ]);
+                if(!wrapper.isConnected || expectedUser!==userKey)return;
+                body.innerHTML=heading+'<form class="ltvg-recording-form">'
+                    +(program.IsSeries?'<label>'+t("Recording type")+'<select class="ltvg-input" name="mode"><option value="single">'+t("This program")+'</option><option value="series">'+t("Series")+'</option></select></label>':'')
+                    +'<label>'+t("Start early (minutes)")+'<input class="ltvg-input" name="pre" type="number" min="0" max="180" step="1" required></label>'
+                    +'<label>'+t("End late (minutes)")+'<input class="ltvg-input" name="post" type="number" min="0" max="180" step="1" required></label>'
+                    +'<div class="ltvg-series-options" hidden><label><input type="checkbox" name="newOnly"> '+t("New episodes only")+'</label>'
+                    +'<label><input type="checkbox" name="anyTime"> '+t("Any airtime")+'</label>'
+                    +'<label><input type="checkbox" name="anyChannel"> '+t("Any channel")+'</label>'
+                    +'<label><input type="checkbox" name="skipLibrary"> '+t("Skip episodes already in the library")+'</label>'
+                    +'<label>'+t("Keep at most")+'<input class="ltvg-input" name="keepUpTo" type="number" min="0" max="50" step="1" required></label></div>'
+                    +'<div class="ltvg-modal-actions">'+button('close-recording',t("Close"))+details+button('remove-recording',t("Cancel recording"),'','ltvg-danger')
+                    +'<button type="submit" class="ltvg-btn ltvg-primary"></button></div></form>';
+                const form=body.querySelector('form');
+                const mode=()=>form.elements.mode?.value||'single';
+                const source=()=>mode()==='series'?series||defaults:single||defaults;
+                const redraw=()=>{
+                    const item=source(),isSeries=mode()==='series',existing=isSeries?series:single;
+                    form.elements.pre.value=Math.round((item.PrePaddingSeconds||0)/60);
+                    form.elements.post.value=Math.round((item.PostPaddingSeconds||0)/60);
+                    body.querySelector('.ltvg-series-options').hidden=!isSeries;
+                    form.elements.keepUpTo.value=item.KeepUpTo||0;
+                    if(isSeries){form.elements.newOnly.checked=!!item.RecordNewOnly;form.elements.anyTime.checked=!!item.RecordAnyTime;
+                        form.elements.anyChannel.checked=!!(series&&item.RecordAnyChannel);form.elements.skipLibrary.checked=!!item.SkipEpisodesInLibrary;}
+                    body.querySelector('[data-action="remove-recording"]').hidden=!existing;
+                    form.querySelector('[type="submit"]').textContent=existing?t("Save recording settings"):t("Schedule recording");
+                };
+                if(form.elements.mode && series && !single)form.elements.mode.value='series';
+                form.elements.mode?.addEventListener('change',redraw);redraw();
+                form.onsubmit=async e=>{
+                    e.preventDefault();if(expectedUser!==userKey)return;
+                    const save=form.querySelector('[type="submit"]');save.disabled=true;
+                    const isSeries=mode()==='series',existing=isSeries?!!series:!!single;
+                    const item={...source(),ProgramId:program.Id,ChannelId:program.ChannelId,
+                        PrePaddingSeconds:Number(form.elements.pre.value)*60,PostPaddingSeconds:Number(form.elements.post.value)*60};
+                    if(isSeries){item.RecordNewOnly=form.elements.newOnly.checked;item.RecordAnyTime=form.elements.anyTime.checked;
+                        item.RecordAnyChannel=form.elements.anyChannel.checked;item.SkipEpisodesInLibrary=form.elements.skipLibrary.checked;item.KeepUpTo=Number(form.elements.keepUpTo.value);}
+                    try{await tvApi('POST',isSeries?'SeriesTimers'+(series?'/'+encodeURIComponent(seriesId):''):'Timers'+(single?'/'+encodeURIComponent(singleId):''),item);
+                        closeModal();await render(true);recordingStatus(t(existing?"Recording settings saved.":"Recording scheduled."));
+                    }catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
+                };
+                body.querySelector('[data-action="remove-recording"]').onclick=async e=>{
+                    if(!window.confirm(t("Cancel this recording?")))return;
+                    const target=e.currentTarget;target.disabled=true;
+                    try{await tvApi('DELETE',mode()==='series'?'SeriesTimers/'+encodeURIComponent(seriesId):'Timers/'+encodeURIComponent(singleId));
+                        closeModal();await render(true);recordingStatus(t("Recording cancelled."));
+                    }catch(e){modalError(wrapper,e);}finally{target.disabled=false;}
+                };
+            }
+            body.querySelector('[data-action="close-recording"]').onclick=closeModal;
+            body.querySelector('[data-action="full-details"]').onclick=()=>{closeModal();capture();writeRoute();window.location.hash='#/details?id='+encodeURIComponent(program.Id)+'&serverId='+encodeURIComponent(client().serverId());};
+        }catch(e){if(wrapper.isConnected)modalError(wrapper,e);}
+    }
     function askName(title,initial='') {
         return new Promise(resolve=>{ const wrapper=modal('<h2 id="ltvg-dialog-title">'+esc(title)+'</h2><form><label>Name<input class="ltvg-input" maxlength="100" required value="'+esc(initial)+'"></label><div class="ltvg-modal-actions">'+button('cancel',t("Cancel"))+("<button class=\"ltvg-btn ltvg-primary\" type=\"submit\">" + t("Save") + "</button></div></form>"),()=>resolve(null));
             wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;wrapper.querySelector('form').onsubmit=e=>{e.preventDefault();const value=wrapper.querySelector('input').value.trim();modalCancel=null;closeModal();resolve(value||null);}; });
@@ -493,7 +585,8 @@
         if(action==='channel-access'){if(!window.LiveTvGroupsChannelAccess)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=client().getUrl('LiveTvGroups/channel-access.js');script.onload=resolve;script.onerror=()=>reject(new Error(t("Could not load channel access.")));document.head.appendChild(script);});await window.LiveTvGroupsChannelAccess.open();return;}
         if(action==='edit-channels'){await editChannels(value || state.group);return;}
         if(action.startsWith('group-')||action.startsWith('channel-')){await move(action,value);return;}
-        if(action==='details'||action==='play'){capture();writeRoute();if(action==='play'){if(prefs.PreferredTargetDeviceId){await playRemote(value);return;}if(playerBusy||playbackBusy)return;try{const sessions=await client().ajax({type:'GET',url:client().getUrl('Sessions',{deviceId:client().deviceId()})});if(!sessions.length)throw new Error(t("No session."));await client().ajax({type:'POST',url:client().getUrl('Sessions/'+sessions[0].Id+'/Playing',{playCommand:'PlayNow',itemIds:value})});return;}catch(_) { /* Native details remain the playback fallback. */ }}window.location.hash='#/details?id='+encodeURIComponent(value)+'&serverId='+encodeURIComponent(client().serverId());return;}
+        if(action==='details'){await recording(value);return;}
+        if(action==='play'){capture();writeRoute();if(prefs.PreferredTargetDeviceId){await playRemote(value);return;}if(playerBusy||playbackBusy)return;try{const sessions=await client().ajax({type:'GET',url:client().getUrl('Sessions',{deviceId:client().deviceId()})});if(!sessions.length)throw new Error(t("No session."));await client().ajax({type:'POST',url:client().getUrl('Sessions/'+sessions[0].Id+'/Playing',{playCommand:'PlayNow',itemIds:value})});return;}catch(_) { /* Native details remain the playback fallback. */ }window.location.hash='#/details?id='+encodeURIComponent(value)+'&serverId='+encodeURIComponent(client().serverId());return;}
         capture();restoreFocus=null;
         if(action==='manage')state.view='manage';
         else if(action==='open'){state.group=value;state.view='guide';if(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(value))){prefs.HiddenGroupIds=prefs.HiddenGroupIds.filter(hidden=>id(hidden)!==id(value));await savePreferences();}}

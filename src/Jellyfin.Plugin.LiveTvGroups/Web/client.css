@@ -79,6 +79,15 @@
 .ltvg-modal { display:flex; flex-direction:column; gap:1em; max-width:38em; width:100%; max-height:90vh; overflow:auto; background:var(--ltvg-surface); color:var(--jf-palette-text-primary,inherit); border-radius:.4em; padding:1.3em; box-sizing:border-box; }
 .ltvg-modal form { display:flex; flex-direction:column; gap:1em; }
 .ltvg-modal form > label { display:flex; flex-direction:column; gap:.4em; }
+.ltvg-recording-status { color:#56b883; margin:.5em 0; }
+.ltvg-recording-body h3 { margin:.2em 0; font-size:1.1em; }
+.ltvg-recording-body > p { margin:.4em 0 1em; }
+.ltvg-recording-form, .ltvg-series-options { display:flex; flex-direction:column; gap:.8em; }
+.ltvg-recording-form > label, .ltvg-series-options > label { display:flex; flex-direction:column; gap:.35em; }
+.ltvg-series-options > label:has([type="checkbox"]) { flex-direction:row; align-items:center; }
+.ltvg-recording-form [type="number"] { width:7em; }
+.ltvg-recording-form .ltvg-modal-actions { flex-wrap:wrap; }
+
 .ltvg-modal fieldset { border:1px solid rgba(128,128,128,.3); max-height:30vh; overflow:auto; }
 .ltvg-modal p { margin:0; }
 .ltvg-modal-actions { display:flex; justify-content:flex-end; gap:.5em; }

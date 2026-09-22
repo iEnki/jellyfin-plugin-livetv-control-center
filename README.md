@@ -303,6 +303,10 @@ A custom name is shared by all users and appears in the channel/library entry, w
 
 The groups-page **Administration** dialog also offers the mode/copy controls.
 
+### Schedule recordings from the web EPG
+
+Select a program in the grouped **TV guide** or **Programs** view to open its recording dialog. You can schedule one program, change its start/end padding, and later edit or cancel the timer. For a series, choose **Series** to configure new episodes, airtime, channels, library duplicates and how many recordings to keep. **Open Jellyfin details** still leads to the ordinary program page. Saving uses Jellyfin's built-in DVR and requires the user's **Manage Live TV recordings** permission; without it, the dialog explains why recording controls are unavailable. The group changes which programs you browse, not the DVR's recording storage or tuner behavior. Native TV apps continue to use their own recording controls.
+
 ### Phone as TV guide and remote
 
 Use your phone as a remote to start and switch Live TV channels on your TV. The grouped program guide makes it easier to find what to watch when you have many channels, while the TV continues playing. This works in Jellyfin mobile apps that load the server's web interface and in a mobile browser; see [Requirements and client support](#requirements-and-client-support).
