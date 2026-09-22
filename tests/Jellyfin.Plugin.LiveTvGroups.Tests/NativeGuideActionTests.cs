@@ -92,20 +92,49 @@ public class NativeGuideActionTests
         Assert.Equal(0, f.Sends);
     }
 
-    [Theory]
-    [InlineData("inactive")]
-    [InlineData("wrong-client")]
-    public async Task InvalidWholphinSessionNeverChangesScope(string reason)
+    [Fact]
+    public async Task WholphinSelectionDoesNotRequireRemoteCommandController()
     {
         using var f = new Fixture("Wholphin");
         f.ActionFolder.ExternalId = GroupsChannel.GetFolderExternalId(f.GroupId);
-        if (reason == "inactive")
+        f.Session.SessionControllers = [];
+
+        var result = await f.Actions.OpenAsync(f.Http, f.ActionFolder.Id, f.PluginId);
+
+        Assert.NotNull(result);
+        Assert.Equal(f.GroupId, f.Scopes.Get(f.User.Id, "tv"));
+        Assert.Equal(0, f.Sends);
+    }
+
+    [Fact]
+    public async Task WholphinFolderRequestScopesGuideAndHidesUnplayableMediaWithoutRemoteController()
+    {
+        using var f = new Fixture("Wholphin");
+        f.ActionFolder.ExternalId = GroupsChannel.GetFolderExternalId(f.GroupId);
+        f.Session.SessionControllers = [];
+
+        var response = await Invoke(f, "Items", "GetItems", "group-children");
+
+        Assert.Equal(f.GroupId, f.Scopes.Get(f.User.Id, "tv"));
+        Assert.Equal(2, response.Items.Count);
+        Assert.All(response.Items, item => Assert.True(item.IsFolder));
+        Assert.Equal(0, f.Sends);
+    }
+
+    [Theory]
+    [InlineData("wrong-client")]
+    [InlineData("wrong-device")]
+    public async Task MismatchedWholphinSessionNeverChangesScope(string reason)
+    {
+        using var f = new Fixture("Wholphin");
+        f.ActionFolder.ExternalId = GroupsChannel.GetFolderExternalId(f.GroupId);
+        if (reason == "wrong-client")
         {
-            f.Session.SessionControllers = [];
+            f.Session.Client = "Android TV";
         }
         else
         {
-            f.Session.Client = "Android TV";
+            f.Session.DeviceId = "other-tv";
         }
 
         Assert.Null(await f.Actions.OpenAsync(f.Http, f.ActionFolder.Id, f.PluginId));

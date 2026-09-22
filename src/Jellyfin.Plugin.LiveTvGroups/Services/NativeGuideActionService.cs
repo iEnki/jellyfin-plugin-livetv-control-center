@@ -117,8 +117,9 @@ public sealed class NativeGuideActionService(GroupService groups, IServiceProvid
     private static bool OwnTvSession(SessionInfo? session, Guid userId, string device, string? requestClient)
         => session is not null && !string.IsNullOrEmpty(session.Id) && session.UserId == userId && session.DeviceId == device
             && ((PlayerService.IsAndroidTvClient(requestClient) && PlayerService.IsAndroidTv(session))
-                || (PlayerService.IsWholphinClient(requestClient) && PlayerService.IsWholphinClient(session.Client)
-                    && session.IsActive && session.SessionControllers.Any(controller => controller.IsSessionActive)));
+                // This authenticated request is Wholphin's liveness proof. Unlike Android TV navigation,
+                // selecting a group does not require a remote-command/WebSocket controller.
+                || (PlayerService.IsWholphinClient(requestClient) && PlayerService.IsWholphinClient(session.Client)));
 }
 
 public sealed record NativeGuideActionResult(Guid? GroupId, string? GroupName, bool NavigationCommandSent, bool DirectGroupEntry);
