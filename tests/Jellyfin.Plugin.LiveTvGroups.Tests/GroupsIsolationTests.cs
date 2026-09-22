@@ -21,6 +21,7 @@ public class GroupsIsolationTests
         new PluginServiceRegistrator().RegisterServices(services, null!);
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IStartupFilter));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(Jellyfin.Plugin.LiveTvGroups.Api.NativeGuideChannelFilter));
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(Jellyfin.Plugin.LiveTvGroups.Api.WholphinCompatibilityFilter));
     }
 
     [Fact]

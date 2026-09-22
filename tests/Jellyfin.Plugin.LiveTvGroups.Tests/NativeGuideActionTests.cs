@@ -74,6 +74,45 @@ public class NativeGuideActionTests
         Assert.Equal(f.User.Id, f.Command.ControllingUserId);
     }
 
+    [Fact]
+    public async Task WholphinGroupAndAllChannelsVisitsUpdateScopeWithoutSendingDisplayContent()
+    {
+        using var f = new Fixture("Wholphin");
+        f.ActionFolder.ExternalId = GroupsChannel.GetFolderExternalId(f.GroupId);
+        var selected = await f.Actions.OpenAsync(f.Http, f.ActionFolder.Id, f.PluginId);
+        Assert.NotNull(selected);
+        Assert.False(selected.NavigationCommandSent);
+        Assert.Equal(f.GroupId, f.Scopes.Get(f.User.Id, "tv"));
+
+        f.ActionFolder.ExternalId = NativeGuideActionRoute.AllChannelsId;
+        var reset = await f.Actions.OpenAsync(f.Http, f.ActionFolder.Id, f.PluginId);
+        Assert.NotNull(reset);
+        Assert.Null(reset.GroupId);
+        Assert.Null(f.Scopes.GetSelection(f.User.Id, "tv"));
+        Assert.Equal(0, f.Sends);
+    }
+
+    [Theory]
+    [InlineData("inactive")]
+    [InlineData("wrong-client")]
+    public async Task InvalidWholphinSessionNeverChangesScope(string reason)
+    {
+        using var f = new Fixture("Wholphin");
+        f.ActionFolder.ExternalId = GroupsChannel.GetFolderExternalId(f.GroupId);
+        if (reason == "inactive")
+        {
+            f.Session.SessionControllers = [];
+        }
+        else
+        {
+            f.Session.Client = "Android TV";
+        }
+
+        Assert.Null(await f.Actions.OpenAsync(f.Http, f.ActionFolder.Id, f.PluginId));
+        Assert.Null(f.Scopes.Get(f.User.Id, "tv"));
+        Assert.Equal(0, f.Sends);
+    }
+
     [Theory]
     [InlineData("Android TV")]
     [InlineData("Jellyfin for Android TV")]

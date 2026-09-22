@@ -30,8 +30,9 @@ public sealed class NativeGuideActionService(GroupService groups, IServiceProvid
 
     public async Task<NativeGuideActionResult?> OpenAsync(HttpContext http, Guid parentId, Guid? requestedChannel)
     {
+        var client = http.User.FindFirst("Jellyfin-Client")?.Value;
         if (http.User.Identity?.IsAuthenticated != true || http.User.FindFirst("Jellyfin-IsApiKey")?.Value != "False"
-            || !PlayerService.IsAndroidTvClient(http.User.FindFirst("Jellyfin-Client")?.Value)) return null;
+            || !PlayerService.IsNativeGuideClient(client)) return null;
         var device = http.User.FindFirst("Jellyfin-DeviceId")?.Value;
         if (!Guid.TryParse(http.User.FindFirst("Jellyfin-UserId")?.Value, out var userId)
             || userId == Guid.Empty || string.IsNullOrWhiteSpace(device) || device.Length > 512) return null;
@@ -58,7 +59,7 @@ public sealed class NativeGuideActionService(GroupService groups, IServiceProvid
         var sessions = services.GetRequiredService<ISessionManager>();
         var caller = await sessions.GetSessionByAuthenticationToken(auth.Token, auth.DeviceId,
             http.Connection.RemoteIpAddress?.ToString()).ConfigureAwait(false);
-        if (!OwnTvSession(caller, userId, device)) return null;
+        if (!OwnTvSession(caller, userId, device, client)) return null;
         var scopes = services.GetRequiredService<NativeGuideService>();
         await _gate.WaitAsync(http.RequestAborted).ConfigureAwait(false);
         try
@@ -79,7 +80,8 @@ public sealed class NativeGuideActionService(GroupService groups, IServiceProvid
             // Resolve the caller again: a logout/reconnect must never target a replacement session/user.
             var current = sessions.Sessions.FirstOrDefault(s => s.Id == caller!.Id);
             var sent = false;
-            if (OwnTvSession(current, userId, device) && current!.IsActive && current.SessionControllers.Any(c => c.IsSessionActive) && current.NowPlayingItem is null
+            if (OwnTvSession(current, userId, device, client) && PlayerService.IsAndroidTv(current!)
+                && current!.IsActive && current.SessionControllers.Any(c => c.IsSessionActive) && current.NowPlayingItem is null
                 && current.Capabilities.SupportedCommands.Contains(GeneralCommandType.DisplayContent))
             {
                 try
@@ -112,9 +114,11 @@ public sealed class NativeGuideActionService(GroupService groups, IServiceProvid
 
     public void Dispose() => _gate.Dispose();
 
-    private static bool OwnTvSession(SessionInfo? session, Guid userId, string device)
+    private static bool OwnTvSession(SessionInfo? session, Guid userId, string device, string? requestClient)
         => session is not null && !string.IsNullOrEmpty(session.Id) && session.UserId == userId && session.DeviceId == device
-            && PlayerService.IsAndroidTv(session);
+            && ((PlayerService.IsAndroidTvClient(requestClient) && PlayerService.IsAndroidTv(session))
+                || (PlayerService.IsWholphinClient(requestClient) && PlayerService.IsWholphinClient(session.Client)
+                    && session.IsActive && session.SessionControllers.Any(controller => controller.IsSessionActive)));
 }
 
 public sealed record NativeGuideActionResult(Guid? GroupId, string? GroupName, bool NavigationCommandSent, bool DirectGroupEntry);

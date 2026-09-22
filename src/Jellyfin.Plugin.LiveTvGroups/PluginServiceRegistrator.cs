@@ -38,6 +38,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<NativeGuideActionService>();
         serviceCollection.AddScoped<NativeGuideActionFilter>();
         serviceCollection.PostConfigure<MvcOptions>(options => options.Filters.AddService<NativeGuideActionFilter>(-800));
+        serviceCollection.AddScoped<WholphinCompatibilityFilter>();
+        serviceCollection.PostConfigure<MvcOptions>(options => options.Filters.AddService<WholphinCompatibilityFilter>(-850));
         serviceCollection.AddScoped<NativeGuideChannelFilter>();
         serviceCollection.PostConfigure<MvcOptions>(options => options.Filters.AddService<NativeGuideChannelFilter>(-900));
         serviceCollection.AddSingleton<PlaylistSyncService>();
