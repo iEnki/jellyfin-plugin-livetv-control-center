@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Beta 1.1.0.9: Open a recording dialog from programs in the grouped web EPG. Schedule, edit and cancel single or series timers using Jellyfin DVR, with padding and series options. Preserve the normal Jellyfin detail link, enforce the user's Live TV management permission and show save errors without losing the dialog. Native TV guide behavior remains unchanged.
+- Beta 1.1.0.9: Open a recording dialog from programs in the grouped web EPG. Schedule, edit and cancel single or series timers using Jellyfin DVR, with padding and series options. Preserve the normal Jellyfin detail link, enforce the user's Live TV management permission and show save errors without losing the dialog. Save the existing Control Center channel's Primary logo so it appears on the Jellyfin home tile. Native TV guide behavior remains unchanged.
 
 - Beta 1.1.0.8: Restore the independent web EPG when a reverse proxy returns a cached 504 for the old versioned client script URL. Use a new version parameter for the injected script; native TV folders and guide filtering are unchanged.
 

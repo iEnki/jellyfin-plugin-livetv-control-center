@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,9 +9,13 @@ using Jellyfin.Plugin.LiveTvGroups.Api;
 using Jellyfin.Plugin.LiveTvGroups.Channel;
 using Jellyfin.Plugin.LiveTvGroups.Configuration;
 using Jellyfin.Plugin.LiveTvGroups.Services;
+using Jellyfin.Plugin.LiveTvGroups.Storage;
 using Jellyfin.Plugin.LiveTvGroups.Web;
 using MediaBrowser.Controller.Configuration;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -60,22 +66,49 @@ public class LocalizationTests
     }
 
     [Fact]
-    public async Task LibraryRenameRetainsIdentityAndDoesNotWriteUnchangedMetadata()
+    public async Task LibraryTileGetsLogoWithoutChangingIdentityOrRepeatedWrites()
     {
-        var id = Guid.NewGuid(); var writes = 0;
-        var channel = new MediaBrowser.Controller.Channels.Channel { Id = id, ChannelId = id, Name = GroupsChannel.ChannelName };
-        var library = InterfaceStub.Create<ILibraryManager>((method, args) =>
+        var directory = Path.Combine(Path.GetTempPath(), "ltvg-root-logo-" + Guid.NewGuid().ToString("N"));
+        var previousFileSystem = BaseItem.FileSystem;
+        try
         {
-            if (method.Name == "GetNewItemId") { Assert.Equal("Channel Live-TV Gruppen", args![0]); Assert.Equal(typeof(MediaBrowser.Controller.Channels.Channel), args[1]); return id; }
-            if (method.Name == "GetItemById") return channel;
-            if (method.Name == "UpdateItemAsync") { writes++; Assert.Equal(id, channel.Id);Assert.Equal(id, channel.ChannelId);return Task.CompletedTask; }
-            throw new NotSupportedException(method.Name);
-        });
-        using var services = new ServiceCollection().AddSingleton(library).BuildServiceProvider();
-        var service = new ChannelDisplayNameService(services, InterfaceStub.Create<IHostApplicationLifetime>((m,a)=>null), NullLogger<ChannelDisplayNameService>.Instance);
-        await service.UpdateDisplayName(CancellationToken.None);
-        Assert.Equal("Live-TV Control Center", channel.Name);Assert.Equal(1,writes);
-        await service.UpdateDisplayName(CancellationToken.None);Assert.Equal(1,writes);
+            var id = Guid.NewGuid();
+            var writes = new List<ItemUpdateType>();
+            var channel = new MediaBrowser.Controller.Channels.Channel { Id = id, ChannelId = id, Name = GroupsChannel.ChannelName };
+            var library = InterfaceStub.Create<ILibraryManager>((method, args) =>
+            {
+                if (method.Name == "GetNewItemId") { Assert.Equal("Channel Live-TV Gruppen", args![0]); Assert.Equal(typeof(MediaBrowser.Controller.Channels.Channel), args[1]); return id; }
+                if (method.Name == "GetItemById") return channel;
+                if (method.Name == "UpdateItemAsync") { writes.Add((ItemUpdateType)args![2]!); Assert.Equal(id, channel.Id); Assert.Equal(id, channel.ChannelId); return Task.CompletedTask; }
+                throw new NotSupportedException(method.Name);
+            });
+            var files = InterfaceStub.Create<IFileSystem>((method, args) => method.Name switch
+            {
+                "GetFileInfo" => new FileSystemMetadata { FullName = (string)args![0]!, Exists = true, LastWriteTimeUtc = File.GetLastWriteTimeUtc((string)args[0]!) },
+                "GetLastWriteTimeUtc" => ((FileSystemMetadata)args![0]!).LastWriteTimeUtc,
+                _ => throw new NotSupportedException(method.Name)
+            });
+            BaseItem.FileSystem = files;
+            var artwork = new GroupArtworkService(new GroupStore(Path.Combine(directory, "users")), null!, NullLogger<GroupArtworkService>.Instance);
+            using var services = new ServiceCollection().AddSingleton(library).AddSingleton(files).AddSingleton(artwork).BuildServiceProvider();
+            var service = new ChannelDisplayNameService(services, InterfaceStub.Create<IHostApplicationLifetime>((m,a)=>null), NullLogger<ChannelDisplayNameService>.Instance);
+
+            await service.UpdateDisplayName(CancellationToken.None);
+            Assert.Equal("Live-TV Control Center", channel.Name);
+            Assert.Equal(artwork.RootLogoPath, channel.GetImageInfo(ImageType.Primary, 0)?.Path);
+            Assert.Equal([ItemUpdateType.ImageUpdate], writes);
+            await service.UpdateDisplayName(CancellationToken.None);
+            Assert.Single(writes);
+
+            channel.Name = GroupsChannel.ChannelName;
+            await service.UpdateDisplayName(CancellationToken.None);
+            Assert.Equal([ItemUpdateType.ImageUpdate, ItemUpdateType.MetadataEdit], writes);
+        }
+        finally
+        {
+            BaseItem.FileSystem = previousFileSystem;
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
     }
     [Theory]
     [InlineData(true, true)]
