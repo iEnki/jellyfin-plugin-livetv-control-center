@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/iEnki/jellyfin-plugin-livetv-control-center/main/assets/Live-TV_Control_Center_Logo.png",
     "versions": [
       {
+        "version": "1.2.0.0",
+        "changelog": "- Support Wholphin in the native Live TV guide: select a group or **All channels** directly in its compatible Control Center folders, then open **Live TV → TV Guide**. Group selection applies only to the authenticated user's device, respects current group/channel permissions, and restores the full guide on reset. Wholphin does not support an automatic guide jump.\n- Add administrator switches for the official Jellyfin Android TV / Fire TV app and Wholphin. A sole eligible TV is selected automatically; with several TVs, the last available choice is remembered per user. Disabled or disconnected devices cannot receive playback or guide changes.\n- Add recognizable artwork to the Control Center home tile, guide actions, confirmation and fallback folders. **All channels** has its own EPG-reset image; created groups have a distinct group image. Personal and shared groups can use custom PNG, JPEG or WebP images up to 5 MiB, with preview and reset controls and permission checks.\n- Add recording controls to the grouped web EPG. Users with Jellyfin's Live TV management permission can schedule, edit and cancel single-program or series timers, including padding and series options; recording errors remain visible in the dialog.\n- Restore reliable loading of the independent web EPG behind reverse proxies that cached its old script URL. Preserve original channel logos, official Android TV / Fire TV behavior, channel playback and the existing plugin identity and settings.\n\n",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/iEnki/jellyfin-plugin-livetv-control-center/releases/download/v1.2.0.0/live-tv-control-center_1.2.0.0.zip",
+        "checksum": "d900f08648cb8489ef41c2b1e238da9b",
+        "timestamp": "2026-09-26T19:30:41Z"
+      },
+      {
         "version": "1.1.0.0",
         "changelog": "- Selecting a group in the official Android TV / Fire TV app immediately applies that group's native guide scope and opens the ordinary Live TV view. The separate Native TV guide action remains available to retry.\n- Hide direct grouped-channel media tiles from that authenticated TV response while keeping the native guide action and browsable program-list fallback. Internal channel items and playlists remain unchanged.\n- Retain per-user/device validation, group access checks and safe behavior when navigation is unavailable. The original app may still require selecting TV Guide after opening Live TV; a direct timeline deep link is not exposed by the stock client.\n\n",
         "targetAbi": "12.0.0.0",
