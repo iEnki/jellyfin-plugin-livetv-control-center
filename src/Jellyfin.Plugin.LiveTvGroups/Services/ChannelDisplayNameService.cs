@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Jellyfin.Plugin.LiveTvGroups.Channel;
 using MediaBrowser.Controller.Channels;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -43,11 +45,27 @@ public sealed class ChannelDisplayNameService(IServiceProvider services, IHostAp
         if (channel is MediaBrowser.Controller.Channels.Channel)
         {
             var name = PluginLocalization.DisplayName(Plugin.Instance?.Configuration, PluginLocalization.ServerLanguage(services));
-            if (!string.Equals(channel.Name, name, StringComparison.Ordinal))
+            var nameChanged = !string.Equals(channel.Name, name, StringComparison.Ordinal);
+            if (nameChanged)
             {
                 channel.Name = name;
                 channel.SortName = null;
-                await library.UpdateItemAsync(channel, null!, ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+            }
+
+            // An existing channel may never have had its dynamic image saved. The web home
+            // tile only renders an image when the channel DTO contains a Primary image tag.
+            var logo = services.GetRequiredService<GroupArtworkService>().RootLogoPath;
+            var imageChanged = !string.Equals(channel.GetImageInfo(ImageType.Primary, 0)?.Path, logo, StringComparison.Ordinal);
+            if (imageChanged)
+            {
+                channel.SetImagePath(ImageType.Primary, 0, services.GetRequiredService<IFileSystem>().GetFileInfo(logo));
+                channel.DateModified = DateTime.UtcNow;
+                channel.OnMetadataChanged();
+            }
+
+            if (nameChanged || imageChanged)
+            {
+                await library.UpdateItemAsync(channel, null!, imageChanged ? ItemUpdateType.ImageUpdate : ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
             }
         }
     }

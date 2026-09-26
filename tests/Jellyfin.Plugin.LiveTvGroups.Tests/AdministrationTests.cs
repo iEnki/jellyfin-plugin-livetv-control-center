@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using Jellyfin.Data;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Database.Implementations.Enums;
@@ -51,19 +52,19 @@ public class AdministrationTests
     }
 
     [Fact]
-    public void PersonalGroupsRemainIsolatedAndSurviveModeSwitchAndAdminImport()
+    public async Task PersonalGroupsRemainIsolatedAndSurviveModeSwitchAndAdminImport()
     {
         using var f = new Fixture();
         f.Groups.Update(f.Admin, doc => { doc.Groups.Add(new() { Id = f.Group, Name = "Admin Personal" }); return true; });
         f.Groups.Update(f.Alice, doc => { doc.Groups.Add(new() { Id = Guid.NewGuid(), Name = "Alice Personal" }); return true; });
         Assert.Equal("Alice Personal", Assert.Single(f.Groups.GetGroups(f.Alice)).Name);
         var api = f.Api(f.Admin);
-        Assert.IsType<NoContentResult>(api.SetAdministration(new() { Mode = "shared", ImportPersonalGroups = true }));
+        Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "shared", ImportPersonalGroups = true }));
         Assert.Equal("Admin Personal", Assert.Single(f.Groups.GetGroups(f.Alice)).Name);
-        Assert.IsType<NoContentResult>(api.SetAdministration(new() { Mode = "shared", ImportPersonalGroups = true }));
+        Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "shared", ImportPersonalGroups = true }));
         Assert.Single(f.Store.GetAdministration().Groups);
         Assert.NotSame(f.Store.Get(f.Admin.Id).Groups[0], f.Store.GetAdministration().Groups[0]);
-        Assert.IsType<NoContentResult>(api.SetAdministration(new() { Mode = "personal" }));
+        Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "personal" }));
         Assert.Equal("Alice Personal", Assert.Single(f.Groups.GetGroups(f.Alice)).Name);
         Assert.Equal("Admin Personal", Assert.Single(f.Groups.GetGroups(f.Admin)).Name);
     }
@@ -88,17 +89,17 @@ public class AdministrationTests
     }
 
     [Fact]
-    public void AdministrationEndpointsRequireAdminAndRejectUnknownUsersAndModes()
+    public async Task AdministrationEndpointsRequireAdminAndRejectUnknownUsersAndModes()
     {
         using var f = new Fixture();
         f.Shared();
         var api = f.Api(f.Alice);
         Assert.IsType<ForbidResult>(api.GetAdministration());
-        Assert.IsType<ForbidResult>(api.SetAdministration(new() { Mode = "personal" }));
+        Assert.IsType<ForbidResult>(await api.SetAdministration(new() { Mode = "personal" }));
         Assert.IsType<ForbidResult>(api.SetGroupAccess(f.Group, new() { DeniedUserIds = [f.Bob.Id] }));
         api = f.Api(f.Admin);
-        Assert.IsType<BadRequestObjectResult>(api.SetAdministration(new() { Mode = "invalid" }));
-        Assert.IsType<BadRequestObjectResult>(api.SetAdministration(new() { Mode = "personal", ImportPersonalGroups = true }));
+        Assert.IsType<BadRequestObjectResult>(await api.SetAdministration(new() { Mode = "invalid" }));
+        Assert.IsType<BadRequestObjectResult>(await api.SetAdministration(new() { Mode = "personal", ImportPersonalGroups = true }));
         Assert.IsType<BadRequestObjectResult>(api.SetGroupAccess(f.Group, new() { AllowedUserIds = [Guid.NewGuid()] }));
         Assert.IsType<NotFoundResult>(api.SetGroupAccess(Guid.NewGuid(), new()));
         foreach (var method in new[] { "GetAdministration", "SetAdministration", "SetGroupAccess" })
@@ -166,6 +167,7 @@ public class AdministrationTests
         private readonly ServiceProvider _services;
         private readonly IUserManager _users;
         private readonly PlaylistSyncService _sync;
+        private readonly GroupArtworkService _artwork;
         public Fixture()
         {
             Store = new(Directory);
@@ -179,6 +181,7 @@ public class AdministrationTests
             _services = new ServiceCollection().AddSingleton(Store).AddSingleton<GroupService>().AddSingleton(_users).BuildServiceProvider();
             Groups = _services.GetRequiredService<GroupService>();
             _sync = new(Groups, _services, NullLogger<PlaylistSyncService>.Instance);
+            _artwork = new(Store, _services, NullLogger<GroupArtworkService>.Instance);
         }
 
         public void Shared() => Store.UpdateAdministration(config =>
@@ -188,7 +191,7 @@ public class AdministrationTests
             return true;
         });
 
-        public GroupsController Api(User user) => new(Groups, _users, null!, new WebInjectionStatus(), _sync)
+        public GroupsController Api(User user) => new(Groups, _users, null!, new WebInjectionStatus(), _sync, _artwork)
         {
             ControllerContext = new()
             {

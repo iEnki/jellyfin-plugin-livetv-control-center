@@ -9,6 +9,7 @@ using Jellyfin.Data;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.LiveTvGroups.Api;
+using Jellyfin.Plugin.LiveTvGroups.Configuration;
 using Jellyfin.Plugin.LiveTvGroups.Model;
 using Jellyfin.Plugin.LiveTvGroups.Services;
 using Jellyfin.Plugin.LiveTvGroups.Storage;
@@ -31,6 +32,29 @@ namespace Jellyfin.Plugin.LiveTvGroups.Tests;
 public class PlayerTests
 {
     [Theory]
+    [InlineData(true, true, "Jellyfin Android TV", true)]
+    [InlineData(true, true, "Wholphin", true)]
+    [InlineData(true, true, "Jellyfin Web", true)]
+    [InlineData(true, false, "Jellyfin Android TV", true)]
+    [InlineData(true, false, "Wholphin", false)]
+    [InlineData(false, true, "Wholphin", true)]
+    [InlineData(false, true, "Jellyfin Android TV", false)]
+    [InlineData(false, false, "Wholphin", false)]
+    public void TargetAppSettingsFilterSessions(bool jellyfin, bool wholphin, string client, bool expected)
+    {
+        var configuration = new PluginConfiguration { EnableJellyfinTvTargets = jellyfin, EnableWholphinTargets = wholphin };
+        Assert.Equal(expected, PlayerService.IsConfiguredTarget(client, configuration));
+    }
+
+    [Fact]
+    public void ExistingInstallationsKeepBothTargetAppsEnabled()
+    {
+        var configuration = new PluginConfiguration();
+        Assert.True(configuration.EnableJellyfinTvTargets);
+        Assert.True(configuration.EnableWholphinTargets);
+    }
+
+    [Theory]
     [InlineData("Android TV")]
     [InlineData("Jellyfin Android TV")]
     [InlineData("Jellyfin for Android TV")]
@@ -49,6 +73,23 @@ public class PlayerTests
         Assert.Empty(f.Players.GetPlayers(f.User));
         Assert.IsType<ConflictObjectResult>(await f.Api.Play(target.DeviceId, f.Channel.Id));
         Assert.Single(f.Commands);
+    }
+
+    [Theory]
+    [InlineData("Wholphin")]
+    [InlineData("Wholphin (Debug)")]
+    public void WholphinCanSetGuideOnlyWithOwnActiveRemoteSession(string client)
+    {
+        using var f = new Fixture(); var target = f.Target(client: client);
+        Assert.False(f.Players.CanSetNativeGuide(f.User, target.DeviceId));
+        target.Capabilities = new ClientCapabilities { SupportsMediaControl = true };
+        target.SessionControllers = [Controller(true, true)];
+        Assert.Equal(target.DeviceId, Assert.Single(f.Players.GetPlayers(f.User)).DeviceId);
+        Assert.True(f.Players.CanSetNativeGuide(f.User, target.DeviceId));
+        target.UserId = f.Other.Id;
+        Assert.False(f.Players.CanSetNativeGuide(f.User, target.DeviceId));
+        target.UserId = f.User.Id; target.SessionControllers = [];
+        Assert.False(f.Players.CanSetNativeGuide(f.User, target.DeviceId));
     }
 
     [Fact]

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Jellyfin.Data;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Database.Implementations.Enums;
+using Jellyfin.Plugin.LiveTvGroups.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Controller.Session;
@@ -33,7 +34,9 @@ public class PlayerService
     public IReadOnlyList<PlayerDto> GetPlayers(User user)
     {
         RequirePlaybackAccess(user);
+        var configuration = Plugin.Instance?.Configuration;
         return EligibleSessions(user)
+            .Where(s => IsConfiguredTarget(s.Client, configuration))
             .GroupBy(s => s.DeviceId, StringComparer.Ordinal)
             .Select(g => g.First())
             .Select(s => new PlayerDto(s.DeviceId, s.DeviceName, s.Client,
@@ -45,11 +48,13 @@ public class PlayerService
     public PlayerDto? FindPlayer(User user, string deviceId)
         => GetPlayers(user).FirstOrDefault(p => string.Equals(p.DeviceId, deviceId, StringComparison.Ordinal));
 
-    /// <summary>Guide scopes initially support only official TV sessions signed into the caller's own user.</summary>
+    /// <summary>Guide scopes require a supported TV client signed into the caller's own user.</summary>
     public bool CanSetNativeGuide(User user, string deviceId)
     {
         RequirePlaybackAccess(user);
-        return EligibleSessions(user).Any(s => s.UserId == user.Id && IsAndroidTv(s)
+        var configuration = Plugin.Instance?.Configuration;
+        return EligibleSessions(user).Any(s => s.UserId == user.Id && IsNativeGuideClient(s.Client)
+            && IsConfiguredTarget(s.Client, configuration)
             && string.Equals(s.DeviceId, deviceId, StringComparison.Ordinal));
     }
 
@@ -71,7 +76,8 @@ public class PlayerService
             throw new SecurityException("Die aufrufende Sitzung gehört nicht zum angemeldeten Benutzer.");
         }
 
-        var target = EligibleSessions(user).FirstOrDefault(s => string.Equals(s.DeviceId, deviceId, StringComparison.Ordinal));
+        var target = EligibleSessions(user).FirstOrDefault(s => IsConfiguredTarget(s.Client, Plugin.Instance?.Configuration)
+            && string.Equals(s.DeviceId, deviceId, StringComparison.Ordinal));
         if (target is null)
         {
             throw new PlayerUnavailableException("Target unavailable. Open Jellyfin on the TV and refresh devices.");
@@ -157,6 +163,20 @@ public class PlayerService
             || string.Equals(client, "Jellyfin Android TV", StringComparison.OrdinalIgnoreCase)
             || string.Equals(client, "Jellyfin for Android TV", StringComparison.OrdinalIgnoreCase)
             || string.Equals(client, "Jellyfin for Android TV (debug)", StringComparison.OrdinalIgnoreCase);
+
+    internal static bool IsNativeGuideClient(string? client)
+        => IsAndroidTvClient(client) || IsWholphinClient(client);
+
+    internal static bool IsWholphinClient(string? client)
+        => string.Equals(client, "Wholphin", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(client, "Wholphin (Debug)", StringComparison.OrdinalIgnoreCase);
+
+    internal static bool IsConfiguredTarget(string? client, PluginConfiguration? configuration)
+    {
+        var jellyfin = configuration?.EnableJellyfinTvTargets != false;
+        var wholphin = configuration?.EnableWholphinTargets != false;
+        return (jellyfin && wholphin) || (jellyfin && IsAndroidTvClient(client)) || (wholphin && IsWholphinClient(client));
+    }
 
     private static void RequirePlaybackAccess(User user)
     {

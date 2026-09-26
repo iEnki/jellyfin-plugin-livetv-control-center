@@ -30,6 +30,9 @@ public class GroupStore
         _directory = directory;
     }
 
+    /// <summary>Gets the storage directory used by this store.</summary>
+    internal string StorageDirectory => _directory;
+
     /// <summary>
     /// Gets a snapshot of the groups of a user. Callers must not modify it.
     /// </summary>

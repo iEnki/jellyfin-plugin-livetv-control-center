@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Rebuilds manifest-dev.json on the "dev-channel" pre-release:
-# all stable versions from manifest.json plus development builds newer than the latest stable version.
+# The dev catalog includes stable releases and newer dev builds. The beta catalog
+# contains only its latest beta, including a final beta matching a stable version.
 # Usage: update-dev-manifest.sh <stable-manifest.json> [entry.json] [channel] [catalog] [marker] [branding-manifest]
 set -euo pipefail
 
@@ -29,10 +30,10 @@ jq --slurpfile old "$work/$catalog" --slurpfile branding "$branding" --argjson n
   (.[0].versions | map(.version | ver) | max) as $latest
   | ([ $old[0][0].versions[]? | select(.changelog | startswith($marker)) ]) as $devs
   | ((if $new == null then [] else [$new] end) + $devs
-      | map(select(.version | ver > ($latest // [0])))
+      | map(select(.version | ver >= ($latest // [0])))
       | unique_by(.version)
       | sort_by(.version | ver) | reverse) as $keep
-  | .[0].versions = ($keep + .[0].versions)
+  | .[0].versions = (if $marker == "[BETA]" then $keep[:1] else ($keep | map(select(.version | ver > ($latest // [0])))) + .[0].versions end)
   | if ($branding[0][0].imageUrl // "") != "" then .[0].imageUrl = $branding[0][0].imageUrl else . end
 ' "$stable" > "$catalog"
 

@@ -62,6 +62,14 @@
                         </label>
                         <div class="fieldDescription checkboxFieldDescription">For apps without channel support, such as Wholphin. Groups appear as user playlists named Live-TV: Name. Requires the app channel. Disabling this removes the mirrored playlists.</div>
                     </div>
+                    <h3>TV target apps</h3>
+                    <p>Choose which TV apps users may select from the web/mobile guide. Keep at least one app enabled. With one available TV it is selected automatically; with several TVs, the last available choice stays selected.</p>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label"><input id="EnableJellyfinTvTargets" type="checkbox" is="emby-checkbox" /><span>Jellyfin Android TV / Fire TV</span></label>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label"><input id="EnableWholphinTargets" type="checkbox" is="emby-checkbox" /><span>Wholphin</span></label>
+                    </div>
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
                             <span>Save</span>
@@ -126,6 +134,8 @@
                         page.querySelector('#EnableAppChannel').checked = config.EnableAppChannel;
                         page.querySelector('#HideOriginalLiveTvHomeEntry').checked = config.HideOriginalLiveTvHomeEntry === true;
                         page.querySelector('#EnablePlaylistSync').checked = config.EnablePlaylistSync;
+                        page.querySelector('#EnableJellyfinTvTargets').checked = config.EnableJellyfinTvTargets !== false;
+                        page.querySelector('#EnableWholphinTargets').checked = config.EnableWholphinTargets !== false;
                     }).catch(function () { Dashboard.alert(t("Could not load settings.")); }).finally(function () { Dashboard.hideLoadingMsg(); });
                 });
 
@@ -144,6 +154,9 @@
                         config.HideOriginalLiveTvHomeEntry = page.querySelector('#HideOriginalLiveTvHomeEntry').checked;
                         if (page.querySelector('#EnablePlaylistSync').checked && !page.querySelector('#EnableAppChannel').checked) { throw new Error(t("Playlists require the app channel.")); }
                         config.EnablePlaylistSync = page.querySelector('#EnablePlaylistSync').checked;
+                        config.EnableJellyfinTvTargets = page.querySelector('#EnableJellyfinTvTargets').checked;
+                        config.EnableWholphinTargets = page.querySelector('#EnableWholphinTargets').checked;
+                        if (!config.EnableJellyfinTvTargets && !config.EnableWholphinTargets) throw new Error(t('Enable at least one TV target app.'));
                         return fetch(ApiClient.getUrl('LiveTvGroups/Administration'), {
                             method: 'PUT', headers: { Authorization: 'MediaBrowser Token="' + ApiClient.accessToken() + '"', 'Content-Type': 'application/json' },
                             body: JSON.stringify({ Mode: page.querySelector('#GroupMode').value, ImportPersonalGroups: page.querySelector('#ImportPersonalGroups').checked })

@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.2.0.0
+
+- Support Wholphin in the native Live TV guide: select a group or **All channels** directly in its compatible Control Center folders, then open **Live TV → TV Guide**. Group selection applies only to the authenticated user's device, respects current group/channel permissions, and restores the full guide on reset. Wholphin does not support an automatic guide jump.
+- Add administrator switches for the official Jellyfin Android TV / Fire TV app and Wholphin. A sole eligible TV is selected automatically; with several TVs, the last available choice is remembered per user. Disabled or disconnected devices cannot receive playback or guide changes.
+- Add recognizable artwork to the Control Center home tile, guide actions, confirmation and fallback folders. **All channels** has its own EPG-reset image; created groups have a distinct group image. Personal and shared groups can use custom PNG, JPEG or WebP images up to 5 MiB, with preview and reset controls and permission checks.
+- Add recording controls to the grouped web EPG. Users with Jellyfin's Live TV management permission can schedule, edit and cancel single-program or series timers, including padding and series options; recording errors remain visible in the dialog.
+- Restore reliable loading of the independent web EPG behind reverse proxies that cached its old script URL. Preserve original channel logos, official Android TV / Fire TV behavior, channel playback and the existing plugin identity and settings.
 
 ## 1.1.0.0
 

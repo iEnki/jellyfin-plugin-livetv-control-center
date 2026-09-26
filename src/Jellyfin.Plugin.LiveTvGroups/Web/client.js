@@ -38,6 +38,7 @@
     const image = (item, height = 160) => item.ImageTags && item.ImageTags.Primary
         ? client().getScaledImageUrl(item.Id, { type:'Primary', maxHeight:height, tag:item.ImageTags.Primary }) : '';
     function logo(item) { const url = image(item); return url ? '<img alt="" loading="lazy" src="'+esc(url)+'">' : '<span class="material-icons" aria-hidden="true">live_tv</span>'; }
+    const groupImageUrl = group => client().getUrl('LiveTvGroups/Groups/'+encodeURIComponent(group.Id)+'/Image', { api_key:client().accessToken(), revision:group.ArtworkRevision || 0 });
     async function api(method, path, body, signal) {
         const response = await fetch(client().getUrl('LiveTvGroups/' + path), {
             method, signal, headers: { Authorization:'MediaBrowser Token="'+client().accessToken()+'"', 'Accept-Language':window.LiveTvGroupsI18n.locale(), 'Content-Type':'application/json' },
@@ -46,6 +47,29 @@
         if (!response.ok) {
             const text = await response.text();
             throw new Error(response.status === 401 ? t("Please sign in again.") : response.status === 403 ? t("No Live TV access.") : t(text) || t("Request failed (HTTP ")+response.status+').');
+        }
+        return response.status === 204 ? null : response.json();
+    }
+    async function tvApi(method, path, body) {
+        const response = await fetch(client().getUrl('LiveTv/' + path), {
+            method, headers: { Authorization:'MediaBrowser Token="'+client().accessToken()+'"', 'Accept-Language':window.LiveTvGroupsI18n.locale(), 'Content-Type':'application/json' },
+            body:body === undefined ? undefined : JSON.stringify(body)
+        });
+        if (!response.ok) {
+            const message = await response.text();
+            throw new Error(response.status === 403 ? t("Recording permission is required.") : message || t("Request failed (HTTP ")+response.status+')');
+        }
+        return response.status === 204 ? null : response.json();
+    }
+    async function imageApi(method, path, body) {
+        const response = await fetch(client().getUrl('LiveTvGroups/' + path), {
+            method,
+            headers: { Authorization:'MediaBrowser Token="'+client().accessToken()+'"', 'Accept-Language':window.LiveTvGroupsI18n.locale(), 'Content-Type':body?.type || 'application/octet-stream' },
+            body
+        });
+        if (!response.ok) {
+            const message = await response.text();
+            throw new Error(response.status === 401 ? t("Please sign in again.") : response.status === 403 ? t("No Live TV access.") : t(message) || t("Request failed (HTTP ")+response.status+').');
         }
         return response.status === 204 ? null : response.json();
     }
@@ -101,26 +125,38 @@
         if (host) { host.removeAttribute('data-ltvg-host'); host = null; }
         page()?.remove(); guideData = null; lastRoute = '';
     }
+    function singleTargetApp() {
+        return (entry?.JellyfinTvTargetsEnabled !== false) !== (entry?.WholphinTargetsEnabled !== false);
+    }
+    function activeTarget() {
+        return players.find(p => p.DeviceId === prefs?.PreferredTargetDeviceId);
+    }
     function playerOptions() {
         const target = prefs?.PreferredTargetDeviceId || '';
         const available = players.some(p => p.DeviceId === target);
         return ("<option value=\"\">" + t("This device") + "</option>")
-            + (target && !available ? '<option value="'+esc(target)+'">'+esc(prefs.PreferredTargetDeviceName || 'TV')+(t(" · unavailable") + "</option>") : '')
+            + (target && !available && !singleTargetApp() ? '<option value="'+esc(target)+'">'+esc(prefs.PreferredTargetDeviceName || 'TV')+(t(" · unavailable") + "</option>") : '')
             + players.map(p => '<option value="'+esc(p.DeviceId)+'">'+esc(p.Name)+' ('+esc(p.Client)+')</option>').join('');
     }
     function updatePlayers() {
         const selector = page()?.querySelector('[data-control="player"]');
         if (!selector || !prefs) return;
         selector.innerHTML = playerOptions();
-        selector.value = prefs.PreferredTargetDeviceId || '';
+        selector.value = activeTarget()?.DeviceId || (!singleTargetApp() ? prefs.PreferredTargetDeviceId || '' : '');
         selector.disabled = playerBusy || playbackBusy;
         page().querySelector('.ltvg-player-status').textContent = playerMessage;
-        const target = players.find(p => p.DeviceId === prefs.PreferredTargetDeviceId);
+        const target = activeTarget();
         const apply = page().querySelector('[data-action="native-guide-apply"]');
         const reset = page().querySelector('[data-action="native-guide-reset"]');
+        const client = target?.Client?.toLowerCase();
+        const wholphin = client === 'wholphin' || client === 'wholphin (debug)';
         if (apply) apply.disabled = playerBusy || playbackBusy || (state.group === 'all' && !visible().length)
-            || !['android tv','jellyfin android tv','jellyfin for android tv','jellyfin for android tv (debug)'].includes(target?.Client?.toLowerCase());
-        if (reset) reset.disabled = playerBusy || playbackBusy || !prefs.PreferredTargetDeviceId;
+            || !['android tv','jellyfin android tv','jellyfin for android tv','jellyfin for android tv (debug)','wholphin','wholphin (debug)'].includes(client);
+        const hint = page().querySelector('.ltvg-player-hint');
+        if (hint) hint.textContent = wholphin
+            ? t("Keep Wholphin open on the TV. Open Live TV → TV Guide there after applying a group.")
+            : t("Jellyfin must be open in the foreground on the TV with the internal player.");
+        if (reset) reset.disabled = playerBusy || playbackBusy || !target;
     }
     async function refreshPlayers() {
         const seq = ++playerRequest, expected = userKey;
@@ -128,9 +164,12 @@
             const result = await api('GET','Players');
             if (!active || seq !== playerRequest || expected !== userKey) return;
             players = result.filter(p => p.DeviceId !== client().deviceId());
-            playerMessage = prefs?.PreferredTargetDeviceId && !players.some(p => p.DeviceId === prefs.PreferredTargetDeviceId)
+            playerMessage = prefs?.PreferredTargetDeviceId && !activeTarget()
                 ? t("Target unavailable. Open Jellyfin on the TV and refresh devices.") : '';
             updatePlayers();
+            if (singleTargetApp() && players.length === 1 && !activeTarget()) {
+                await choosePlayer({value:players[0].DeviceId});
+            }
         } catch(e) {
             if (!active || seq !== playerRequest || expected !== userKey) return;
             players = []; playerMessage = t("Could not load devices. ")+e.message; updatePlayers();
@@ -155,6 +194,7 @@
     }
     async function playRemote(channelId) {
         if (playerBusy || playbackBusy) return;
+        if (!activeTarget()) { playerMessage = t("Choose an available TV device."); updatePlayers(); return; }
         const expected = userKey, deviceId = prefs.PreferredTargetDeviceId;
         const targetName = prefs.PreferredTargetDeviceName || 'TV';
         playbackBusy = true; playerMessage = t("Sending playback command…"); updatePlayers();
@@ -170,7 +210,7 @@
         }
     }
     async function nativeGuide(reset) {
-        if (playerBusy || playbackBusy || !prefs.PreferredTargetDeviceId || (!reset && state.group === 'all' && !visible().length)) return;
+        if (playerBusy || playbackBusy || !activeTarget() || (!reset && state.group === 'all' && !visible().length)) return;
         const expected = userKey, deviceId = prefs.PreferredTargetDeviceId, group = state.group;
         playerBusy = true; playerMessage = t("Updating native TV guide…"); updatePlayers();
         page()?.querySelector('.ltvg-error')?.setAttribute('hidden','');
@@ -200,6 +240,7 @@
             +button('native-guide-apply',t("Use group on TV"),'disabled')+button('native-guide-reset',t("All channels on TV"),'disabled')
             +'<span class="ltvg-player-status" role="status" aria-live="polite">'+esc(playerMessage)+'</span></div>'
             +("<p class=\"ltvg-player-hint\">" + t("Jellyfin must be open in the foreground on the TV with the internal player.") + "</p>")
+            +'<p class="ltvg-recording-status" role="status" aria-live="polite" hidden></p>'
             +'<div class="ltvg-error" role="alert" hidden><span></span>'+button('refresh',t("Try again"))+'</div>'
             +'<div class="ltvg-content" aria-live="polite"></div>';
         root.querySelector('[data-control="group"]').value = state.group;
@@ -245,13 +286,13 @@
         } catch(e) { if (seq===request) { if (!keep) content(("<p class=\"ltvg-empty\">" + t("Could not load data.") + "</p>")); error(e); } }
     }
     function renderGroups() {
-        content(("<div class=\"ltvg-section-heading\"><h2>" + t("Channel groups") + "</h2>")+button('create',t("New group"),'','ltvg-primary')+'</div>'
+        content('<div class="ltvg-section-heading"><h2>'+t("Channel groups")+'</h2>'+button('create',t("New group"),'','ltvg-primary')+'</div>'
             +'<div class="ltvg-grid" data-list="groups">'+groups.map(g=>'<article class="ltvg-card ltvg-group-card" draggable="true" data-id="'+esc(g.Id)+'">'
-                +button('open','<strong>'+esc(g.Name)+'</strong><span>'+g.ChannelCount+t(" channels")+(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?t(" · Hidden"):'')+'</span>','data-id="'+esc(g.Id)+'"','ltvg-card-main')
-                +'<div class="ltvg-card-tools">'+button('edit-channels',t("Edit channels"),'data-id="'+esc(g.Id)+'"')+button('rename',t("Rename"),'data-id="'+esc(g.Id)+'"')+button('delete',t("Delete"),'data-id="'+esc(g.Id)+'"')
+                +button('open','<img class="ltvg-group-image" alt="" loading="lazy" src="'+esc(groupImageUrl(g))+'"><strong>'+esc(g.Name)+'</strong><span>'+g.ChannelCount+t(" channels")+(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?t(" · Hidden"):'')+'</span>','data-id="'+esc(g.Id)+'"','ltvg-card-main')
+                +'<div class="ltvg-card-tools">'+button('edit-channels',t("Edit channels"),'data-id="'+esc(g.Id)+'"')+button('change-image',t("Change image"),'data-id="'+esc(g.Id)+'"')+button('reset-image',t("Use default image"),'data-id="'+esc(g.Id)+'"'+(g.HasCustomImage?'':' disabled'))+button('rename',t("Rename"),'data-id="'+esc(g.Id)+'"')+button('delete',t("Delete"),'data-id="'+esc(g.Id)+'"')
                 +(access.Mode === 'shared' && access.IsAdministrator ? button('group-access',t("User access"),'data-id="'+esc(g.Id)+'"') : '')
-                +button('group-up','↑','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+(t(" up") + "\""))+button('group-down','↓','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+(t(" down") + "\""))+'</div></article>').join('')+'</div>'
-            +(!groups.length?("<p class=\"ltvg-empty\">" + t("No groups yet.") + "</p>"):''));
+                +button('group-up','↑','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+t(" up")+'"')+button('group-down','↓','data-id="'+esc(g.Id)+'" aria-label="'+esc(g.Name)+t(" down")+'"')+'</div></article>').join('')+'</div>'
+            +(!groups.length?'<p class="ltvg-empty">'+t("No groups yet.")+'</p>':''));
         dragSort(page().querySelector('[data-list="groups"]'), async ids=>{ await api('PUT','Groups/Order',ids); await reloadGroups(); });
     }
     function channelCard(channel) {
@@ -346,6 +387,86 @@
         }});document.body.appendChild(wrapper);wrapper.querySelector('input,select,button')?.focus();return wrapper;
     }
     function modalError(wrapper,e) { const target=wrapper.querySelector('.ltvg-modal-error');target.hidden=false;target.textContent=e.message; }
+    function recordingStatus(message) {
+        const status=page()?.querySelector('.ltvg-recording-status');
+        if(status){status.textContent=message;status.hidden=false;}
+    }
+
+    async function recording(programId) {
+        const expectedUser=userKey;
+        const wrapper=modal('<h2 id="ltvg-dialog-title">'+t("Recording")+'</h2><div class="ltvg-recording-body"><p role="status">'+t("Loading…")+'</p>'+button('close-recording',t("Close"))+'</div>');
+        const body=wrapper.querySelector('.ltvg-recording-body');
+        body.querySelector('[data-action="close-recording"]').onclick=closeModal;
+        try {
+            const program=await tvApi('GET','Programs/'+encodeURIComponent(programId)+'?userId='+encodeURIComponent(client().getCurrentUserId()));
+            if(!wrapper.isConnected || expectedUser!==userKey)return;
+            if(program.Type!=='Program')throw new Error(t("This item is not a TV program."));
+            const singleId=program.TimerId && program.Status!=='Cancelled' ? program.TimerId : null;
+            const seriesId=program.SeriesTimerId || null;
+            const channel=loadedChannels.find(c=>id(c.Id)===id(program.ChannelId));
+            const heading='<h3>'+esc(program.Name)+'</h3><p>'+esc(channel?.Name||program.ChannelName||'')+' · '+esc(dayLabel(program.StartDate))+' '+time(program.StartDate)+' – '+time(program.EndDate)+'</p>'
+                +(program.Overview?'<p>'+esc(program.Overview)+'</p>':'');
+            const details=button('full-details',t("Open Jellyfin details"));
+            if(entry?.CanRecord!==true){
+                body.innerHTML=heading+'<p role="status">'+t("Recording permission is required.")+'</p><div class="ltvg-modal-actions">'+button('close-recording',t("Close"))+details+'</div>';
+            }else{
+                const [defaults,single,series]=await Promise.all([
+                    tvApi('GET','Timers/Defaults?programId='+encodeURIComponent(program.Id)),
+                    singleId?tvApi('GET','Timers/'+encodeURIComponent(singleId)):Promise.resolve(null),
+                    seriesId?tvApi('GET','SeriesTimers/'+encodeURIComponent(seriesId)):Promise.resolve(null)
+                ]);
+                if(!wrapper.isConnected || expectedUser!==userKey)return;
+                body.innerHTML=heading+'<form class="ltvg-recording-form">'
+                    +(program.IsSeries?'<label>'+t("Recording type")+'<select class="ltvg-input" name="mode"><option value="single">'+t("This program")+'</option><option value="series">'+t("Series")+'</option></select></label>':'')
+                    +'<label>'+t("Start early (minutes)")+'<input class="ltvg-input" name="pre" type="number" min="0" max="180" step="1" required></label>'
+                    +'<label>'+t("End late (minutes)")+'<input class="ltvg-input" name="post" type="number" min="0" max="180" step="1" required></label>'
+                    +'<div class="ltvg-series-options" hidden><label><input type="checkbox" name="newOnly"> '+t("New episodes only")+'</label>'
+                    +'<label><input type="checkbox" name="anyTime"> '+t("Any airtime")+'</label>'
+                    +'<label><input type="checkbox" name="anyChannel"> '+t("Any channel")+'</label>'
+                    +'<label><input type="checkbox" name="skipLibrary"> '+t("Skip episodes already in the library")+'</label>'
+                    +'<label>'+t("Keep at most")+'<input class="ltvg-input" name="keepUpTo" type="number" min="0" max="50" step="1" required></label></div>'
+                    +'<div class="ltvg-modal-actions">'+button('close-recording',t("Close"))+details+button('remove-recording',t("Cancel recording"),'','ltvg-danger')
+                    +'<button type="submit" class="ltvg-btn ltvg-primary"></button></div></form>';
+                const form=body.querySelector('form');
+                const mode=()=>form.elements.mode?.value||'single';
+                const source=()=>mode()==='series'?series||defaults:single||defaults;
+                const redraw=()=>{
+                    const item=source(),isSeries=mode()==='series',existing=isSeries?series:single;
+                    form.elements.pre.value=Math.round((item.PrePaddingSeconds||0)/60);
+                    form.elements.post.value=Math.round((item.PostPaddingSeconds||0)/60);
+                    body.querySelector('.ltvg-series-options').hidden=!isSeries;
+                    form.elements.keepUpTo.value=item.KeepUpTo||0;
+                    if(isSeries){form.elements.newOnly.checked=!!item.RecordNewOnly;form.elements.anyTime.checked=!!item.RecordAnyTime;
+                        form.elements.anyChannel.checked=!!(series&&item.RecordAnyChannel);form.elements.skipLibrary.checked=!!item.SkipEpisodesInLibrary;}
+                    body.querySelector('[data-action="remove-recording"]').hidden=!existing;
+                    form.querySelector('[type="submit"]').textContent=existing?t("Save recording settings"):t("Schedule recording");
+                };
+                if(form.elements.mode && series && !single)form.elements.mode.value='series';
+                form.elements.mode?.addEventListener('change',redraw);redraw();
+                form.onsubmit=async e=>{
+                    e.preventDefault();if(expectedUser!==userKey)return;
+                    const save=form.querySelector('[type="submit"]');save.disabled=true;
+                    const isSeries=mode()==='series',existing=isSeries?!!series:!!single;
+                    const item={...source(),ProgramId:program.Id,ChannelId:program.ChannelId,
+                        PrePaddingSeconds:Number(form.elements.pre.value)*60,PostPaddingSeconds:Number(form.elements.post.value)*60};
+                    if(isSeries){item.RecordNewOnly=form.elements.newOnly.checked;item.RecordAnyTime=form.elements.anyTime.checked;
+                        item.RecordAnyChannel=form.elements.anyChannel.checked;item.SkipEpisodesInLibrary=form.elements.skipLibrary.checked;item.KeepUpTo=Number(form.elements.keepUpTo.value);}
+                    try{await tvApi('POST',isSeries?'SeriesTimers'+(series?'/'+encodeURIComponent(seriesId):''):'Timers'+(single?'/'+encodeURIComponent(singleId):''),item);
+                        closeModal();await render(true);recordingStatus(t(existing?"Recording settings saved.":"Recording scheduled."));
+                    }catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
+                };
+                body.querySelector('[data-action="remove-recording"]').onclick=async e=>{
+                    if(!window.confirm(t("Cancel this recording?")))return;
+                    const target=e.currentTarget;target.disabled=true;
+                    try{await tvApi('DELETE',mode()==='series'?'SeriesTimers/'+encodeURIComponent(seriesId):'Timers/'+encodeURIComponent(singleId));
+                        closeModal();await render(true);recordingStatus(t("Recording cancelled."));
+                    }catch(e){modalError(wrapper,e);}finally{target.disabled=false;}
+                };
+            }
+            body.querySelector('[data-action="close-recording"]').onclick=closeModal;
+            body.querySelector('[data-action="full-details"]').onclick=()=>{closeModal();capture();writeRoute();window.location.hash='#/details?id='+encodeURIComponent(program.Id)+'&serverId='+encodeURIComponent(client().serverId());};
+        }catch(e){if(wrapper.isConnected)modalError(wrapper,e);}
+    }
     function askName(title,initial='') {
         return new Promise(resolve=>{ const wrapper=modal('<h2 id="ltvg-dialog-title">'+esc(title)+'</h2><form><label>Name<input class="ltvg-input" maxlength="100" required value="'+esc(initial)+'"></label><div class="ltvg-modal-actions">'+button('cancel',t("Cancel"))+("<button class=\"ltvg-btn ltvg-primary\" type=\"submit\">" + t("Save") + "</button></div></form>"),()=>resolve(null));
             wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;wrapper.querySelector('form').onsubmit=e=>{e.preventDefault();const value=wrapper.querySelector('input').value.trim();modalCancel=null;closeModal();resolve(value||null);}; });
@@ -353,6 +474,18 @@
     function confirmDelete(name) {
         return new Promise(resolve=>{const wrapper=modal(("<h2 id=\"ltvg-dialog-title\">" + t("Delete group") + "</h2><p>" + t("Delete group “"))+esc(name)+(t("”? Channels are retained.") + "</p><div class=\"ltvg-modal-actions\">")+button('cancel',t("Cancel"))+button('confirm',t("Delete"),'','ltvg-danger')+'</div>',()=>resolve(false));
             wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;wrapper.querySelector('[data-action="confirm"]').onclick=()=>{modalCancel=null;closeModal();resolve(true);}; });
+    }
+    async function changeGroupImage(groupId) {
+        const group=groups.find(candidate=>id(candidate.Id)===id(groupId));if(!group)return;
+        let objectUrl=null;
+        const wrapper=modal('<h2 id="ltvg-dialog-title">'+t("Change image")+': '+esc(group.Name)+'</h2><form><img class="ltvg-image-preview" alt="" src="'+esc(groupImageUrl(group))+'"><label>'+t("Choose image")+'<input class="ltvg-input" type="file" accept="image/png,image/jpeg,image/webp" required></label><p class="ltvg-hint">'+t("PNG, JPEG or WebP, up to 5 MiB. Square images work best in TV apps.")+'</p><div class="ltvg-modal-actions">'+button('cancel',t("Cancel"))+'<button class="ltvg-btn ltvg-primary" type="submit">'+t("Upload")+'</button></div></form>',()=>{if(objectUrl)URL.revokeObjectURL(objectUrl);});
+        const form=wrapper.querySelector('form'),input=form.querySelector('[type="file"]'),preview=wrapper.querySelector('.ltvg-image-preview');
+        wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;
+        input.onchange=()=>{const file=input.files[0];if(!file)return;if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(file);preview.src=objectUrl;};
+        form.onsubmit=async e=>{e.preventDefault();const file=input.files[0],save=form.querySelector('[type="submit"]');if(!file)return;if(file.size>5*1024*1024){modalError(wrapper,new Error(t("The image must not exceed 5 MiB.")));return;}save.disabled=true;
+            try{await imageApi('PUT','Groups/'+encodeURIComponent(group.Id)+'/Image',file);if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=null;closeModal();await reloadGroups();}
+            catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
+        };
     }
     async function settings() {
         const wrapper=modal(("<h2 id=\"ltvg-dialog-title\">" + t("Group settings") + "</h2><form><fieldset><legend>" + t("Visible groups") + "</legend>")+groups.map(g=>'<label class="ltvg-picker-row"><input type="checkbox" data-group="'+esc(g.Id)+'"'+(!prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(g.Id))?' checked':'')+'>'+esc(g.Name)+'</label>').join('')+'</fieldset>'
@@ -443,14 +576,17 @@
         if(action==='guide'){state.view='guide';state.reorder=false;writeRoute();remember();await render();return;}
         if(action==='administration'){if(access.IsAdministrator)await administration();return;}
         if(action==='group-access'){if(access.IsAdministrator&&access.Mode==='shared')await groupAccess(value);return;}
-        if(!access.CanManage && (['create','rename','delete','edit-channels','manage','reorder'].includes(action)||action.startsWith('group-')||action.startsWith('channel-')))return;
+        if(!access.CanManage && (['create','rename','delete','edit-channels','change-image','reset-image','manage','reorder'].includes(action)||action.startsWith('group-')||action.startsWith('channel-')))return;
         if(action==='create'){const name=await askName(t("New group"));if(name){const created=await api('POST','Groups',{Name:name});state.group=created.Id;state.view='channels';writeRoute();await reloadGroups();}return;}
+        if(action==='change-image'){await changeGroupImage(value);return;}
+        if(action==='reset-image'){await imageApi('DELETE','Groups/'+encodeURIComponent(value)+'/Image');await reloadGroups();return;}
         if(action==='rename'){const group=groups.find(g=>id(g.Id)===id(value)),name=await askName(t("Rename group"),group.Name);if(name){await api('PUT','Groups/'+value,{Name:name});await reloadGroups();}return;}
         if(action==='delete'){const group=groups.find(g=>id(g.Id)===id(value));if(await confirmDelete(group.Name)){await api('DELETE','Groups/'+value);await reloadGroups();}return;}
         if(action==='channel-access'){if(!window.LiveTvGroupsChannelAccess)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=client().getUrl('LiveTvGroups/channel-access.js');script.onload=resolve;script.onerror=()=>reject(new Error(t("Could not load channel access.")));document.head.appendChild(script);});await window.LiveTvGroupsChannelAccess.open();return;}
         if(action==='edit-channels'){await editChannels(value || state.group);return;}
         if(action.startsWith('group-')||action.startsWith('channel-')){await move(action,value);return;}
-        if(action==='details'||action==='play'){capture();writeRoute();if(action==='play'){if(prefs.PreferredTargetDeviceId){await playRemote(value);return;}if(playerBusy||playbackBusy)return;try{const sessions=await client().ajax({type:'GET',url:client().getUrl('Sessions',{deviceId:client().deviceId()})});if(!sessions.length)throw new Error(t("No session."));await client().ajax({type:'POST',url:client().getUrl('Sessions/'+sessions[0].Id+'/Playing',{playCommand:'PlayNow',itemIds:value})});return;}catch(_) { /* Native details remain the playback fallback. */ }}window.location.hash='#/details?id='+encodeURIComponent(value)+'&serverId='+encodeURIComponent(client().serverId());return;}
+        if(action==='details'){await recording(value);return;}
+        if(action==='play'){capture();writeRoute();if(prefs.PreferredTargetDeviceId){await playRemote(value);return;}if(playerBusy||playbackBusy)return;try{const sessions=await client().ajax({type:'GET',url:client().getUrl('Sessions',{deviceId:client().deviceId()})});if(!sessions.length)throw new Error(t("No session."));await client().ajax({type:'POST',url:client().getUrl('Sessions/'+sessions[0].Id+'/Playing',{playCommand:'PlayNow',itemIds:value})});return;}catch(_) { /* Native details remain the playback fallback. */ }window.location.hash='#/details?id='+encodeURIComponent(value)+'&serverId='+encodeURIComponent(client().serverId());return;}
         capture();restoreFocus=null;
         if(action==='manage')state.view='manage';
         else if(action==='open'){state.group=value;state.view='guide';if(prefs.HiddenGroupIds.some(hidden=>id(hidden)===id(value))){prefs.HiddenGroupIds=prefs.HiddenGroupIds.filter(hidden=>id(hidden)!==id(value));await savePreferences();}}

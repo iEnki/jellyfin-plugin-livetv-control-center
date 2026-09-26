@@ -16,6 +16,8 @@ namespace Jellyfin.Plugin.LiveTvGroups.Api;
 public sealed class NativeGuideActionFilter(NativeGuideActionService actions, ILogger<NativeGuideActionFilter> logger)
     : IAsyncActionFilter, IOrderedFilter
 {
+    internal static readonly object ActionResultKey = new();
+
     public int Order => -800;
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
@@ -26,7 +28,7 @@ public sealed class NativeGuideActionFilter(NativeGuideActionService actions, IL
         var user = context.HttpContext.User;
         if ((!isItems && !isChannels) || user.Identity?.IsAuthenticated != true
             || user.FindFirst("Jellyfin-IsApiKey")?.Value != "False"
-            || !PlayerService.IsAndroidTvClient(user.FindFirst("Jellyfin-Client")?.Value)
+            || !SupportsClient(user.FindFirst("Jellyfin-Client")?.Value)
             || !Guid.TryParse(user.FindFirst("Jellyfin-UserId")?.Value, out var userId)
             || (context.ActionArguments.TryGetValue("userId", out var requested) && requested is Guid id && id != userId)
             || (context.ActionArguments.TryGetValue("recursive", out var recursive) && recursive is true)
@@ -43,6 +45,7 @@ public sealed class NativeGuideActionFilter(NativeGuideActionService actions, IL
                 && requestedChannel is Guid channelId ? channelId : null;
             var applied = await actions.OpenAsync(context.HttpContext, parentId, channel).ConfigureAwait(false);
             if (applied is null) return;
+            context.HttpContext.Items[ActionResultKey] = applied;
             if (applied.DirectGroupEntry)
             {
                 // The provider keeps media children for playlist synchronization. The authenticated
@@ -64,4 +67,11 @@ public sealed class NativeGuideActionFilter(NativeGuideActionService actions, IL
         catch (Exception error) when (error is not OperationCanceledException)
         { logger.LogWarning(error, "Native guide TV action could not be completed. Existing guide and folder fallback retained."); }
     }
+
+    internal static bool SupportsClient(string? client)
+        => SupportsClient(client, WholphinCompatibilityFilter.WholphinTargetsEnabled());
+
+    internal static bool SupportsClient(string? client, bool wholphinTargetsEnabled)
+        => PlayerService.IsAndroidTvClient(client)
+            || (PlayerService.IsWholphinClient(client) && wholphinTargetsEnabled);
 }

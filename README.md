@@ -11,8 +11,9 @@ Make Jellyfin's **original TV Guide** easier to use on Android TV and Fire TV: s
 - **Web EPG and phone remote:** Browse a grouped program timeline in Jellyfin Web or a web-based mobile client, then start or switch channels on a selected Fire TV / Android TV device. [Phone setup](#phone-as-tv-guide-and-remote).
 - **Family-friendly channel access:** Administrators can block selected channels for children's accounts across the plugin and ordinary Jellyfin Live TV. [Central channel access](#central-channel-access).
 - **Other ways to browse:** Keep group folders and program lists in supported native apps; optionally create group playlists. [Native app support](#native-apps-and-program-lists).
+- **Recognizable TV folders:** Built-in artwork distinguishes the control center, created channel groups, the **All channels** reset action, native guide actions and fallback program lists. Editors can upload a separate image for each group. [Group artwork](#group-artwork).
 
-**Stable version: 1.1.0.0** · **Jellyfin: minimum 12.0 (12.1 confirmed)** · **Plugin ABI: 12.0.0.0** · **License: GPL-3.0**
+**Stable version: 1.2.0.0** · **Jellyfin: minimum 12.0 (12.1 confirmed)** · **Plugin ABI: 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its web guide is separate from Jellyfin's original Live TV guide; the native TV filter changes which channels the original guide shows on the selected TV.
 
@@ -30,6 +31,7 @@ The plugin uses Jellyfin's existing channels and EPG data. Its web guide is sepa
 - [Phone as TV guide and remote](#phone-as-tv-guide-and-remote)
 - [Personal and central groups](#personal-and-central-groups)
 - [Creating and editing groups](#creating-and-editing-groups)
+- [Group artwork](#group-artwork)
 - [Views and program guide](#views-and-program-guide)
 - [Remote playback](#remote-playback)
 - [Native TV guide filtering](#native-tv-guide-filtering)
@@ -145,6 +147,7 @@ Configure working Live TV in Jellyfin before using the plugin. For program infor
 | Jellyfin Web on desktop/mobile | Independent groups page, timeline guide, group management and remote target selection. |
 | Mobile clients loading the server's Jellyfin Web interface | Same web integration when the injected page script is loaded. Fully native clients do not automatically receive this UI. |
 | Official Jellyfin Android TV app, including Fire TV | Group folders, native timeline group filtering, program-list fallback and remote playback target with the app in the foreground and its internal player enabled. |
+| Wholphin (beta) | Open Live-TV Control Center as a compatible folder, select a group or All channels, then open Wholphin's own Live TV guide manually. Web/mobile selection remains available. |
 | Other apps with channel support | Group folders and native program lists, subject to the client's channel capabilities. |
 | Playlist-based apps | Optional mirrored group playlists, subject to the client's support for these media items. |
 | File Transformation plugin | Required for injecting the independent web interface. |
@@ -186,11 +189,11 @@ To test features before their stable release, add this separate repository under
 https://github.com/iEnki/jellyfin-plugin-livetv-control-center/releases/download/beta-channel/manifest-beta.json
 ```
 
-Development for future betas happens on the [beta branch](https://github.com/iEnki/jellyfin-plugin-livetv-control-center/tree/beta). Jellyfin requires four-part versions. After stable 1.1.0.0, use 1.1.0.1-beta, 1.1.0.2-beta, and so on: only the fourth number advances during beta testing. The next stable version must be numerically higher than the highest beta, for example 1.1.1.0, so Jellyfin offers the upgrade automatically.
+Development for future betas happens on the [beta branch](https://github.com/iEnki/jellyfin-plugin-livetv-control-center/tree/beta). Jellyfin requires four-part versions. After stable 1.2.0.0, use 1.2.0.1-beta, 1.2.0.2-beta, and so on: only the fourth number advances during beta testing. The next stable version must be numerically higher than the highest beta, for example 1.2.1.0, so Jellyfin offers the upgrade automatically.
 
-Install or update **Live-TV Control Center** from the plugin catalog and restart Jellyfin. Beta builds use the same plugin identity and preserve existing settings and groups. The beta catalog includes stable versions as well as newer beta versions; the development catalog can also receive beta builds.
+Install or update **Live-TV Control Center** from the plugin catalog and restart Jellyfin. Beta builds use the same plugin identity and preserve existing settings and groups. The beta catalog lists only the latest beta; the stable catalog lists stable releases separately.
 
-Jellyfin compares four-part numeric versions. The already tested 1.1.0.0-beta and stable 1.1.0.0 share that numeric version, so Jellyfin may not offer the stable package as an automatic update; their TV-guide behavior is the same. Future beta/stable cycles use the fourth-number scheme above to avoid this. Removing the beta repository stops future beta offers; it does not downgrade an installed beta. To return to stable immediately, follow manual installation and preserve plugin data/configuration.
+The final 1.2.0.0-beta and stable 1.2.0.0 share the same numeric version and features, so Jellyfin may not offer stable as an automatic update to an installation already on that beta. Remove the beta repository to stop future beta offers. To replace that final beta with the stable package immediately, use manual installation while preserving plugin data/configuration.
 
 ### Manual installation
 
@@ -339,6 +342,10 @@ A custom name is shared by all users and appears in the channel/library entry, w
 
 The groups-page **Administration** dialog also offers the mode/copy controls.
 
+### Schedule recordings from the web EPG
+
+Select a program in the grouped **TV guide** or **Programs** view to open its recording dialog. You can schedule one program, change its start/end padding, and later edit or cancel the timer. For a series, choose **Series** to configure new episodes, airtime, channels, library duplicates and how many recordings to keep. **Open Jellyfin details** still leads to the ordinary program page. Saving uses Jellyfin's built-in DVR and requires the user's **Manage Live TV recordings** permission; without it, the dialog explains why recording controls are unavailable. The group changes which programs you browse, not the DVR's recording storage or tuner behavior. Native TV apps continue to use their own recording controls.
+
 ### Phone as TV guide and remote
 
 Use your phone as a remote to start and switch Live TV channels on your TV. The grouped program guide makes it easier to find what to watch when you have many channels, while the TV continues playing. This works in Jellyfin mobile apps that load the server's web interface and in a mobile browser; see [Requirements and client support](#requirements-and-client-support).
@@ -390,6 +397,14 @@ Users with editing permission can:
 Deleting a group removes grouping information, not the underlying Jellyfin channels. Obsolete mirrored playlists are removed during synchronization.
 
 **All visible groups** is a combined viewing scope. Channel editing requires a specific group. Central mode gives ordinary users read-only group content, playback controls and personal settings.
+
+## Group artwork
+
+Every plugin folder receives a Primary image that Jellyfin and Wholphin can display without client changes. The control center uses the plugin logo. Created groups use a folder containing several channel tiles, while **All channels** uses an EPG grid with a return arrow to show that this action restores the complete guide. Native guide actions retain the EPG grid, and the fallback program list uses a separate calendar/list symbol. Sender tiles continue to use their original station logos.
+
+Under **Manage groups**, choose **Change image** to upload a PNG, JPEG or WebP file up to 5 MiB. **Use default image** restores the built-in channel-group artwork. Square images with the important subject near the center work best because Wholphin usually crops them into wide cards while Jellyfin TV may show taller cards.
+
+Personal group images belong only to that user. In central mode, only administrators may change group images. Importing personal groups into central management copies their images as well. TV apps may keep an old thumbnail briefly; reopen the folder or app if a changed image is still cached.
 
 ## Views and program guide
 
@@ -466,9 +481,9 @@ This version provides start/switch actions, not a separate pause/volume/stop rem
 
 ## Native TV guide filtering
 
-**Available in stable 1.1.0.0 for Jellyfin 12.0 and 12.1 / .NET 10.** Install through the [stable repository](#stable-plugin-repository). No additional service, subscription or custom TV app is required.
+**Available in stable 1.2.0.0 for Jellyfin 12.0 and 12.1 / .NET 10.** Install through the [stable repository](#stable-plugin-repository). No additional service, subscription or custom TV app is required.
 
-Using only the TV remote:
+Using only the TV remote in the official Jellyfin Android TV / Fire TV app:
 
 1. Open **Live-TV Control Center → your created group**. Selecting the group immediately applies its permitted channels to this user and TV and requests navigation to Jellyfin's original **Live TV** view.
 2. Select **TV Guide** (**Fernsehprogramm**) in Live TV to see Jellyfin's real channel/time timeline with only that group's original channels. The stock TV app does not expose a direct timeline jump through the server command, so this final selection may still be needed.
@@ -477,7 +492,13 @@ Using only the TV remote:
 
 The browsable **Program list (fallback)** / **Programmliste (Fallback)** remains available. The authenticated TV's group response hides direct grouped-channel tiles that may fail to play; internal channel items remain for playlists and other clients. Background channel refreshes and browsing the fallback do not select groups or navigate the TV.
 
-Alternatively, on the plugin's web/mobile page, select one **Group** or **All visible groups**, and your own-user TV under **Play on**, then **Use group on TV** / **Gruppe am TV verwenden**. Open the normal TV Guide on that TV. **All channels on TV** / **Alle Sender am TV** resets even a remembered offline target. Merely choosing a group on the web page does not change the TV scope.
+Alternatively, on the plugin's web/mobile page, select one **Group** or **All visible groups**, and your own-user TV under **Play on**, then **Use group on TV** / **Gruppe am TV verwenden**. Open the normal TV Guide on that TV. **All channels on TV** / **Alle Sender am TV** restores the full guide for a currently available target. Merely choosing a group on the web page does not change the TV scope.
+
+**TV target apps:** In the administrator plugin settings, enable Jellyfin Android TV / Fire TV, Wholphin, or both. The switches apply to all users. With only one app enabled, a single available TV is selected automatically. If several TVs of that app are available, choose one under **Play on**; your last available choice is remembered per user. Hidden or disconnected targets cannot start playback or change the guide from the web/mobile page. Keep at least one app enabled.
+
+**Wholphin:** Keep Wholphin open on the TV and signed in as the same Jellyfin user. Open **Live-TV Control Center** in Wholphin, choose a group, then open **Live TV → TV Guide**. The plugin presents its channel entry and group entries as standard folders only to Wholphin, avoiding the client's `Unsupported item type: Channel` error. Choosing **All channels (native guide)** clears the device scope and restores the full guide. The web/mobile target workflow remains available.
+
+Wholphin does not accept Jellyfin's `DisplayContent` navigation command, so the final switch to **Live TV → TV Guide** remains manual. If the guide was already open, leave and reopen it to refresh its channel list. No playlist synchronization or custom Wholphin build is required for this folder workflow. The plugin owner tested this flow on a physical Wholphin device.
 
 The selection persists across server restarts until changed, reset or invalidated. A different user, TV/device or non-TV client remains unaffected. Another user's TV cannot receive your group even when remote playback permissions allow controlling it. **All visible groups** applies the union of currently permitted channels from every group visible on your groups page. Groups hidden in **Group settings → Visible groups** and denied shared groups are excluded. A sender appearing in several groups is included once. The active union follows later group, visibility and permission changes on the next native guide reload. **All channels on TV** removes either mode and restores every ordinarily permitted channel, including channels outside groups. If no visible accessible group channels remain, the union is invalidated and ordinary authorized Live TV is retained.
 
@@ -485,19 +506,19 @@ The plugin filters only the normal `LiveTvController.GetLiveTvChannels` response
 
 Deleted, denied, empty or unresolvable groups restore ordinary authorized Live TV. Plugin failures fail open; Jellyfin and central channel-access restrictions still apply. This feature is a viewing preference, not an access-control boundary. Existing web EPG and native fallback keep their behavior.
 
-**Limitations:** group selection is outside the native timeline. `DisplayContent` opens ordinary Live TV, requiring one further **TV Guide** selection; a direct timeline jump is not supported. Automatic navigation is skipped while playback is active/paused or the client's live connection/command support is unavailable. A successful command send does not prove that the app navigated. Close/reopen a previously cached guide or the app if its old channel list remains visible. Server/controller integration, command payloads and browser flows are tested; the plugin owner has confirmed native guide filtering and playback on their Fire TV. Other client/device combinations may behave differently.
+**Limitations:** group selection is outside the native timeline. In the official Android TV / Fire TV app, `DisplayContent` opens ordinary Live TV and may still require selecting **TV Guide**. Wholphin does not support that command, so **Live TV → TV Guide** must always be opened manually after selecting a group. Automatic navigation in the official app is skipped while playback is active/paused or the client's live connection/command support is unavailable. A successful command send does not prove that the app navigated. Close/reopen a previously cached guide or the app if its old channel list remains visible. Server/controller integration, command payloads and browser flows are tested; the plugin owner has confirmed native guide filtering and playback on their Fire TV. Other client/device combinations may behave differently.
 
 This release also fixes recognition of actual official client names **Android TV** and **Jellyfin for Android TV**, alongside the prior **Jellyfin Android TV** name (and the official current debug name). A connected TV reporting no remote-control flag is still discovered through this exact client fallback. Device names are never used as identity; remote playback still requires authorized users/channels and a live command connection.
 
 
 ### Native guide API
 
-All endpoints require an authenticated non-API-key user with Live TV access. There is no caller-supplied UserId. For an official TV client's current authenticated device, use `GET`, `PUT` or `DELETE /LiveTvGroups/NativeGuide`. For an own-user target selected from the existing player list, use:
+All endpoints require an authenticated non-API-key user with Live TV access. There is no caller-supplied UserId. For a supported TV guide client's current authenticated device, use `GET`, `PUT` or `DELETE /LiveTvGroups/NativeGuide`. For an own-user target selected from the existing player list, use:
 
 | Method | Endpoint | Result |
 | --- | --- | --- |
 | GET | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | `{ DeviceId, GroupId, AllVisibleGroups, Enabled }`; invalid selection is removed. |
-| PUT | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | Body `{ "GroupId": "<group UUID>" }` for one group, or `{ "AllVisibleGroups": true }` for the current visible-group union; requires an eligible active official TV session signed into the caller's user. |
+| PUT | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | Body `{ "GroupId": "<group UUID>" }` for one group, or `{ "AllVisibleGroups": true }` for the current visible-group union; requires an eligible active official Android TV or Wholphin session signed into the caller's user. |
 | DELETE | `/LiveTvGroups/NativeGuide/Devices/{deviceId}` | Remove only the caller's device selection, including offline devices. |
 
 PUT/DELETE return 204 on success. Mixed/missing selections return 400. Invalid/empty selections return 404; unavailable or other-user targets return 409. Device IDs are Jellyfin device IDs, not device names or session IDs. Data is stored in the existing per-user JSON file under `NativeGuideScopes` (single group) or `NativeGuideVisibleGroupDevices` (visible union); the modes are mutually exclusive per device. Legacy `ActiveGuideGroupId` and web preferences cannot enable it. See [stable release plan and validation notes](docs/stable-release-0.4.0.0.md).
@@ -519,6 +540,8 @@ Channels / My Media
 ```
 
 The program-list fallback contains seven local calendar days, channel lists, timing, episode information and descriptions. Day boundaries follow the configured timezone, including daylight-saving changes.
+
+The folder artwork is shared through Jellyfin's normal Primary-image API. The text-free, center-weighted defaults remain recognizable in Wholphin's wide cards and Jellyfin TV's taller cards.
 
 **watch live** starts the current live stream. Selecting a past/future program does not play a recording or catch-up stream.
 
@@ -582,12 +605,16 @@ Data is stored in the `users` subdirectory of the plugin's Jellyfin data folder:
 
 ```text
 <plugin data folder>/
-└── users/
-    ├── <user-id-without-hyphens>.json
-    └── administration.json
+├── users/
+│   ├── <user-id-without-hyphens>.json
+│   └── administration.json
+└── artwork/
+    ├── defaults/
+    ├── users/<user-id-without-hyphens>/
+    └── shared/
 ```
 
-Per-user files contain personal groups, ordered channel references, personal preferences, preferred device identity/name and playlist mappings. The central file contains the operating mode, shared groups, group access policies, revisioned channel rules, known source identities and recording assignments. Preserve it along with user files. Channel restrictions also maintain uniquely owned tags and blocked-tag preferences in Jellyfin's database.
+Per-user files contain personal groups, ordered channel references, artwork revisions, personal preferences, preferred device identity/name and playlist mappings. Uploaded group images are stored under `artwork/users` or `artwork/shared`; `artwork/defaults` contains the embedded standard motifs materialized by the plugin. The central file contains the operating mode, shared groups, group access policies, revisioned channel rules, known source identities and recording assignments. Preserve it along with user files. Channel restrictions also maintain uniquely owned tags and blocked-tag preferences in Jellyfin's database.
 
 This data directory is separate from a versioned binary installation directory. Preserve the complete data folder and Jellyfin-managed plugin configuration when upgrading/moving the server. Stop Jellyfin before restoring a backup to prevent ongoing changes from overwriting restored files.
 
@@ -600,7 +627,7 @@ If a tuner rescan/M3U re-import changes channel IDs, ordinary group references c
 | Ordinary user cannot find Live-TV Control Center in My Media | Allow the plugin channel under **Users → Access → Channels**, save and sign out/in. Ordinary Live TV access alone is insufficient. Also check personal home/library visibility. |
 | Channel cards appear instead of EPG | Select **TV guide** or its direct button. **Channels** is a separate, possibly remembered view. |
 | No groups for a user | Personal mode may have no groups for that account. In central mode check group policy and Jellyfin rights; refresh after changes. |
-| Native folders appear instead of custom web UI | Check File Transformation, web integration/status, restart and browser reload/cache. Plugin Pages alone does not inject the interface. |
+| Native folders appear instead of custom web UI | Check File Transformation and web integration/status, then reload the browser. If `/LiveTvGroups/client.js?version=…` fails in browser developer tools, check the reverse proxy/cache; Plugin Pages alone does not inject the interface. |
 | Channels have no programs | Check imported EPG, channel mapping, selected time/date and ordinary Jellyfin Live TV. |
 | Saved channel missing | Check user/parental rights, tuner availability and rescan matching; correct unresolved references through channel selection. |
 | Channel blocked unexpectedly | Open **Channel access**, preview the affected user and check all applicable rules and Jellyfin permissions. Any denial wins. |
