@@ -57,14 +57,15 @@ jobs:
           jq -e --arg v "$version" '
             ($v | split(".") | map(tonumber)) as $candidate
             | (.[0].versions | map(.version | split(".") | map(tonumber)) | max) as $stable
-            | ($candidate[0:3] == $stable[0:3]) and ($candidate[3] > $stable[3])
+            | (($candidate[0:3] == $stable[0:3]) and ($candidate[3] > $stable[3]))
+              or ($candidate == $stable)
           ' stable-manifest.json >/dev/null || {
-            echo 'Beta must keep the latest stable major.minor.patch and increase only the fourth version field.' >&2
+            echo 'Beta must increase the fourth version field, or match stable for a final promotion snapshot.' >&2
             exit 1
           }
           if gh release view beta-channel >/dev/null 2>&1; then
             gh release download beta-channel --pattern manifest-beta.json --dir "$RUNNER_TEMP"
-            jq -e --arg v "$version" '($v | split(".") | map(tonumber)) > (.[0].versions | map(.version | split(".") | map(tonumber)) | max)' "$RUNNER_TEMP/manifest-beta.json" >/dev/null || { echo 'Increase the numeric version for each beta.' >&2; exit 1; }
+            jq -e --arg v "$version" '([.[0].versions[].version] | length) == 0 or (($v | split(".") | map(tonumber)) > (.[0].versions | map(.version | split(".") | map(tonumber)) | max))' "$RUNNER_TEMP/manifest-beta.json" >/dev/null || { echo 'Increase the numeric version for each beta.' >&2; exit 1; }
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v${version}-beta" >> "$GITHUB_OUTPUT"
@@ -97,6 +98,9 @@ jobs:
         run: |
           # "## Unreleased" section of CHANGELOG.md, if present.
           awk '$0 == "## Unreleased" {f=1; next} /^## /{f=0} f' CHANGELOG.md | sed '/./,$!d' > notes.md
+          if [ ! -s notes.md ]; then
+            awk -v v="${{ steps.version.outputs.version }}" '$0 == "## " v {f=1; next} /^## /{f=0} f' CHANGELOG.md | sed '/./,$!d' > notes.md
+          fi
           if [ ! -s notes.md ]; then echo "Beta build ${{ steps.version.outputs.tag }}" > notes.md; fi
           { echo "[BETA] Beta build for testing – do not use in production."; echo; cat notes.md; } > release-notes.md
 

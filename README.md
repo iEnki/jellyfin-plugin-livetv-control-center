@@ -13,7 +13,7 @@ Make Jellyfin's **original TV Guide** easier to use on Android TV and Fire TV: s
 - **Other ways to browse:** Keep group folders and program lists in supported native apps; optionally create group playlists. [Native app support](#native-apps-and-program-lists).
 - **Recognizable TV folders:** Built-in artwork distinguishes the control center, created channel groups, the **All channels** reset action, native guide actions and fallback program lists. Editors can upload a separate image for each group. [Group artwork](#group-artwork).
 
-**Stable version: 1.1.0.0** · **Jellyfin: minimum 12.0 (12.1 confirmed)** · **Plugin ABI: 12.0.0.0** · **License: GPL-3.0**
+**Stable version: 1.2.0.0** · **Jellyfin: minimum 12.0 (12.1 confirmed)** · **Plugin ABI: 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its web guide is separate from Jellyfin's original Live TV guide; the native TV filter changes which channels the original guide shows on the selected TV.
 
@@ -150,11 +150,11 @@ To test features before their stable release, add this separate repository under
 https://github.com/iEnki/jellyfin-plugin-livetv-control-center/releases/download/beta-channel/manifest-beta.json
 ```
 
-Development for future betas happens on the [beta branch](https://github.com/iEnki/jellyfin-plugin-livetv-control-center/tree/beta). Jellyfin requires four-part versions. After stable 1.1.0.0, use 1.1.0.1-beta, 1.1.0.2-beta, and so on: only the fourth number advances during beta testing. The next stable version must be numerically higher than the highest beta, for example 1.1.1.0, so Jellyfin offers the upgrade automatically.
+Development for future betas happens on the [beta branch](https://github.com/iEnki/jellyfin-plugin-livetv-control-center/tree/beta). Jellyfin requires four-part versions. After stable 1.2.0.0, use 1.2.0.1-beta, 1.2.0.2-beta, and so on: only the fourth number advances during beta testing. The next stable version must be numerically higher than the highest beta, for example 1.2.1.0, so Jellyfin offers the upgrade automatically.
 
-Install or update **Live-TV Control Center** from the plugin catalog and restart Jellyfin. Beta builds use the same plugin identity and preserve existing settings and groups. The beta catalog includes stable versions as well as newer beta versions; the development catalog can also receive beta builds.
+Install or update **Live-TV Control Center** from the plugin catalog and restart Jellyfin. Beta builds use the same plugin identity and preserve existing settings and groups. The beta catalog lists only the latest beta; the stable catalog lists stable releases separately.
 
-Jellyfin compares four-part numeric versions. The already tested 1.1.0.0-beta and stable 1.1.0.0 share that numeric version, so Jellyfin may not offer the stable package as an automatic update; their TV-guide behavior is the same. Future beta/stable cycles use the fourth-number scheme above to avoid this. Removing the beta repository stops future beta offers; it does not downgrade an installed beta. To return to stable immediately, follow manual installation and preserve plugin data/configuration.
+The final 1.2.0.0-beta and stable 1.2.0.0 share the same numeric version and features, so Jellyfin may not offer stable as an automatic update to an installation already on that beta. Remove the beta repository to stop future beta offers. To replace that final beta with the stable package immediately, use manual installation while preserving plugin data/configuration.
 
 ### Manual installation
 
@@ -442,7 +442,7 @@ This version provides start/switch actions, not a separate pause/volume/stop rem
 
 ## Native TV guide filtering
 
-**Available in stable 1.1.0.0 for Jellyfin 12.0 and 12.1 / .NET 10.** Install through the [stable repository](#stable-plugin-repository). No additional service, subscription or custom TV app is required.
+**Available in stable 1.2.0.0 for Jellyfin 12.0 and 12.1 / .NET 10.** Install through the [stable repository](#stable-plugin-repository). No additional service, subscription or custom TV app is required.
 
 Using only the TV remote in the official Jellyfin Android TV / Fire TV app:
 
@@ -455,11 +455,11 @@ The browsable **Program list (fallback)** / **Programmliste (Fallback)** remains
 
 Alternatively, on the plugin's web/mobile page, select one **Group** or **All visible groups**, and your own-user TV under **Play on**, then **Use group on TV** / **Gruppe am TV verwenden**. Open the normal TV Guide on that TV. **All channels on TV** / **Alle Sender am TV** restores the full guide for a currently available target. Merely choosing a group on the web page does not change the TV scope.
 
-**TV target apps (beta):** In the administrator plugin settings, enable Jellyfin Android TV / Fire TV, Wholphin, or both. The switches apply to all users. With only one app enabled, a single available TV is selected automatically. If several TVs of that app are available, choose one under **Play on**; your last available choice is remembered per user. Hidden or disconnected targets cannot start playback or change the guide from the web/mobile page. Keep at least one app enabled.
+**TV target apps:** In the administrator plugin settings, enable Jellyfin Android TV / Fire TV, Wholphin, or both. The switches apply to all users. With only one app enabled, a single available TV is selected automatically. If several TVs of that app are available, choose one under **Play on**; your last available choice is remembered per user. Hidden or disconnected targets cannot start playback or change the guide from the web/mobile page. Keep at least one app enabled.
 
-**Wholphin beta 1.1.0.5:** Keep Wholphin open on the TV and signed in as the same Jellyfin user. Open **Live-TV Control Center** in Wholphin, choose a group, then open **Live TV → TV Guide**. The plugin presents its channel entry and group entries as standard folders only to Wholphin, avoiding the client's `Unsupported item type: Channel` error. Choosing **All channels (native guide)** clears the device scope and restores the full guide. The web/mobile target workflow remains available.
+**Wholphin:** Keep Wholphin open on the TV and signed in as the same Jellyfin user. Open **Live-TV Control Center** in Wholphin, choose a group, then open **Live TV → TV Guide**. The plugin presents its channel entry and group entries as standard folders only to Wholphin, avoiding the client's `Unsupported item type: Channel` error. Choosing **All channels (native guide)** clears the device scope and restores the full guide. The web/mobile target workflow remains available.
 
-Wholphin does not accept Jellyfin's `DisplayContent` navigation command, so the final switch to **Live TV → TV Guide** remains manual. If the guide was already open, leave and reopen it to refresh its channel list. No playlist synchronization or custom Wholphin build is required for this folder workflow. This behavior needs confirmation on a physical Wholphin device before stable release.
+Wholphin does not accept Jellyfin's `DisplayContent` navigation command, so the final switch to **Live TV → TV Guide** remains manual. If the guide was already open, leave and reopen it to refresh its channel list. No playlist synchronization or custom Wholphin build is required for this folder workflow. The plugin owner tested this flow on a physical Wholphin device.
 
 The selection persists across server restarts until changed, reset or invalidated. A different user, TV/device or non-TV client remains unaffected. Another user's TV cannot receive your group even when remote playback permissions allow controlling it. **All visible groups** applies the union of currently permitted channels from every group visible on your groups page. Groups hidden in **Group settings → Visible groups** and denied shared groups are excluded. A sender appearing in several groups is included once. The active union follows later group, visibility and permission changes on the next native guide reload. **All channels on TV** removes either mode and restores every ordinarily permitted channel, including channels outside groups. If no visible accessible group channels remain, the union is invalidated and ordinary authorized Live TV is retained.
 
