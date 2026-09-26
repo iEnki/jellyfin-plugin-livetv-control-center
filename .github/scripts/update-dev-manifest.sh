@@ -25,7 +25,7 @@ fi
 
 if [ -n "$entry" ]; then new="$(cat "$entry")"; else new='null'; fi
 
-jq --slurpfile old "$work/$catalog" --slurpfile branding "$branding" --argjson new "$new" --arg marker "$marker" '
+jq --slurpfile old "$work/$catalog" --slurpfile branding "$branding" --argjson new "$new" --arg marker "$marker" --arg channel "$channel" '
   def ver: split(".") | map(tonumber);
   (.[0].versions | map(.version | ver) | max) as $latest
   | ([ $old[0][0].versions[]? | select(.changelog | startswith($marker)) ]) as $devs
@@ -33,7 +33,7 @@ jq --slurpfile old "$work/$catalog" --slurpfile branding "$branding" --argjson n
       | map(select(.version | ver >= ($latest // [0])))
       | unique_by(.version)
       | sort_by(.version | ver) | reverse) as $keep
-  | .[0].versions = (if $marker == "[BETA]" then $keep[:1] else ($keep | map(select(.version | ver > ($latest // [0])))) + .[0].versions end)
+  | .[0].versions = (if $channel == "beta-channel" then $keep[:1] else ($keep | map(select(.version | ver > ($latest // [0])))) + .[0].versions end)
   | if ($branding[0][0].imageUrl // "") != "" then .[0].imageUrl = $branding[0][0].imageUrl else . end
 ' "$stable" > "$catalog"
 
