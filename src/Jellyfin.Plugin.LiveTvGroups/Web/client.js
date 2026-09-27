@@ -507,14 +507,28 @@
         const wrapper = modal(("<h2 id=\"ltvg-dialog-title\">" + t("Group administration") + "</h2><form>")
             +("<label>" + t("Mode") + "<select class=\"ltvg-input\" name=\"mode\" aria-label=\"" + t("Mode") + "\"><option value=\"personal\">" + t("Personal groups per user") + "</option><option value=\"shared\">" + t("Central groups managed by admins") + "</option></select></label>")
             +("<p>" + t("Personal: Each user creates their own groups. Central: Administrators create groups and control user access.") + "</p>")
-            +("<label class=\"ltvg-picker-row\"><input type=\"checkbox\" name=\"import\">" + t("Copy my personal groups into central groups") + "</label>")
+            +("<div data-migration-choice hidden><p>" + t("Personal groups will no longer be shown in central mode unless you copy them. Your saved personal groups are never deleted.") + "</p>")
+            +("<label class=\"ltvg-picker-row\"><input type=\"radio\" name=\"migration\" value=\"copy\">" + t("Copy my personal groups into central groups") + "</label>")
+            +("<label class=\"ltvg-picker-row\"><input type=\"radio\" name=\"migration\" value=\"skip\"><span data-skip-label></span></label></div>")
+            +("<label class=\"ltvg-picker-row\" data-late-import hidden><input type=\"checkbox\" name=\"import\">" + t("Copy my saved personal groups into central groups now") + "</label>")
             +("<p>" + t("Both collections are retained when switching modes. Administrators can manage all central groups. Jellyfin channel access is still required.") + "</p>")
             +'<div class="ltvg-modal-actions">'+button('cancel',t("Cancel"))+("<button type=\"submit\" class=\"ltvg-btn ltvg-primary\">" + t("Save") + "</button></div></form>"));
         const form = wrapper.querySelector('form');form.elements.mode.value=data.Configuration.Mode;
-        const update=()=>{form.elements.import.disabled=form.elements.mode.value!=='shared';if(form.elements.import.disabled)form.elements.import.checked=false;};
+        const personalCount=Number(data.PersonalGroupCount)||0;
+        const update=()=>{const shared=form.elements.mode.value==='shared',switching=shared&&data.Configuration.Mode!=='shared'&&personalCount>0;
+            wrapper.querySelector('[data-migration-choice]').hidden=!switching;
+            wrapper.querySelector('[data-late-import]').hidden=!(shared&&data.Configuration.Mode==='shared'&&personalCount>0);
+            wrapper.querySelector('[data-skip-label]').textContent=t((data.Configuration.Groups||[]).length?'Keep existing central groups and create new ones':'Start with new central groups');
+            if(!switching)wrapper.querySelectorAll('[name="migration"]').forEach(input=>input.checked=false);
+            form.elements.import.disabled=wrapper.querySelector('[data-late-import]').hidden;
+            if(form.elements.import.disabled)form.elements.import.checked=false;};
         form.elements.mode.onchange=update;update();wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;
         form.onsubmit=async e=>{e.preventDefault();const save=form.querySelector('[type="submit"]');save.disabled=true;
-            try{await api('PUT','Administration',{Mode:form.elements.mode.value,ImportPersonalGroups:form.elements.import.checked});closeModal();state.view='guide';state.group='all';await reloadGroups();}
+            try{const switching=data.Configuration.Mode!=='shared'&&form.elements.mode.value==='shared'&&personalCount>0;
+                const choice=form.elements.migration.value;
+                if(switching&&!choice)throw new Error(t('Choose whether to copy your personal groups or start with central groups.'));
+                await api('PUT','Administration',{Mode:form.elements.mode.value,ImportPersonalGroups:switching?choice==='copy':form.elements.import.checked,SkipPersonalGroupImport:switching&&choice==='skip'});
+                closeModal();state.view='guide';state.group='all';await reloadGroups();}
             catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
         };
     }

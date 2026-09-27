@@ -70,6 +70,50 @@ public class AdministrationTests
     }
 
     [Fact]
+    public async Task SwitchingToCentralGroupsRequiresAChoiceAndAllowsLaterRecovery()
+    {
+        using var f = new Fixture();
+        f.Groups.Update(f.Admin, doc => { doc.Groups.Add(new() { Id = f.Group, Name = "Admin Personal" }); return true; });
+        var api = f.Api(f.Admin);
+        var revision = f.Store.GetAdministration().Revision;
+
+        Assert.IsType<BadRequestObjectResult>(await api.SetAdministration(new() { Mode = "shared" }));
+        Assert.IsType<BadRequestObjectResult>(await api.SetAdministration(new()
+        { Mode = "shared", ImportPersonalGroups = true, SkipPersonalGroupImport = true }));
+        Assert.Equal("personal", f.Store.GetAdministration().Mode);
+        Assert.Equal(revision, f.Store.GetAdministration().Revision);
+
+        Assert.IsType<NoContentResult>(await api.SetAdministration(new()
+        { Mode = "shared", SkipPersonalGroupImport = true }));
+        Assert.Empty(f.Store.GetAdministration().Groups);
+        Assert.Equal("Admin Personal", Assert.Single(f.Store.Get(f.Admin.Id).Groups).Name);
+
+        Assert.IsType<NoContentResult>(await api.SetAdministration(new()
+        { Mode = "shared", ImportPersonalGroups = true }));
+        Assert.Equal("Admin Personal", Assert.Single(f.Store.GetAdministration().Groups).Name);
+        Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "personal" }));
+        Assert.Equal("Admin Personal", Assert.Single(f.Groups.GetGroups(f.Admin)).Name);
+    }
+
+    [Fact]
+    public async Task SkippingImportDoesNotClearPreviouslySavedCentralGroups()
+    {
+        using var f = new Fixture();
+        f.Groups.Update(f.Admin, doc => { doc.Groups.Add(new() { Id = f.Group, Name = "Personal" }); return true; });
+        var centralId = Guid.NewGuid();
+        f.Store.UpdateAdministration(config =>
+        {
+            config.Groups.Add(new() { Id = centralId, Name = "Existing central" });
+            return true;
+        });
+
+        Assert.IsType<NoContentResult>(await f.Api(f.Admin).SetAdministration(new()
+        { Mode = "shared", SkipPersonalGroupImport = true }));
+        Assert.Equal(centralId, Assert.Single(f.Store.GetAdministration().Groups).Id);
+        Assert.Equal(f.Group, Assert.Single(f.Store.Get(f.Admin.Id).Groups).Id);
+    }
+
+    [Fact]
     public void NormalUserCannotEditSharedGroupsEvenIfModeChangesAfterPrecheck()
     {
         using var f = new Fixture();

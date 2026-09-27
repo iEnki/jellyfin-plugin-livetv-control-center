@@ -296,8 +296,8 @@ A custom name is shared by all users and appears in the channel/library entry, w
 
 1. As administrator, open **Dashboard → Plugins → Live-TV Control Center**.
 2. Under **Group administration**, select **Central groups managed by admins**.
-3. Optionally check **Copy my personal groups into central groups** to copy your existing personal groups.
-4. Save, then open **Live-TV Control Center → Manage groups**.
+3. If your admin account has personal groups, explicitly choose **Copy my personal groups into central groups** or **Start with new central groups**. The second choice retains your personal groups in storage but hides them while central mode is active.
+4. Save, then open **Live-TV Control Center → Manage groups**. If you started without copying, open **Administration** again and choose **Copy my saved personal groups into central groups now** to import them later.
 5. Create/edit central groups and configure **User access** per group.
 6. Ensure intended users have Jellyfin access to the plugin channel.
 

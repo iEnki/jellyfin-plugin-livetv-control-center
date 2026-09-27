@@ -614,6 +614,7 @@ public class GroupsController : Controller
         return Ok(new
         {
             Configuration = _groups.Store.GetAdministration(),
+            PersonalGroupCount = _groups.Store.Get(user.Id).Groups.Count,
             Users = _userManager.GetUsers().Select(u => new
             {
                 Id = u.Id,
@@ -634,6 +635,12 @@ public class GroupsController : Controller
         if (!user.HasPermission(PermissionKind.IsAdministrator)) { return Forbid(); }
         if (request.Mode is not ("personal" or "shared")) { return BadRequest("Invalid group mode."); }
         if (request.ImportPersonalGroups && request.Mode != "shared") { return BadRequest("Import is only available for central groups."); }
+        if (request.SkipPersonalGroupImport && request.Mode != "shared") { return BadRequest("A central-group choice requires central mode."); }
+        if (request.ImportPersonalGroups && request.SkipPersonalGroupImport) { return BadRequest("Choose one personal-group migration option."); }
+        var switchingToShared = _groups.Store.GetAdministration().Mode != "shared" && request.Mode == "shared";
+        if (switchingToShared && _groups.Store.Get(user.Id).Groups.Count > 0
+            && !request.ImportPersonalGroups && !request.SkipPersonalGroupImport)
+        { return BadRequest("Choose whether to copy your personal groups or continue without them."); }
         var imported = new List<Guid>();
         _groups.Store.UpdateAdministration(config =>
         {
@@ -776,6 +783,8 @@ public class AdministrationRequest
     public string Mode { get; set; } = "personal";
     /// <summary>Gets or sets whether to copy existing admin groups.</summary>
     public bool ImportPersonalGroups { get; set; }
+    /// <summary>Gets or sets explicit consent to enter central mode without copying personal groups.</summary>
+    public bool SkipPersonalGroupImport { get; set; }
 }
 
 /// <summary>User access policy for a central group.</summary>
