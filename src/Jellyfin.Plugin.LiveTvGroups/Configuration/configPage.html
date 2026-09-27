@@ -33,6 +33,12 @@
                         <label><input type="radio" name="GroupMigration" value="skip" /> <span id="WithoutImportLabel">Start with new central groups</span></label>
                     </div>
                     <label id="ImportExistingGroups" hidden><input id="ImportPersonalGroups" type="checkbox" disabled /> Copy my saved personal groups into central groups now</label>
+                    <div id="CentralMigrationChoice" hidden>
+                        <p>Central groups will no longer be shown in personal mode unless you copy them. Your saved central groups are never deleted.</p>
+                        <label><input type="radio" name="CentralMigration" value="copy" /> Copy central groups into my personal groups</label><br />
+                        <label><input type="radio" name="CentralMigration" value="skip" /> <span id="WithoutCentralImportLabel">Start with new personal groups</span></label>
+                    </div>
+                    <label id="ImportExistingCentralGroups" hidden><input id="ImportCentralGroups" type="checkbox" disabled /> Copy saved central groups into my personal groups now</label>
                     <div class="inputContainer">
                         <label class="inputLabel" for="AppGuideTimeZone">Timezone for the TV app guide</label>
                         <input id="AppGuideTimeZone" type="text" is="emby-input" required placeholder="Europe/Vienna" />
@@ -101,14 +107,22 @@
                 var centralGroupCount = 0;
                 function updateImport() {
                     var input = page.querySelector('#ImportPersonalGroups');
+                    var centralInput = page.querySelector('#ImportCentralGroups');
                     var selectedMode = page.querySelector('#GroupMode').value;
                     var switching = administrationLoaded && loadedMode !== 'shared' && selectedMode === 'shared' && personalGroupCount > 0;
+                    var switchingToPersonal = administrationLoaded && loadedMode === 'shared' && selectedMode === 'personal' && centralGroupCount > 0;
                     page.querySelector('#GroupMigrationChoice').hidden = !switching;
                     page.querySelector('#ImportExistingGroups').hidden = !administrationLoaded || loadedMode !== 'shared' || selectedMode !== 'shared' || personalGroupCount === 0;
+                    page.querySelector('#CentralMigrationChoice').hidden = !switchingToPersonal;
+                    page.querySelector('#ImportExistingCentralGroups').hidden = !administrationLoaded || loadedMode !== 'personal' || selectedMode !== 'personal' || centralGroupCount === 0;
                     page.querySelector('#WithoutImportLabel').textContent = t(centralGroupCount > 0 ? 'Keep existing central groups and create new ones' : 'Start with new central groups');
+                    page.querySelector('#WithoutCentralImportLabel').textContent = t(personalGroupCount > 0 ? 'Keep existing personal groups and create new ones' : 'Start with new personal groups');
                     if (!switching) page.querySelectorAll('input[name="GroupMigration"]').forEach(function (radio) { radio.checked = false; });
+                    if (!switchingToPersonal) page.querySelectorAll('input[name="CentralMigration"]').forEach(function (radio) { radio.checked = false; });
                     input.disabled = page.querySelector('#ImportExistingGroups').hidden;
                     if (input.disabled) input.checked = false;
+                    centralInput.disabled = page.querySelector('#ImportExistingCentralGroups').hidden;
+                    if (centralInput.disabled) centralInput.checked = false;
                 }
                 page.querySelector('#ChannelAccessButton').onclick = async function () { try { await loadLocalization();if(!window.LiveTvGroupsChannelAccess)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=ApiClient.getUrl('LiveTvGroups/channel-access.js');script.onload=resolve;script.onerror=()=>reject(new Error(t("Could not load channel access.")));document.head.appendChild(script);});await window.LiveTvGroupsChannelAccess.open(); } catch(error) { Dashboard.alert(error.message); } };
                 page.querySelector('#GroupMode').addEventListener('change', updateImport);
@@ -176,16 +190,24 @@
                         if (!config.EnableJellyfinTvTargets && !config.EnableWholphinTargets) throw new Error(t('Enable at least one TV target app.'));
                         var selectedMode = page.querySelector('#GroupMode').value;
                         var switching = loadedMode !== 'shared' && selectedMode === 'shared' && personalGroupCount > 0;
+                        var switchingToPersonal = loadedMode === 'shared' && selectedMode === 'personal' && centralGroupCount > 0;
                         var choice = page.querySelector('input[name="GroupMigration"]:checked')?.value;
+                        var centralChoice = page.querySelector('input[name="CentralMigration"]:checked')?.value;
                         if (switching && !choice) throw new Error(t('Choose whether to copy your personal groups or start with central groups.'));
+                        if (switchingToPersonal && !centralChoice) throw new Error(t('Choose whether to copy central groups into your personal groups or start with personal groups.'));
                         var importGroups = switching ? choice === 'copy' : page.querySelector('#ImportPersonalGroups').checked;
+                        var importCentralGroups = switchingToPersonal ? centralChoice === 'copy' : page.querySelector('#ImportCentralGroups').checked;
                         return fetch(ApiClient.getUrl('LiveTvGroups/Administration'), {
                             method: 'PUT', headers: { Authorization: 'MediaBrowser Token="' + ApiClient.accessToken() + '"', 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ Mode: selectedMode, ImportPersonalGroups: importGroups, SkipPersonalGroupImport: switching && choice === 'skip' })
-                        }).then(function (response) {
+                            body: JSON.stringify({ Mode: selectedMode, ImportPersonalGroups: importGroups, SkipPersonalGroupImport: switching && choice === 'skip', ImportCentralGroups: importCentralGroups, SkipCentralGroupImport: switchingToPersonal && centralChoice === 'skip' })
+                        }).then(async function (response) {
                             if (!response.ok) throw new Error(t("Could not save group administration (HTTP ") + response.status + ').');
                             loadedMode = selectedMode;
                             page.querySelector('#ImportPersonalGroups').checked = false;
+                            page.querySelector('#ImportCentralGroups').checked = false;
+                            var latest = await ApiClient.getJSON(ApiClient.getUrl('LiveTvGroups/Administration'));
+                            personalGroupCount = latest.PersonalGroupCount || 0;
+                            centralGroupCount = latest.Configuration.Groups.length;
                             updateImport();
                             return ApiClient.updatePluginConfiguration(pluginId, config);
                         }).then(function (result) {

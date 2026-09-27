@@ -625,7 +625,7 @@ public class GroupsController : Controller
         });
     }
 
-    /// <summary>Changes mode, optionally copying admin personal groups without deleting them.</summary>
+    /// <summary>Changes mode, optionally copying groups between the admin's personal and central collections.</summary>
     [HttpPut("Administration")]
     [Authorize(Policy = Policies.RequiresElevation)]
     public async Task<ActionResult> SetAdministration([FromBody, Required] AdministrationRequest request, CancellationToken cancellationToken = default)
@@ -637,10 +637,35 @@ public class GroupsController : Controller
         if (request.ImportPersonalGroups && request.Mode != "shared") { return BadRequest("Import is only available for central groups."); }
         if (request.SkipPersonalGroupImport && request.Mode != "shared") { return BadRequest("A central-group choice requires central mode."); }
         if (request.ImportPersonalGroups && request.SkipPersonalGroupImport) { return BadRequest("Choose one personal-group migration option."); }
-        var switchingToShared = _groups.Store.GetAdministration().Mode != "shared" && request.Mode == "shared";
+        if (request.ImportCentralGroups && request.Mode != "personal") { return BadRequest("Central-group import is only available for personal groups."); }
+        if (request.SkipCentralGroupImport && request.Mode != "personal") { return BadRequest("A personal-group choice requires personal mode."); }
+        if (request.ImportCentralGroups && request.SkipCentralGroupImport) { return BadRequest("Choose one central-group migration option."); }
+        var administration = _groups.Store.GetAdministration();
+        var switchingToShared = administration.Mode != "shared" && request.Mode == "shared";
+        var switchingToPersonal = administration.Mode == "shared" && request.Mode == "personal";
         if (switchingToShared && _groups.Store.Get(user.Id).Groups.Count > 0
             && !request.ImportPersonalGroups && !request.SkipPersonalGroupImport)
         { return BadRequest("Choose whether to copy your personal groups or continue without them."); }
+        if (switchingToPersonal && administration.Groups.Count > 0
+            && !request.ImportCentralGroups && !request.SkipCentralGroupImport)
+        { return BadRequest("Choose whether to copy central groups into your personal groups or continue without them."); }
+        var importedPersonal = new List<Guid>();
+        if (request.ImportCentralGroups)
+        {
+            _groups.Store.Update(user.Id, doc =>
+            {
+                foreach (var group in administration.Groups.Where(g => !doc.Groups.Any(personal => personal.Id == g.Id)))
+                {
+                    var copy = JsonSerializer.Deserialize<ChannelGroup>(JsonSerializer.SerializeToUtf8Bytes(group))!;
+                    copy.VisibleToAllUsers = true;
+                    copy.AllowedUserIds.Clear();
+                    copy.DeniedUserIds.Clear();
+                    doc.Groups.Add(copy);
+                    importedPersonal.Add(copy.Id);
+                }
+                return true;
+            });
+        }
         var imported = new List<Guid>();
         _groups.Store.UpdateAdministration(config =>
         {
@@ -660,6 +685,7 @@ public class GroupsController : Controller
             return true;
         });
         if (imported.Count > 0) { Artwork.CopyPersonalToShared(user.Id, imported); }
+        if (importedPersonal.Count > 0) { Artwork.CopySharedToPersonal(user.Id, importedPersonal); }
         await RefreshVisibleArtworkAsync(cancellationToken).ConfigureAwait(false);
         QueueAllSync();
         return NoContent();
@@ -785,6 +811,10 @@ public class AdministrationRequest
     public bool ImportPersonalGroups { get; set; }
     /// <summary>Gets or sets explicit consent to enter central mode without copying personal groups.</summary>
     public bool SkipPersonalGroupImport { get; set; }
+    /// <summary>Gets or sets whether to copy central groups into this administrator's personal collection.</summary>
+    public bool ImportCentralGroups { get; set; }
+    /// <summary>Gets or sets explicit consent to enter personal mode without copying central groups.</summary>
+    public bool SkipCentralGroupImport { get; set; }
 }
 
 /// <summary>User access policy for a central group.</summary>

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Administrators can now copy central groups into their own personal collection when switching back to personal mode, or import them later. Both management screens require an explicit copy/skip choice on mode switch. Existing personal groups take precedence when IDs match; central groups and other users' personal groups remain untouched. Custom group images are copied with newly imported groups.
 - Require administrators to explicitly choose whether to copy their personal groups when switching to central management. The no-copy choice preserves personal groups for later use, and both the web dialog and plugin dashboard offer a later import. Reject an ambiguous mode-switch request instead of silently showing an empty central group list.
 
 ## 1.2.0.0

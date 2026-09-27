@@ -511,23 +511,38 @@
             +("<label class=\"ltvg-picker-row\"><input type=\"radio\" name=\"migration\" value=\"copy\">" + t("Copy my personal groups into central groups") + "</label>")
             +("<label class=\"ltvg-picker-row\"><input type=\"radio\" name=\"migration\" value=\"skip\"><span data-skip-label></span></label></div>")
             +("<label class=\"ltvg-picker-row\" data-late-import hidden><input type=\"checkbox\" name=\"import\">" + t("Copy my saved personal groups into central groups now") + "</label>")
+            +("<div data-central-migration-choice hidden><p>" + t("Central groups will no longer be shown in personal mode unless you copy them. Your saved central groups are never deleted.") + "</p>")
+            +("<label class=\"ltvg-picker-row\"><input type=\"radio\" name=\"centralMigration\" value=\"copy\">" + t("Copy central groups into my personal groups") + "</label>")
+            +("<label class=\"ltvg-picker-row\"><input type=\"radio\" name=\"centralMigration\" value=\"skip\"><span data-central-skip-label></span></label></div>")
+            +("<label class=\"ltvg-picker-row\" data-late-central-import hidden><input type=\"checkbox\" name=\"importCentral\">" + t("Copy saved central groups into my personal groups now") + "</label>")
             +("<p>" + t("Both collections are retained when switching modes. Administrators can manage all central groups. Jellyfin channel access is still required.") + "</p>")
             +'<div class="ltvg-modal-actions">'+button('cancel',t("Cancel"))+("<button type=\"submit\" class=\"ltvg-btn ltvg-primary\">" + t("Save") + "</button></div></form>"));
         const form = wrapper.querySelector('form');form.elements.mode.value=data.Configuration.Mode;
         const personalCount=Number(data.PersonalGroupCount)||0;
+        const centralCount=(data.Configuration.Groups||[]).length;
         const update=()=>{const shared=form.elements.mode.value==='shared',switching=shared&&data.Configuration.Mode!=='shared'&&personalCount>0;
+            const switchingToPersonal=!shared&&data.Configuration.Mode==='shared'&&centralCount>0;
             wrapper.querySelector('[data-migration-choice]').hidden=!switching;
             wrapper.querySelector('[data-late-import]').hidden=!(shared&&data.Configuration.Mode==='shared'&&personalCount>0);
-            wrapper.querySelector('[data-skip-label]').textContent=t((data.Configuration.Groups||[]).length?'Keep existing central groups and create new ones':'Start with new central groups');
+            wrapper.querySelector('[data-central-migration-choice]').hidden=!switchingToPersonal;
+            wrapper.querySelector('[data-late-central-import]').hidden=!(!shared&&data.Configuration.Mode==='personal'&&centralCount>0);
+            wrapper.querySelector('[data-skip-label]').textContent=t(centralCount?'Keep existing central groups and create new ones':'Start with new central groups');
+            wrapper.querySelector('[data-central-skip-label]').textContent=t(personalCount?'Keep existing personal groups and create new ones':'Start with new personal groups');
             if(!switching)wrapper.querySelectorAll('[name="migration"]').forEach(input=>input.checked=false);
+            if(!switchingToPersonal)wrapper.querySelectorAll('[name="centralMigration"]').forEach(input=>input.checked=false);
             form.elements.import.disabled=wrapper.querySelector('[data-late-import]').hidden;
-            if(form.elements.import.disabled)form.elements.import.checked=false;};
+            if(form.elements.import.disabled)form.elements.import.checked=false;
+            form.elements.importCentral.disabled=wrapper.querySelector('[data-late-central-import]').hidden;
+            if(form.elements.importCentral.disabled)form.elements.importCentral.checked=false;};
         form.elements.mode.onchange=update;update();wrapper.querySelector('[data-action="cancel"]').onclick=closeModal;
         form.onsubmit=async e=>{e.preventDefault();const save=form.querySelector('[type="submit"]');save.disabled=true;
             try{const switching=data.Configuration.Mode!=='shared'&&form.elements.mode.value==='shared'&&personalCount>0;
+                const switchingToPersonal=data.Configuration.Mode==='shared'&&form.elements.mode.value==='personal'&&centralCount>0;
                 const choice=form.elements.migration.value;
+                const centralChoice=form.elements.centralMigration.value;
                 if(switching&&!choice)throw new Error(t('Choose whether to copy your personal groups or start with central groups.'));
-                await api('PUT','Administration',{Mode:form.elements.mode.value,ImportPersonalGroups:switching?choice==='copy':form.elements.import.checked,SkipPersonalGroupImport:switching&&choice==='skip'});
+                if(switchingToPersonal&&!centralChoice)throw new Error(t('Choose whether to copy central groups into your personal groups or start with personal groups.'));
+                await api('PUT','Administration',{Mode:form.elements.mode.value,ImportPersonalGroups:switching?choice==='copy':form.elements.import.checked,SkipPersonalGroupImport:switching&&choice==='skip',ImportCentralGroups:switchingToPersonal?centralChoice==='copy':form.elements.importCentral.checked,SkipCentralGroupImport:switchingToPersonal&&centralChoice==='skip'});
                 closeModal();state.view='guide';state.group='all';await reloadGroups();}
             catch(e){modalError(wrapper,e);}finally{save.disabled=false;}
         };

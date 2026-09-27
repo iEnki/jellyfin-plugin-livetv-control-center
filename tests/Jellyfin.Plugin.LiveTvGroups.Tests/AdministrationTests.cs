@@ -64,7 +64,7 @@ public class AdministrationTests
         Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "shared", ImportPersonalGroups = true }));
         Assert.Single(f.Store.GetAdministration().Groups);
         Assert.NotSame(f.Store.Get(f.Admin.Id).Groups[0], f.Store.GetAdministration().Groups[0]);
-        Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "personal" }));
+        Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "personal", SkipCentralGroupImport = true }));
         Assert.Equal("Alice Personal", Assert.Single(f.Groups.GetGroups(f.Alice)).Name);
         Assert.Equal("Admin Personal", Assert.Single(f.Groups.GetGroups(f.Admin)).Name);
     }
@@ -91,8 +91,65 @@ public class AdministrationTests
         Assert.IsType<NoContentResult>(await api.SetAdministration(new()
         { Mode = "shared", ImportPersonalGroups = true }));
         Assert.Equal("Admin Personal", Assert.Single(f.Store.GetAdministration().Groups).Name);
-        Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "personal" }));
+        Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "personal", SkipCentralGroupImport = true }));
         Assert.Equal("Admin Personal", Assert.Single(f.Groups.GetGroups(f.Admin)).Name);
+    }
+
+    [Fact]
+    public async Task SwitchingToPersonalRequiresAChoiceAndCanCopyCentralGroupsLater()
+    {
+        using var f = new Fixture();
+        var centralId = Guid.NewGuid();
+        f.Groups.Update(f.Admin, doc => { doc.Groups.Add(new() { Id = f.Group, Name = "My existing group" }); return true; });
+        f.Groups.Update(f.Alice, doc => { doc.Groups.Add(new() { Id = Guid.NewGuid(), Name = "Alice group" }); return true; });
+        f.Store.UpdateAdministration(config =>
+        {
+            config.Mode = "shared";
+            config.Groups.Add(new() { Id = f.Group, Name = "Central duplicate" });
+            config.Groups.Add(new() { Id = centralId, Name = "Central crime", VisibleToAllUsers = false,
+                AllowedUserIds = [f.Bob.Id], Channels = [new() { ItemId = Guid.NewGuid(), Name = "Crime TV", Number = "7" }] });
+            return true;
+        });
+        var api = f.Api(f.Admin);
+        var revision = f.Store.GetAdministration().Revision;
+        Assert.IsType<BadRequestObjectResult>(await api.SetAdministration(new() { Mode = "personal" }));
+        Assert.IsType<BadRequestObjectResult>(await api.SetAdministration(new() { Mode = "personal", ImportCentralGroups = true, SkipCentralGroupImport = true }));
+        Assert.Equal(revision, f.Store.GetAdministration().Revision);
+
+        Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "personal", SkipCentralGroupImport = true }));
+        Assert.Equal("My existing group", Assert.Single(f.Store.Get(f.Admin.Id).Groups).Name);
+        Assert.Equal(2, f.Store.GetAdministration().Groups.Count);
+
+        Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "personal", ImportCentralGroups = true }));
+        var personal = f.Store.Get(f.Admin.Id).Groups;
+        Assert.Equal(2, personal.Count);
+        Assert.Equal("My existing group", personal[0].Name);
+        Assert.Equal("Central crime", personal[1].Name);
+        Assert.True(personal[1].VisibleToAllUsers);
+        Assert.Empty(personal[1].AllowedUserIds);
+        Assert.Empty(personal[1].DeniedUserIds);
+        Assert.Equal("Crime TV", Assert.Single(personal[1].Channels).Name);
+        Assert.NotSame(f.Store.GetAdministration().Groups[1], personal[1]);
+        Assert.Equal("Alice group", Assert.Single(f.Store.Get(f.Alice.Id).Groups).Name);
+        Assert.IsType<NoContentResult>(await api.SetAdministration(new() { Mode = "personal", ImportCentralGroups = true }));
+        Assert.Equal(2, f.Store.Get(f.Admin.Id).Groups.Count);
+    }
+
+    [Fact]
+    public async Task SwitchingToPersonalCanImmediatelyCopyCentralGroupsWithoutChangingTheSharedCollection()
+    {
+        using var f = new Fixture();
+        f.Store.UpdateAdministration(config =>
+        {
+            config.Mode = "shared";
+            config.Groups.Add(new() { Id = f.Group, Name = "Shared group" });
+            return true;
+        });
+        Assert.IsType<NoContentResult>(await f.Api(f.Admin).SetAdministration(new()
+        { Mode = "personal", ImportCentralGroups = true }));
+        Assert.Equal("Shared group", Assert.Single(f.Groups.GetGroups(f.Admin)).Name);
+        Assert.Equal("Shared group", Assert.Single(f.Store.GetAdministration().Groups).Name);
+        Assert.Empty(f.Store.Get(f.Alice.Id).Groups);
     }
 
     [Fact]
@@ -140,10 +197,13 @@ public class AdministrationTests
         var api = f.Api(f.Alice);
         Assert.IsType<ForbidResult>(api.GetAdministration());
         Assert.IsType<ForbidResult>(await api.SetAdministration(new() { Mode = "personal" }));
+        Assert.IsType<ForbidResult>(await api.SetAdministration(new() { Mode = "personal", ImportCentralGroups = true }));
         Assert.IsType<ForbidResult>(api.SetGroupAccess(f.Group, new() { DeniedUserIds = [f.Bob.Id] }));
         api = f.Api(f.Admin);
         Assert.IsType<BadRequestObjectResult>(await api.SetAdministration(new() { Mode = "invalid" }));
         Assert.IsType<BadRequestObjectResult>(await api.SetAdministration(new() { Mode = "personal", ImportPersonalGroups = true }));
+        Assert.IsType<BadRequestObjectResult>(await api.SetAdministration(new() { Mode = "shared", ImportCentralGroups = true }));
+        Assert.IsType<BadRequestObjectResult>(await api.SetAdministration(new() { Mode = "shared", SkipCentralGroupImport = true }));
         Assert.IsType<BadRequestObjectResult>(api.SetGroupAccess(f.Group, new() { AllowedUserIds = [Guid.NewGuid()] }));
         Assert.IsType<NotFoundResult>(api.SetGroupAccess(Guid.NewGuid(), new()));
         foreach (var method in new[] { "GetAdministration", "SetAdministration", "SetGroupAccess" })

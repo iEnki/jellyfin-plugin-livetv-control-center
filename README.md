@@ -94,7 +94,7 @@ Choose where channel playback starts with **Play on**. This capture shows connec
 
 [![Group administration dialog showing personal groups mode and the option to copy personal groups into central groups](assets/screenshots/group-administration.png)](assets/screenshots/group-administration.png)
 
-Administrators can switch between personal and centrally managed groups, optionally copying their personal collection into central groups while preserving both collections.
+Administrators can switch between personal and centrally managed groups, optionally copying groups in either direction while preserving both collections.
 
 </details>
 
@@ -327,7 +327,9 @@ Use your phone as a remote to start and switch Live TV channels on your TV. The 
 
 Switching modes preserves both collections. Enabling central mode does not delete personal groups; returning to personal mode does not delete central groups.
 
-The optional copy operation preserves group IDs/channel order, keeps personal originals and skips IDs already present in the central collection. It does not overwrite previously imported central groups.
+On either switch, administrators choose whether to copy the source collection or continue with the target collection as it is. To bring central groups into your own personal collection, select **Copy central groups into my personal groups** when returning to personal mode. If you skipped the copy, reopen **Administration** in personal mode and select **Copy saved central groups into my personal groups now**. These options are available only to administrators; the reverse copy affects only that admin's personal groups, not other users' collections.
+
+Copies preserve group IDs, channel order and custom group images. Groups already present in the target collection keep their existing settings and image. Neither source collection is deleted or overwritten.
 
 ### Central user access
 

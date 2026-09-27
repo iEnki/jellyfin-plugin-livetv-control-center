@@ -49,16 +49,25 @@ before(async()=>{
   if(!f.access.IsAdministrator){send({},403);return;}
   if(req.method==='PUT'){
    const personal=f.personalGroups||(f.access.Mode==='personal'?f.groups:[]);
-   if(body.ImportPersonalGroups&&body.SkipPersonalGroupImport||body.Mode==='shared'&&f.access.Mode!=='shared'&&personal.length&&!body.ImportPersonalGroups&&!body.SkipPersonalGroupImport){send({},400);return;}
+   const central=f.access.Mode==='shared'?f.groups:(f.centralGroups||[]);
+   if(body.ImportPersonalGroups&&body.SkipPersonalGroupImport||body.ImportCentralGroups&&body.SkipCentralGroupImport
+     ||body.ImportPersonalGroups&&body.Mode!=='shared'||body.ImportCentralGroups&&body.Mode!=='personal'
+     ||body.Mode==='shared'&&f.access.Mode!=='shared'&&personal.length&&!body.ImportPersonalGroups&&!body.SkipPersonalGroupImport
+     ||body.Mode==='personal'&&f.access.Mode==='shared'&&central.length&&!body.ImportCentralGroups&&!body.SkipCentralGroupImport){send({},400);return;}
    if(f.access.Mode==='personal'&&body.Mode==='shared'){
     f.personalGroups=f.groups.map(g=>({...g}));
     f.groups=body.ImportPersonalGroups?[...(f.centralGroups||[]),...f.personalGroups.filter(g=>!(f.centralGroups||[]).some(c=>c.Id===g.Id))]:[...(f.centralGroups||[])];
    }else if(f.access.Mode==='shared'&&body.Mode==='personal'){
     f.centralGroups=f.groups.map(g=>({...g}));f.groups=(f.personalGroups||[]).map(g=>({...g}));
+    if(body.ImportCentralGroups)f.groups.push(...f.centralGroups.filter(g=>!f.groups.some(p=>p.Id===g.Id)).map(g=>({...g})));
    }else if(f.access.Mode==='shared'&&body.ImportPersonalGroups){
     f.groups=[...f.groups,...personal.filter(g=>!f.groups.some(c=>c.Id===g.Id))];
+   }else if(f.access.Mode==='personal'&&body.ImportCentralGroups){
+    f.groups=[...f.groups,...central.filter(g=>!f.groups.some(p=>p.Id===g.Id)).map(g=>({...g}))];
    }
-   f.access.Mode=body.Mode;f.access.CanManage=true;f.imported=body.ImportPersonalGroups;f.skipped=body.SkipPersonalGroupImport;send(null,204);
+   if(body.Mode==='personal')f.personalGroups=f.groups.map(g=>({...g}));
+   if(body.Mode==='shared')f.centralGroups=f.groups.map(g=>({...g}));
+   f.access.Mode=body.Mode;f.access.CanManage=true;f.imported=body.ImportPersonalGroups;f.skipped=body.SkipPersonalGroupImport;f.importedCentral=body.ImportCentralGroups;f.skippedCentral=body.SkipCentralGroupImport;send(null,204);
   }
   else send({Configuration:{Mode:f.access.Mode,Groups:(f.access.Mode==='shared'?f.groups:(f.centralGroups||[])).map(g=>({...g,VisibleToAllUsers:true,AllowedUserIds:[],DeniedUserIds:[],...f.policies[g.Id]}))},PersonalGroupCount:(f.personalGroups||(f.access.Mode==='personal'?f.groups:[])).length,Users:f.adminUsers});return;
  }
@@ -347,6 +356,36 @@ test('English administration explains that personal groups stay saved',async t=>
  await page.locator('#ltvg-modal').waitFor({state:'detached'});
  assert.equal(f.access.Mode,'shared');assert.equal(f.groups.length,2);
 });
+test('admin chooses whether to copy central groups when returning to personal mode',async t=>{
+ const {page,f}=await open(t);f.access.IsAdministrator=true;f.access.Mode='shared';f.centralGroups=f.groups.map(g=>({...g}));f.personalGroups=[{Id:crime,Name:'My crime group',ChannelCount:2}];
+ await page.reload();await page.locator('.ltvg-guide-prog').first().waitFor();
+ await page.getByRole('button',{name:'Verwaltung',exact:true}).click();
+ await page.getByLabel('Betriebsart',{exact:true}).selectOption('personal');
+ await page.getByRole('button',{name:'Speichern',exact:true}).click();
+ await page.getByText('Bitte wählen, ob zentrale Gruppen',{exact:false}).waitFor();
+ assert.equal(f.access.Mode,'shared');
+ await page.getByLabel('Zentrale Gruppen in meine persönlichen Gruppen kopieren').check();
+ await page.getByRole('button',{name:'Speichern',exact:true}).click();
+ await page.locator('#ltvg-modal').waitFor({state:'detached'});
+ assert.equal(f.access.Mode,'personal');assert.equal(f.importedCentral,true);
+ assert.equal(f.groups.length,2);assert.equal(f.groups.find(g=>g.Id===crime).Name,'My crime group');
+ assert.equal(f.centralGroups.length,2);
+});
+test('admin may keep personal groups and import central groups later',async t=>{
+ const {page,f}=await open(t);f.access.IsAdministrator=true;f.access.Mode='shared';f.centralGroups=f.groups.map(g=>({...g}));f.personalGroups=[];
+ await page.reload();await page.locator('.ltvg-guide-prog').first().waitFor();
+ await page.getByRole('button',{name:'Verwaltung',exact:true}).click();
+ await page.getByLabel('Betriebsart',{exact:true}).selectOption('personal');
+ await page.getByLabel('Mit neuen persönlichen Gruppen beginnen').check();
+ await page.getByRole('button',{name:'Speichern',exact:true}).click();
+ await page.locator('#ltvg-modal').waitFor({state:'detached'});
+ assert.equal(f.access.Mode,'personal');assert.equal(f.skippedCentral,true);assert.equal(f.groups.length,0);
+ await page.getByRole('button',{name:'Verwaltung',exact:true}).click();
+ await page.getByLabel('Gespeicherte zentrale Gruppen jetzt in meine persönlichen Gruppen kopieren').check();
+ await page.getByRole('button',{name:'Speichern',exact:true}).click();
+ await page.locator('#ltvg-modal').waitFor({state:'detached'});
+ assert.equal(f.groups.length,2);assert.equal(f.centralGroups.length,2);
+});
 test('shared-mode empty group list does not offer a create action to normal users',async t=>{
  const {page,f}=await open(t);f.access={Mode:'shared',CanManage:false,IsAdministrator:false};f.groups=[];
  await page.reload();await page.getByText('Keine sichtbaren Gruppen.',{exact:false}).waitFor();
@@ -379,6 +418,20 @@ test('dashboard requires an explicit central-mode choice and preserves skipped p
  assert.equal(f.access.Mode,'shared');assert.equal(f.skipped,true);
  assert.equal(f.groups.length,0);assert.equal(f.personalGroups.length,2);
  assert.equal(await page.getByLabel('Meine gespeicherten persönlichen Gruppen jetzt in zentrale Gruppen kopieren').isVisible(),true);
+});
+test('dashboard can copy central groups back into admin personal groups',async t=>{
+ const {page,f}=await open(t);f.access.IsAdministrator=true;f.access.Mode='shared';f.centralGroups=f.groups.map(g=>({...g}));f.personalGroups=[];
+ await page.goto(page.url().replace('/?','/dashboard?').split('#')[0]);
+ await page.waitForFunction(()=>!document.querySelector('#GroupMode').disabled);
+ await page.getByLabel('Gruppenverwaltung',{exact:true}).selectOption('personal');
+ await page.getByRole('button',{name:'Speichern',exact:true}).click();
+ await page.waitForFunction(()=>window.dashboardError?.includes('Bitte wählen'));
+ assert.equal(f.access.Mode,'shared');
+ await page.getByLabel('Zentrale Gruppen in meine persönlichen Gruppen kopieren').check();
+ await page.getByRole('button',{name:'Speichern',exact:true}).click();
+ await page.waitForFunction(()=>window.dashboardSaved);
+ assert.equal(f.access.Mode,'personal');assert.equal(f.importedCentral,true);
+ assert.equal(f.groups.length,2);assert.equal(f.centralGroups.length,2);
 });
 
 test('refresh reloads mode and visible group permissions on an already open page',async t=>{
