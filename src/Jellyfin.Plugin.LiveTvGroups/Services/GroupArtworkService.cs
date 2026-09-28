@@ -161,18 +161,29 @@ public sealed class GroupArtworkService
 
     /// <summary>Copies personal artwork when the administrator imports groups into central mode.</summary>
     public void CopyPersonalToShared(Guid userId, IEnumerable<Guid> groupIds)
+        => CopyCustomImages(userId, false, true, groupIds);
+
+    /// <summary>Copies central artwork when the administrator imports groups into their personal collection.</summary>
+    public void CopySharedToPersonal(Guid userId, IEnumerable<Guid> groupIds)
+        => CopyCustomImages(userId, true, false, groupIds);
+
+    private void CopyCustomImages(Guid userId, bool sourceShared, bool targetShared, IEnumerable<Guid> groupIds)
     {
         foreach (var groupId in groupIds)
         {
-            var source = FindCustom(userId, false, groupId);
+            var source = FindCustom(userId, sourceShared, groupId);
             if (source is null)
             {
                 continue;
             }
 
-            var targetDirectory = GetScopeDirectory(userId, true);
+            var targetDirectory = GetScopeDirectory(userId, targetShared);
             Directory.CreateDirectory(targetDirectory);
             var target = Path.Combine(targetDirectory, groupId.ToString("N") + Path.GetExtension(source).ToLowerInvariant());
+            foreach (var stale in CandidatePaths(userId, targetShared, groupId).Where(path => path != target && File.Exists(path)))
+            {
+                File.Delete(stale);
+            }
             File.Copy(source, target, true);
             File.SetLastWriteTimeUtc(target, DateTime.UtcNow);
         }

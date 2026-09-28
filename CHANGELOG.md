@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+## 1.3.0.0
+
+- Administrators can now copy central groups into their own personal collection when switching back to personal mode, or import them later. Both management screens require an explicit copy/skip choice on mode switch. Existing personal groups take precedence when IDs match; central groups and other users' personal groups remain untouched. Custom group images are copied with newly imported groups.
+- Require administrators to explicitly choose whether to copy their personal groups when switching to central management. The no-copy choice preserves personal groups for later use, and both the web dialog and plugin dashboard offer a later import. Reject an ambiguous mode-switch request instead of silently showing an empty central group list.
+
 ## 1.2.0.0
 
 - Support Wholphin in the native Live TV guide: select a group or **All channels** directly in its compatible Control Center folders, then open **Live TV → TV Guide**. Group selection applies only to the authenticated user's device, respects current group/channel permissions, and restores the full guide on reset. Wholphin does not support an automatic guide jump.

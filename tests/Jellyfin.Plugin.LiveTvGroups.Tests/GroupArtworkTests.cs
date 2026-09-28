@@ -91,6 +91,27 @@ public sealed class GroupArtworkTests
     }
 
     [Fact]
+    public async Task CentralImageIsCopiedWithItsGroupIntoAdminPersonalStorage()
+    {
+        using var fixture = new Fixture();
+        fixture.Store.UpdateAdministration(config =>
+        {
+            config.Mode = "shared";
+            config.Groups.Add(new() { Id = fixture.GroupId, Name = "Shared", ArtworkRevision = 3 });
+            return true;
+        });
+        var centralImage = await fixture.Artwork.SaveCustomImageAsync(
+            fixture.Admin.Id, true, fixture.GroupId, new MemoryStream(Png()), "image/png", CancellationToken.None);
+        Assert.IsType<NoContentResult>(await fixture.Api(fixture.Admin, Png(), "image/png").SetAdministration(new()
+        { Mode = "personal", ImportCentralGroups = true }));
+        var personalImage = fixture.Artwork.GetGroupImage(fixture.Admin.Id, false, fixture.GroupId);
+        Assert.NotEqual(centralImage, personalImage);
+        Assert.Equal(await File.ReadAllBytesAsync(centralImage), await File.ReadAllBytesAsync(personalImage));
+        Assert.Equal(3, Assert.Single(fixture.Store.Get(fixture.Admin.Id).Groups).ArtworkRevision);
+        Assert.False(fixture.Artwork.HasCustomImage(fixture.Other.Id, false, fixture.GroupId));
+    }
+
+    [Fact]
     public async Task ControllerUpdatesRevisionAndHonorsPersonalAndCentralPermissions()
     {
         using var fixture = new Fixture();

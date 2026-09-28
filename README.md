@@ -13,7 +13,7 @@ Make Jellyfin's **original TV Guide** easier to use on Android TV and Fire TV: s
 - **Other ways to browse:** Keep group folders and program lists in supported native apps; optionally create group playlists. [Native app support](#native-apps-and-program-lists).
 - **Recognizable TV folders:** Built-in artwork distinguishes the control center, created channel groups, the **All channels** reset action, native guide actions and fallback program lists. Editors can upload a separate image for each group. [Group artwork](#group-artwork).
 
-**Stable version: 1.2.0.0** · **Jellyfin: minimum 12.0 (12.1 confirmed)** · **Plugin ABI: 12.0.0.0** · **License: GPL-3.0**
+**Stable version: 1.3.0.0** · **Jellyfin: minimum 12.0 (12.1 confirmed)** · **Plugin ABI: 12.0.0.0** · **License: GPL-3.0**
 
 The plugin uses Jellyfin's existing channels and EPG data. Its web guide is separate from Jellyfin's original Live TV guide; the native TV filter changes which channels the original guide shows on the selected TV.
 
@@ -111,7 +111,7 @@ Choose visible groups, the default group and view, whether to remember the last 
 
 [![Administration dialog for personal and centrally managed groups](assets/screenshots/group-administration.png)](assets/screenshots/group-administration.png)
 
-Administrators can choose personal or centrally managed groups and optionally copy their personal groups into the central collection.
+Administrators can switch between personal and centrally managed groups, optionally copying groups in either direction while preserving both collections.
 
 </details>
 
@@ -153,6 +153,8 @@ Configure working Live TV in Jellyfin before using the plugin. For program infor
 | File Transformation plugin | Required for injecting the independent web interface. |
 | Plugin Pages 3.x | Optional user-menu shortcut; does not replace File Transformation. |
 
+The [Universal Plugin Repository](https://github.com/0belous/Jellyfin-Universal-Plugin-Repo#jellyfin-compatibility) already includes this stable repository. Its checkmarks compare the server version with each release's `targetAbi`; they are a version-match indicator, not a complete record of tested versions. The 1.3.0.0 release keeps `targetAbi: 12.0.0.0` so Jellyfin 12.0 can install it. A Jellyfin 12.1 server therefore receives one checkmark even though the plugin owner has confirmed it works on 12.1. Two or three checkmarks for 12.1 would require a separately declared 12.1-targeted release without dropping the 12.0-compatible release. Do not raise this single package's minimum ABI solely to change the badge.
+
 Remote playback requires the internal player in the official Jellyfin Android TV app. External players are not supported.
 
 The interface supports English and German. This documentation uses the English labels.
@@ -189,11 +191,11 @@ To test features before their stable release, add this separate repository under
 https://github.com/iEnki/jellyfin-plugin-livetv-control-center/releases/download/beta-channel/manifest-beta.json
 ```
 
-Development for future betas happens on the [beta branch](https://github.com/iEnki/jellyfin-plugin-livetv-control-center/tree/beta). Jellyfin requires four-part versions. After stable 1.2.0.0, use 1.2.0.1-beta, 1.2.0.2-beta, and so on: only the fourth number advances during beta testing. The next stable version must be numerically higher than the highest beta, for example 1.2.1.0, so Jellyfin offers the upgrade automatically.
+Development for future betas happens on the [beta branch](https://github.com/iEnki/jellyfin-plugin-livetv-control-center/tree/beta). Jellyfin requires four-part versions. After stable 1.3.0.0, use 1.3.0.1-beta, 1.3.0.2-beta, and so on: only the fourth number advances during beta testing. The next stable version must be numerically higher than the highest beta, for example 1.3.1.0, so Jellyfin offers the upgrade automatically.
 
 Install or update **Live-TV Control Center** from the plugin catalog and restart Jellyfin. Beta builds use the same plugin identity and preserve existing settings and groups. The beta catalog lists only the latest beta; the stable catalog lists stable releases separately.
 
-The final 1.2.0.0-beta and stable 1.2.0.0 share the same numeric version and features, so Jellyfin may not offer stable as an automatic update to an installation already on that beta. Remove the beta repository to stop future beta offers. To replace that final beta with the stable package immediately, use manual installation while preserving plugin data/configuration.
+Stable 1.3.0.0 has a higher numeric version than the tested 1.2.0.2 beta, so Jellyfin can offer it as an update. Remove the beta repository to stop future beta offers.
 
 ### Manual installation
 
@@ -335,8 +337,8 @@ A custom name is shared by all users and appears in the channel/library entry, w
 
 1. As administrator, open **Dashboard → Plugins → Live-TV Control Center**.
 2. Under **Group administration**, select **Central groups managed by admins**.
-3. Optionally check **Copy my personal groups into central groups** to copy your existing personal groups.
-4. Save, then open **Live-TV Control Center → Manage groups**.
+3. If your admin account has personal groups, explicitly choose **Copy my personal groups into central groups** or **Start with new central groups**. The second choice retains your personal groups in storage but hides them while central mode is active.
+4. Save, then open **Live-TV Control Center → Manage groups**. If you started without copying, open **Administration** again and choose **Copy my saved personal groups into central groups now** to import them later.
 5. Create/edit central groups and configure **User access** per group.
 6. Ensure intended users have Jellyfin access to the plugin channel.
 
@@ -366,7 +368,9 @@ Use your phone as a remote to start and switch Live TV channels on your TV. The 
 
 Switching modes preserves both collections. Enabling central mode does not delete personal groups; returning to personal mode does not delete central groups.
 
-The optional copy operation preserves group IDs/channel order, keeps personal originals and skips IDs already present in the central collection. It does not overwrite previously imported central groups.
+On either switch, administrators choose whether to copy the source collection or continue with the target collection as it is. To bring central groups into your own personal collection, select **Copy central groups into my personal groups** when returning to personal mode. If you skipped the copy, reopen **Administration** in personal mode and select **Copy saved central groups into my personal groups now**. These options are available only to administrators; the reverse copy affects only that admin's personal groups, not other users' collections.
+
+Copies preserve group IDs, channel order and custom group images. Groups already present in the target collection keep their existing settings and image. Neither source collection is deleted or overwritten.
 
 ### Central user access
 
